@@ -15,7 +15,7 @@ You can leave the email setup blank; in this case, when the app sends emails the
 
 After saving the *credentials.R* file, load the *app.R* file into RStudio and click the *Run App* button.
 
-During development you can make changes to most pages and then just reload that page to see your changes rather than restarting the app. This applies to all files except *app.R* itself and the files it loads as global functions: *credentials.R, sql-core.R, sql-initialization.R, and bs4.R* (bs4.R provides shiny support for [Bootstrap 4](https://getbootstrap.com/). 
+During development you can make changes to most pages and then just reload that page to see your changes rather than restarting the app. This applies to all files except *app.R* itself and the files it loads as global functions: *credentials.R, sql-core.R, sql-initialization.R, and bs4.R* (bs4.R provides shiny support for [Bootstrap 4](https://getbootstrap.com/)). 
 
 ### Helpful development tools
 If you get involved in this project, there are three development tools I find extremely useful:
