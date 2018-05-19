@@ -97,11 +97,6 @@ naf = function(x) {          # convert NAs in a logical vector to FALSE
 #     membershipGet(SELECT, WHERE)
 #
 
-   # Return empty 1-row S$U; return real 1-row S$U; return full 2-row SU for an update
-emptySU = function() { return( tibble(userID=0, userName="", hashedPW="", email="", emailOK=FALSE, sPowers=0)) }
-user1SU = function(WHERE) { return(userGet(c("userID", "userName", "hashedPW", "email", "emailOK", "sPowers"), WHERE)) }
-user2SU = function(id) { return(userGet("**", tibble(c("userID", "=", id)))) }
-
 source("sql-core.R", local=TRUE)
 
 if(debugON) { print("Getting SQL.DBs...") }
@@ -540,6 +535,11 @@ server <- function(input, output, session) {
       t = ymd_hms(s) + UTC2me                             # depends on UTC2me offset, see js$getUTC2me().
       return(as.character.POSIXt(t))
    }
+
+   ### S$U holds needed info about the current user and is available throughout the program; these are "one place" functions
+   #      used in the following observer, profile.R, and login.R to make sure what's in S$U stays consistent.
+   emptySU = function() { return( tibble(userID=0, userName="", hashedPW="", email="", emailOK=FALSE, sPowers=0)) }
+   user1SU = function(WHERE) { return(userGet(c("userID", "userName", "hashedPW", "email", "emailOK", "sPowers"), WHERE)) }
 
    # Cookie observer to determine login status
    observeEvent(input$js.sessionID, {                 # Buzzer is a change in the cookie status; only happens once per session

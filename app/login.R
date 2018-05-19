@@ -7,8 +7,8 @@
 output$uiHead <- renderUI(tagList(slimHead, bs4("hr")))
 
 # Logout anyone who gets here and is logged in
-if(S$U$sPowers) {                             # sPower of 1 or more (TRUE) means a user is logged in
-   js$removeCookie("sessionID")               # Delete session id from browser...
+if(S$U$sPowers) {                            # sPower of 1 or more (TRUE) means a user is logged in
+   js$removeCookie("sessionID")              # Delete session id from browser...
    S$U <- emptySU()                          # Get an empty user for S$U
 }
 
@@ -52,7 +52,7 @@ output$uiMeat <- renderUI({rv$limn; isolate({
 
 observeEvent(input$login_btn, {
    errormsg <- ""
-   user2 <- userGet("**", tibble(c("userName", "=", input$userName)))
+   user2 <- userGet("**", tibble(c("userName", "=", esc(input$userName))))
    if(user2$userName[2] != "") {                                        # valid userName?
       if(checkpw(input$password, user2$hashedPW[2])) {                  # right password?
          cookie <- generate_id()                                        # create a new session id

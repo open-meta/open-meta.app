@@ -2,7 +2,11 @@
 ### Tom Weishaar - Oct 2017 - v0.1
 ### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
 
+# Need email
 source("email-core.R", local=TRUE)
+
+# SQL simplification function used multiple times on this page to get a user's record for updating
+getUser2 = function(id) { return(userGet("**", tibble(c("userID", "=", id)))) }
 
 S$fixingemail <- FALSE        # flag to separate fixing email from new regisitation
 S$wrongcode <- 0              # counter to prevent code guessing
@@ -55,7 +59,7 @@ output$uiMeat <- renderUI({rv$limn; isolate({
                )
             )                                            # send the email
             S$tempcode <<- generate_code()
-            if(S$fixingemail) {           # if email is already verified, user is changing email address
+            if(S$fixingemail) {                          # if email is already verified, user is changing email address
                S$emailSubject <<- paste0("Code to verify your ", site_name," account.")
                S$emailText <<- paste0("Here's the code you must enter to change your ", site_name," email address: ", S$tempcode)
             } else {                                     #    otherwise user is verifing email address for a new account
@@ -67,7 +71,7 @@ output$uiMeat <- renderUI({rv$limn; isolate({
             S$emailReplytoName <<- "Verification Robot"
             S$emailReplytoAdr <<- "email-verification@open-meta.org"
             rv$sendEmail <- rv$sendEmail +1
-         } else {                            # logged in and email verified; show profile update inputs
+         } else {                                        # logged in and email verified; show profile update inputs
             if(S$U$sPowers) {
                S$fixingemail <<- TRUE
                user <- userGet(c("namePrefix", "nameFirst", "nameMiddle", "nameLast", "nameSuffix"), tibble(c("userID", "=", S$U$userID)))
@@ -181,10 +185,10 @@ observeEvent(input$fixemail_btn, {
       }
    }
    if(alertText=="") {                                 # No error
-      user2 <- user2SU(S$U$userID)                     # Get full record
-      user2$email[2] <- esc(input$email)              # Get new email address
-      user2$emailOK[2] <- FALSE                       # This will take us to verification on render
-      user2 <- recSave(user2)                         # Save what we have so far
+      user2 <- getUser2(S$U$userID)                    # Get full record
+      user2$email[2] <- esc(input$email)               # Get new email address
+      user2$emailOK[2] <- FALSE                        # This will take us to verification on render
+      user2 <- recSave(user2)                          # Save what we have so far
       S$U <<- user1SU(tibble(c("userID", "=", S$U$userID))) # Refresh S$U
       rv$limn <- rv$limn + 1                           # This will send an email with a new code.
    } else {
@@ -197,7 +201,7 @@ observeEvent(input$fixemail_btn, {
 # This observer is for the OK button after the user enters the code from the email
 observeEvent(input$ok_btn, {
    if(str_trim(input$tempcode) == S$tempcode) {        # If the codes match, save user and login
-      user2 <- user2SU(S$U$userID)                     # Get full record
+      user2 <- getUser2(S$U$userID)                    # Get full record
       user2$emailOK[2] <- TRUE                         # set emailOK
       user2$evDate[2] <- sTime()                       # set emailverified date
       user2 <- recSave(user2)                          #    and save the record
@@ -210,7 +214,7 @@ observeEvent(input$ok_btn, {
       rv$limn <- rv$limn + 1                           # reload page
    } else {
       S$wrongcode <<- S$wrongcode + 1
-      if(S$wrongcode<4) {               # You only get 3 tries to enter the code
+      if(S$wrongcode<4) {                              # You only get 3 tries to enter the code
          S$modal_title <<- "Whoops!"
          S$modal_text <<- "<p>Wrong code. Recheck that email and try again.</p>"
          rv$modal_warning <- rv$modal_warning + 1
@@ -228,7 +232,7 @@ observeEvent(input$ok_btn, {
 observeEvent(input$chgPassword_btn, {
    S$modal_title <<- "Whoops!"
    alertText <- ""
-   if(!checkpw(input$password, S$U$hashedPW[2])) {  # right password?
+   if(!checkpw(input$password, S$U$hashedPW[2])) {          # right password?
       alertText <- paste0(alertText, "<p>That's not your current password.</p>")
    }
    if(input$password1 == "") {
@@ -241,7 +245,7 @@ observeEvent(input$chgPassword_btn, {
       alertText <- paste0(alertText, "<p>Your new passwords don't match.</p>")
    }
    if(nchar(alertText)==0) {                                # Success!
-      user2 <- user2SU(S$U$userID)                          # Get full record
+      user2 <- getUser2(S$U$userID)                         # Get full record
       user2$hashedPW[2] <- hashpw(input$password1)          # Change password
       user2 <- recSave(user2)                               # Save it
       S$U <<- user1SU(tibble(c("userID", "=", S$U$userID))) # Refresh S$U
@@ -253,7 +257,7 @@ observeEvent(input$chgPassword_btn, {
 
 # This observer allows registered users to add and edit their names
 observeEvent(input$fixname_btn, {
-   user2 <- user2SU(S$U$userID)                             # Get full record
+   user2 <- getUser2(S$U$userID)                            # Get full record
    user2$namePrefix[2] <- esc(input$namePrefix)             # Add name fields
    user2$nameFirst[2] <- esc(input$nameFirst)
    user2$nameMiddle[2] <- esc(input$nameMiddle)
