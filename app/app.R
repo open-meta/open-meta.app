@@ -13,13 +13,13 @@ debugON <- TRUE                # if TRUE, prints debugging info to the console (
 ### CREDENTIALS
 # You need to add four passwords to the credentials.R file to get started
 #    DO NOT put your credentials file on GitHub!
-# if(file.exists("credentials.R")) {
-#    source("credentials.R", local=TRUE)
-#    if(debugON) { print("Local credentials loaded...") }
-# } else {
+if(file.exists("credentials.R")) {
+   source("credentials.R", local=TRUE)
+   if(debugON) { print("Local credentials loaded...") }
+} else {
     source("../om2_credentials.R", local=TRUE)       # The cloud app hides the credentials in the app's parent's folder
     if(debugON) { print("Credentials loaded...") }
-#}
+}
 
 ### libraries
 library(shiny)
