@@ -1,6 +1,5 @@
-### om_skeleton profile.R
+### open-meta.app profile.R
 ### Tom Weishaar - Oct 2017 - v0.1
-### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
 
 # Need email
 source("email-core.R", local=TRUE)

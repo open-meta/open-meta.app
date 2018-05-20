@@ -1,10 +1,11 @@
-### sql-initialization.R
+### open-meta.app sql-initialization.R
 ### Tom Weishaar - Nov 2017 - v0.1
+
 ### Code that is only loaded if there is a need to build the initial om$prime database
 
 # Also creates "admin" and "shiny" users.
 
-#  This function creates the SQL command to create a table, based on the given defintion
+#  Load the function that creates the SQL command to create a table, based on the given defintion
 source("sql-create-table.R", local=TRUE)  # createTable = function(db, table, dict=table.definition.list)
 
 DB.Initialization = function(pool, burnItAllDown=FALSE) {

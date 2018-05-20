@@ -1,4 +1,4 @@
-### open-meta prjAdmin.R
+### open-meta.app prjAdmin.R
 ### Tom Weishaar - Apr 2018 - v0.1
 
 # When we arrive here:

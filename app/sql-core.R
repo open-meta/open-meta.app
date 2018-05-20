@@ -1,6 +1,5 @@
-### om_skeleton mysql-startup.R
+### open-meta.app sql-core.R
 ### Tom Weishaar - Nov 2017 - v0.1
-### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
 
 ### FUNCTIONS
 

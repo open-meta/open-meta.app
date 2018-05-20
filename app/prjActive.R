@@ -1,4 +1,4 @@
-### open-meta prjActive.R
+### open-meta.app prjActive.R
 ### Tom Weishaar - Feb 2018 - v0.1
 
 #S$userOK <- S$U$sPowers > 0

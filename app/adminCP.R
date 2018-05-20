@@ -1,4 +1,4 @@
-### open-meta adminUsers.R
+### open-meta.app adminCP.R
 ### Tom Weishaar - Dec 2017 - v0.1
 
 output$uiHead <- renderUI({rv$limn; isolate({

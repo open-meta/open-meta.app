@@ -1,6 +1,5 @@
-### om_skeleton lostpassword.R
+### open-meta.app lostpassword.R
 ### Tom Weishaar - Oct 2017 - v0.1
-### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
 
 source("email-core.R", local=TRUE)
 

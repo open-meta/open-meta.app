@@ -1,4 +1,4 @@
-### open-meta chokidar.R
+### open-meta.app chokidar.R
 ### Tom Weishaar - Apr 2018 - v0.1
 
 # This file provides one place to deal with permissions...

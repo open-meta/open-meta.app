@@ -1,4 +1,4 @@
-### open-meta adminProjects.R
+### open-meta.app adminProjects.R
 ### Tom Weishaar - Feb 2018 - v0.1
 
 # Although users without superpowers can't get here via the menus, they CAN get here by typing in the URL.

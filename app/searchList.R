@@ -1,6 +1,5 @@
-### om_skeleton active.R
-### Tom Weishaar - Feb 2018 - v0.2
-### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
+### open-meta.app searchList.R
+### Tom Weishaar - placeholder
 
 output$uiHead <- renderUI({        # No rv$limn because this only needs to be rendered once.
    if(debugON) {

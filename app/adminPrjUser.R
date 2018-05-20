@@ -1,4 +1,4 @@
-### open-meta adminProjects.R
+### open-meta.app adminPrjUser.R
 ### Tom Weishaar - Feb 2018 - v0.1
 
 source("email-core.R", local=TRUE)

@@ -1,17 +1,41 @@
+### open-meta.app bs4.R
+### Tom Weishaar - Dec 2017
+
 ### Bootstrap4 functions
-#   TomW - Dec 2017
 
-# bs4(tag, args)
-#   Mostly creates a <div></div> with appropriate Bootstrap4 classes, buttons, menus, and toolTIPS are a little different.
-#   Possible tags are
-#      c = container
-#      r = row
-#      c1 through c12 = column with width
-#   Other named args (style="width:12px;") are passed as <div> properties
-#      If there's an id arg, "shiny-html-output" is added to class list
-#   Unnamed args are passed as <div> content
+### Based on the htmltools::tag(), this is a function that takes any number of parameters. Named parameters
+#      (e.g., class="xyz") become attributes ("attribs" in the code) and unnamed parameters become "children".
 
-bs4 = function(flavor, ...) {   # most of the code comes from htmltools::tag()
+# For the most part, what bs4() does is recursively create <div>s that have Bootstrap 4 classes. The very first bs4()
+#     parameter, called "flavor", is a very short code indicating what Bootstrap class to add the the <div>. If you
+#     also pass in your own class attribute, bs4() will add that to the <div>'s class. Any other attributes you pass
+#     in will also be added to the <div>. The "children" get pasted together as the content between <div> and </div>.
+#     So, for example:
+#
+#     bs4("r", style="width:400px;",    # Bootstrap 4 row
+#        bs4("c6",                      # Bootstrap 4 6-unit column
+#           "inner text"                # Text
+#        )                              # Close column </div>
+#     )                                 # Close row </div>
+#
+#     becomes the HTML:
+#
+#     <div style="width:400px;" class="row ">
+#       <div class="col-6 ">inner text</div>
+#     </div>
+#
+#     On-screen this is an invisible row with an invisible column half the width of the row with the words "inner text"
+#        as the only visible thing on the screen . Bootstrap provides CSS that makes what appears on the screen the
+#        same in different browsers and that nicely collapses on small phone screens. If you don't already know
+#        Bootstrap coding, bs4() makes things a bit easier, but not so easy that you can ignore the Bootstrap 4
+#        documentation at https://getbootstrap.com/docs/4.1/getting-started/introduction/
+#
+# The easiest way to review what "flavors" are available is to look through the code below. Note that if you pass in
+#    an "id" attribute to a <div>, it will become a Shiny "ui" output, as if you had written "uiOutput(id)" instead.
+#    Some of the flavors have additional required attributes - they make menus or buttons and more.
+#
+
+bs4 = function(flavor, ...) {                                            # the initial code comes from htmltools::tag()
    argList=list(...)                                                     # stuff all args but the first into a list
    argNames <- names(argList)                                            # get a vector of names
    if (is.null(argNames)) { argNames <- character(length(argList)) }     # if all are null, makes them ""; eg it's character(2), not as.character(2)
@@ -20,12 +44,12 @@ bs4 = function(flavor, ...) {   # most of the code comes from htmltools::tag()
    children <- unname(argList[!namedArgs])                               # make the unnamed items children without any names (ie, not "")
    switch(flavor,
       "d"   = { },                                                       # Just a <div> with attributes and children
-      "c"   = {attribs$class = paste("container", attribs$class)},       # 5 fixed widths with padding on sides if needed
+      "c"   = {attribs$class = paste("container", attribs$class)},       # container; 5 fixed widths with padding on sides if needed
       "cf"  = {attribs$class = paste("container-fluid container-fluid-spacious", attribs$class)}, # always 100% of viewport
-      "r"   = {attribs$class = paste("row", attribs$class)},
+      "r"   = {attribs$class = paste("row", attribs$class)},             # row
       "ca"  = {attribs$class = paste("col-auto", attribs$class)},        # width based on content
       "c0"  = {attribs$class = paste("col", attribs$class)},             # width based on equal-sized columns
-      "c1"  = {attribs$class = paste("col-1", attribs$class)},
+      "c1"  = {attribs$class = paste("col-1", attribs$class)},           # width based on row having 12 width units
       "c2"  = {attribs$class = paste("col-2", attribs$class)},
       "c3"  = {attribs$class = paste("col-3", attribs$class)},
       "c4"  = {attribs$class = paste("col-4", attribs$class)},
@@ -42,12 +66,12 @@ bs4 = function(flavor, ...) {   # most of the code comes from htmltools::tag()
       "cdb" = {attribs$class = paste("card-body", attribs$class)},
       "cdT" = {attribs$class = paste("card-title", attribs$class)},
       "cdt" = {attribs$class = paste("card-text", attribs$class)},
-      "btn" = {return(bs4Button(attribs, children))},
-      "cbx" = {return(bs4Checkbox(attribs, children))},
-      "quill" =  {return(bs4Quill(attribs, children))},
-      "dx"  = { },   # just like "d", but no shiny output with id; mostly needed by bs4Quill
-      "mp"  = {return(HTML0('<ul class="nav nav-pills">', bs4Menus(attribs), '</ul>'))},    # menu as pills (or words with active=0)
-      "mt"  = {return(HTML0('<ul class="nav nav-tabs">', bs4Menus(attribs), '</ul>'))},     # menu as tabs
+      "btn" = {return(bs4Button(attribs, children))},                    # button (see code below)
+      "cbx" = {return(bs4Checkbox(attribs, children))},                  # checkbox (see code below)
+      "quill" =  {return(bs4Quill(attribs, children))},                  # Quill editor (see code below and https://quilljs.com/)
+      "dx"  = { },                                       # just like "d", but no shiny output with id; mostly needed by bs4Quill
+      "mp"  = {return(HTML0('<ul class="nav nav-pills">', bs4Menus(attribs), '</ul>'))}, # menu as pills (or words with active=0)
+      "mt"  = {return(HTML0('<ul class="nav nav-tabs">', bs4Menus(attribs), '</ul>'))},  # menu as tabs
       "md"  = {return(HTML0('<ul class="nav nav-bordered mb-0 clearfix">', bs4Menus(attribs), '</ul><hr class="mt-0 mb-3">'))}, # bs4-dashboard underlined tabs
       "hr"  = {attribs$class = paste("hr-divider pt-3 pb-4", attribs$class)},
       "hr0"  = {attribs$class = paste("hr-divider", attribs$class)},
@@ -60,7 +84,7 @@ bs4 = function(flavor, ...) {   # most of the code comes from htmltools::tag()
                   children[[1]] = HTML0('<h3 class="hr-divider-content hr-divider-heading"><ul class="nav nav-pills">',
                                        bs4Menus(attribs), '</ul></h3>')
                },
-      "tip"  = { # div for tip; put tool inside. Page also needs to call js$tipsOn() - maybe not in bs4
+      "tip"  = { # div for tip; put tool inside. Page also needs to call js$tipsOn()
                  # bs4("tip", p="t", t="Click me", bs4("d", "Click"))
                   attribs["data-toggle"] = "tooltip"
                   if(is.null(attribs$p)) { attribs$p = "b"}
@@ -110,38 +134,44 @@ bs4 = function(flavor, ...) {   # most of the code comes from htmltools::tag()
       attribs$align = NULL
    }
    if(!is.null(attribs$q)) {
-      if("b" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-primary")}  # blue
-      if("g" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-success")}  # green
-      if("i" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-info")}     # purple (in for info, p is used for pills)
+      if("b" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-primary")}   # blue
+      if("g" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-success")}   # green
+      if("i" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-info")}      # purple (in for info, p is used for pills)
       if("y" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-warning text-dark")}  # yellow with black text
-      if("r" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-danger")}   # red
-      if("d" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-dark")}     # black
-      if("n" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-secondary")}     # none
+      if("r" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-danger")}    # red
+      if("d" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-dark")}      # black
+      if("n" %in% attribs$q) {attribs$class = paste(attribs$class, "bg-secondary")} # none
       if("ac" %in% attribs$q) {attribs$class = paste(attribs$class, "text-center")} # align center
       if("ar" %in% attribs$q) {attribs$class = paste(attribs$class, "text-right")}  # align right
       attribs$q = NULL
    }
    if(!is.null(attribs$align)) {attribs$align = NULL}
-   if(!is.null(attribs$text)) {attribs$text = NULL}  # remove attribs used only by bs4() so they don't appear in HTML
+   if(!is.null(attribs$text)) {attribs$text = NULL}             # remove attribs used only by bs4() so they don't appear in HTML
    if(!is.null(attribs$links)) {attribs$links = NULL}
    if(!is.null(attribs$active)) {attribs$active = NULL}
-   if(!is.null(attribs$id) && flavor!="dx") { # if there's an "id", make it a uiOutput unless flavor is "dx"
+   if(!is.null(attribs$id) && flavor!="dx") {                   # if there's an "id", make it a uiOutput unless flavor is "dx"
       attribs$class = paste(attribs$class, "shiny-html-output")
    }
    return(structure(list(name = "div", attribs = attribs, children = children), class = "shiny.tag"))
 }
+#  How to set up a horizontal rule menu:
+#     bs4("hrm", text=c("Register", "Login"), links=c("?profile","?login"), active=0)
 
-# Menus can either be links (urls) or onclicks.
+#  How to set up a horizontal rule with text:
+#     bs4("hrt", "Some Text"),
+
+# Menus can either be links (urls) or on-clicks.
 # All menus need a "text=c()" attribute with one string for each menu item.
 # All menus need an active=n attribute desinating, by number, which text item is currently active.
 #    (if you don't want to highlight the active menu item, make active=0.)
 # If you want links, you need links=c() with the links associated with the menu items.
-# If you want onclicks, you need id="" and n=c(unique numbers); this is turned into "id_n";
+# If you want on-clicks, you need id="" and n=c(unique numbers); this is turned into "id_n";
 #    and comes into an input$js.omclick observer that begins like this:
 #    observeEvent(input$js.omclick, {
 #       click = str_split(input$js.omclick, "_")
 #       id = click[[1]][1]
 #       n = click[[1]][2]
+# There's an example of this observer on almost every page.
 bs4Menus = function(attribs) {
    if((length(attribs$text)!=length(attribs$links)) && (length(attribs$text)!=length(attribs$n))) {
       stop('In bs4Menus(), text vector and links/onclick vector are different lengths.')
@@ -153,9 +183,7 @@ bs4Menus = function(attribs) {
          action = paste0('href="', attribs$links[i], '" ')
       } else {
          id = paste0(attribs$id, "_", attribs$n[i])
-#         id = paste0(attribs$id, "_", attribs$n[i], "_", generate_rnd())
          action = paste0('id="', id, '"')
-#         action = paste0('id="', id, '" onclick="omclick(\'', id, '\')"')
       }
       menuLines = paste0(menuLines, '<li class="nav-item"><a ',
                     action,
@@ -171,12 +199,8 @@ bs4Menus = function(attribs) {
 }
 
 # bs4("quill", id="xyz", h="N", text-to-edit) starts up the JavaScript-based Quill editor.
-# if h="1" (or more), the editor size is fixed to that number of lines and the editor always has a scrollbar.
-# if h="auto", the editor autosizes to the amount of text.
-#    In this case, attribs$min="1" (or more) controls minimum height and attribs$max
-#       controls the point at which a scroll bar appears and the box no longer grows. 35 or so is
-#       probably the maximum max you'd want to use, as the Quill toolbar can get too far away from the
-#       text you're editing with larger sizes, although some keyboard shortcuts are available.
+# Although you can override the default height of the editing window, the way it works by
+#    default is pretty cool.
 # To recover the edited text:
    # js$getEdit(id)
    # observeEvent(input$js.editorText, {
@@ -218,18 +242,19 @@ bs4Quill = function(attribs, children) {
       )
    ))
 }
+# In the above code, "formats:" has to do with what HTML the editor will accept via paste.
+# The "snow" theme as delievered by open-meta.org is slightly tweaked from the factory version.
 
+# bs4Button() - called by code above after bs4("btn"...)
 # Unlike bs4Menus, which creates all the links in a menu, bs4Button creates just one button at a time.
 #   Like menu items, buttons can have id="" and n=(a unique number) or, alternatively, they can have a uid=""
 #   that combines id and n using an underline separator. Clicks appear on the input$js.omclick
 #   observer (see Menus above). They can also include classes not already supported by q=c() and
 #   could also support style="" or links, but neither has been needed or implemented yet.
 bs4Button = function(attribs, children) {
-   if(is.null(attribs$uid)) {                                                    # unique id
-      attribs$uid = paste0(attribs$id, "_", attribs$n)                           # makes unique ID (required!!!)
+   if(is.null(attribs$uid)) {                                                     # unique id
+      attribs$uid = paste0(attribs$id, "_", attribs$n)                            # makes unique ID (required!!!)
    }
-#   attribs$uid = paste0(attribs$uid, "_", generate_rnd())
-#   attribs$onclick = paste0("omclick('", attribs$uid, "')")
    attribs$class = paste("btn border-dark", attribs$class)
    if("xs" %in% attribs$q) {attribs$class = paste(attribs$class, "btn-xs")}
    if("s"  %in% attribs$q) {attribs$class = paste(attribs$class, "btn-sm")}
@@ -253,12 +278,13 @@ bs4Button = function(attribs, children) {
    if("od" %in% attribs$q) {attribs$class = paste(attribs$class, "btn-outline-dark")}
    if("k"  %in% attribs$q) {attribs$class = paste(attribs$class, "btn-link")}
    return(HTML0('<button id="', attribs$uid, '" class="', attribs$class, '">', unlist(children[[1]]), '</button>'))
-#   return(HTML0('<button id="', attribs$uid, '" class="', attribs$class, '" onclick="', attribs$onclick, '">', unlist(children[[1]]), '</button>'))
 }
 
 # Button Groups: this smacks the buttons together; vertical might be useful with icons?
 #   For examples of how these look see:
 #   https://www.w3schools.com/bootstrap/bootstrap_button_groups.asp
+
+# Dropdown menu buttons: this is done by nesting button groups. See bootstrap docs for button groups.
 
 # btn-group
 # btn-group-vertical
@@ -270,29 +296,7 @@ bs4Button = function(attribs, children) {
 # btn-toolbar
 # btn-toolbar-divider
 
-# Dropdown menu buttons: this is done by nesting button groups. See bootstrap docs for button groups.
-
-
-
-# Some tests:
-
-# bs4("btn", id="user", n=10, q=c("s", "k"), "Submit")
-
-
-
-# bs4("r", id="a", HTML0("<p>Here I am</p>"))
-# bs4("ca", id="a", HTML0("<p>Here I am</p>"))
-# bs4("r", align=c("vt", "hs"))
-#
-
-#  How to set up a horizontal rule menu:
-#     bs4("hrm", text=c("Register", "Login"), links=c("?profile","?login"), active=0)
-
-#  How to set up a horizontal rule with text:
-#     bs4("hrt", "Some Text"),
-
-
-# Note: this code creates Shiny checkboxes; they are not supported by omClick() but return TRUE or FALSE to input$id
+# Note: this code creates Shiny checkboxes; they return TRUE or FALSE to input$id
 bs4Checkbox = function(attribs, children) {
    disabled = ""
    class = "form-group shiny-input-container mb-0"

@@ -1,3 +1,6 @@
+### open-meta.app sql-init-project.R
+### Tom Weishaar
+
 # This file has the code needed to initialize a project
 
 # To to set pool and projectID before running this.

@@ -1,6 +1,5 @@
-### om_skeleton login.R
+### open-meta.app login.R
 ### Tom Weishaar - April 2018 - v0.2
-### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
 
 # v.2 Make this the logout page as well.
 

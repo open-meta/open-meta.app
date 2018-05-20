@@ -1,4 +1,4 @@
-### open-meta Join.R
+### open-meta.app Join.R
 ### Tom Weishaar - Apr 2018 - v0.1
 
 # When we arrive here:

@@ -15,7 +15,7 @@ You can leave the email setup blank; in this case, when the app sends emails the
 
 After saving the *credentials.R* file, load the *app.R* file into RStudio and click the *Run App* button.
 
-During development you can make changes to most pages and then just reload that page to see your changes rather than restarting the app. This applies to all files except *app.R* itself and the files it loads as global functions: *credentials.R, sql-core.R, sql-initialization.R, and bs4.R* (bs4.R provides shiny support for [Bootstrap 4](https://getbootstrap.com/)). 
+During development you can make changes to most pages and then just reload that page to see your changes rather than restarting the app. This applies to all files except *app.R* itself and the files it loads as global functions: *credentials.R, sql-core.R, sql-initialization.R, and bs4.R* (*bs4.R* provides Shiny support for [Bootstrap 4](https://getbootstrap.com/)). 
 
 ### Helpful development tools
 If you get involved in this project, there are three development tools I find extremely useful:
@@ -33,7 +33,7 @@ Right now the app uses the following packages:
 * RMariaDB
 * mailR
 * bcrypt     (password encryption)
-* DT         (javascript tables)
+* DT         (JavaScript tables)
 * RefManageR (BibTeX library)
 
 I don't expect to write any statistical software to calculate effect sizes or do meta-analysis but to use existing packages. There is a terrific list of existing R packages related to meta-analysis, maintained by Michael Dewey, at [CRAN Task View: MetaAnalysis](https://cran.r-project.org/web/views/MetaAnalysis.html).

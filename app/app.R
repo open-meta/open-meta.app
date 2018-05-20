@@ -1,4 +1,4 @@
-### om_app app.R
+### open-meta.app app.R
 ### Tom Weishaar - May 2018 - v0.3
 
 ### FLAGS
@@ -13,32 +13,28 @@ debugON <- TRUE                # if TRUE, prints debugging info to the console (
 ### CREDENTIALS
 # You need to add four passwords to the credentials.R file to get started
 #    DO NOT put your credentials file on GitHub!
-if(file.exists("credentials.R")) {
-   source("credentials.R", local=TRUE)
-   if(debugON) { print("Local credentials loaded...") }
-} else {
-   source("../om2_credentials.R", local=TRUE)       # The cloud app hides the credentials in the app's parent's folder
-   if(debugON) { print("Credentials loaded...") }
-}
+# if(file.exists("credentials.R")) {
+#    source("credentials.R", local=TRUE)
+#    if(debugON) { print("Local credentials loaded...") }
+# } else {
+    source("../om2_credentials.R", local=TRUE)       # The cloud app hides the credentials in the app's parent's folder
+    if(debugON) { print("Credentials loaded...") }
+#}
 
 ### libraries
 library(shiny)
-library(htmltools)
-library(lubridate)
-library(DT)
-library(mailR)
-library(DBI)
+library(tidyverse)
 library(pool)
 library(RMariaDB)
-library(bcrypt)         # 2 commands, hashpw("password") and checkpw("password", hash)
-library(jsonlite)
-library(tidyverse)      # Need to add these to AWS instance
-library(stringi)
+library(mailR)
+library(bcrypt)         # password encryption
+library(DT)             # JavaScript tables
 library(RefManageR)     # BibTeX library
 
 ###  GLOBAL FUNCTIONS
 # Time Functions (way up here because sTime() is needed by sql-initialization)
 # Use sTime() to put the current time on the server. bTime() is inside server function.
+# Details: http://www.open-meta.org/technology/r-time-to-our-time-in-multi-user-shiny-web-applications/
 sTime = function(t=now(tz="UTC")) {                    # sTime() = now() as UTC string (aka "server time")
    return(paste(as.character.POSIXt(t), tz(t)))
 }
@@ -64,38 +60,57 @@ naf = function(x) {          # convert NAs in a logical vector to FALSE
 
 ### sql-core functions
 # These functions are fairly automated, but the automation comes with some constraints.
-#    To save a record, you only need to call:
-#       recSave(rec, (db))
-#    recSave() always uses the `table`ID field to determine which table and record to update; zero is a new record.
-# The rec must have two rows. All of the Get functions below can return a new or existing record with
-#    two idential rows. The first row belongs to recSave() and is assumed to be the data before
-#    editing. You should only read from or write to row 2.
-# recSave returns the record as it exists on the server after the INSERT/UPDATE unless there was an
-#    INSERT/UPDATE error, in which case it returns the record as passed to recSave(). In addition, if there
-#    has been an update clash, clash will = 1 and the record will be returned and cannot be resaved until
-#    the clash is cleared.
+#    * The name of the first field in the record must include the name of the table plus "ID".
+#    * You can only save one record at a time (although a loop would be ok)
+#    * To save a NEW record, you must first get a blank two-row tibble with all the
+#        fields in the record, including some fields used only by sql-core.R
+#    * To save an EXISTING record, you must first get a two-row tibble with all the
+#        fields in the record; row 1 has what was in the fields before editing and row
+#        2 has the new data. Don't mess with sql-core's fields: verNum, verUser, verTime,
+#        clash, clashFacts, and deleted.
+# To save a record, you need to call the recSave(rec, db) function.
+#    recSave returns the record as it exists on the server after the INSERT/UPDATE unless
+#       there was an INSERT/UPDATE error, in which case it returns the record as passed to
+#       recSave().
+#    In recSave(rec, db) db defaults to om$prime, for project dbs, use the S$db global,
+#       which holds the db name of the current project. recSave() always uses the
+#       `table-name`ID field to determine which table and record to update;
+#       zero inserts a new record; you can get the record number from the data returned.
+#    If there is an update clash (users overwriting each other's work), clash will == 1
+#       and the details of the clash will be in clashFacts. The adminUsers.R page has some
+#       example code for dealing with clashes.
 #
-# Calling a Get function with no parameters, ie, userGet(), will return a new record with two rows.
+# All of the Get functions below can return a new or existing record with two idential rows.
+#   The first row belongs to recSave() and is assumed to be the data before editing. You
+#   should only read from or write to row 2.
+#
 # The Get function parameters are SELECT and WHERE.
 #    SELECT options:
-#       "**" means two rows, all columns
-#       "*"  means one row, all columns
-#       c("col1","col2") returns only one row and only the requested columns
-#    WHERE is a tibble with three rows; a column name, an operator, and a value and as many columns as you need.
-#       The column results are ANDed together to return the records you want. By default, you get active
-#       records only. You must include a "deleted" column in the tibble to get deleted records.
-#       Example: WHERE=tibble(c("userName", "=", "Admin"), c("deleted", ">=", 0))
-#       No WHERE returns all active records.
+#       "**" means two rows, all columns; use this to get a record for editing
+#       ""   means two rows, all columns of a new, empty record for editing
+#       "*"  means one row, all columns (rare to use this one)
+#       c("col1","col2") means one row, requested columns only
+#    WHERE is a tibble with as many (chr) columns as you need and three rows:
+#          * a column name
+#          * an operator    ("=", "!=", "<", ">", "<=", ">=", " IN ")
+#          * a value
+#       Example: WHERE=tibble(c("userID", "=", 33))
+#          (Numbers in the WHERE tibble will be coerced to strings and that's ok.)
+#       Columns in the WHERE tibble are ANDed together to return the records you want.
+#       By default, you get active records only. You must include a "deleted" column
+#       in the tibble to get deleted records. Example:
+#       WHERE=tibble(c("userName", "=", "Admin"), c("deleted", "=", 1))
+#       To get an entire table, use WHERE=tibble(c("`table-name`ID", ">", 0))
 #
 # The Get functions are:
-#   for tables inside a project:
-#     recGet(S$db, table, SELECT, WHERE)
 #   for om$prime tables:
-#     userGet(SELECT, WHERE) # any of these without parameters returns a new, 2-row record for that table type
-#     prjGet(SELECT, WHERE)
-#     pageGet(SELECT, WHERE)
-#     membershipGet(SELECT, WHERE)
-#
+#     userGet(SELECT, WHERE)        # Any of these four without parameters, ie, userGet(), returns a new, empty,
+#     prjGet(SELECT, WHERE)         #   double-row record for that table type. But that doesn't work with recGet,
+#     pageGet(SELECT, WHERE)        #   see how below. To edit an existing record, use SELECT="**" with a WHERE
+#     membershipGet(SELECT, WHERE)  #   that selects the correct record. This returns a double-row with all
+#   for tables inside a project:    #   of the fields in the record, as required by recSave().
+#     recGet(S$db, table, SELECT, WHERE)   # New, empty, double-row: recGet(S$db, table, SELECT="", WHERE="")
+#                                          # Existing record double-row: recGet(S$db, table, SELECT="**", WHERE=tibble(etc.))
 
 source("sql-core.R", local=TRUE)
 
@@ -161,8 +176,7 @@ ttextInput <- function (inputId, label, value=NULL, groupStyle=NULL, labelStyle=
 #    ))
 # }
 
-
-### Create full name from name parts; expects tibble with one row
+### Create full (user) name from name parts; expects tibble with one row
 fullName = function(u) {
    suffix=""
    if(nchar(u$nameSuffix[1])>0) { suffix = paste0(", ", u$nameSuffix[1]) }
@@ -193,7 +207,7 @@ generate_rnd <- function(z=4) {
    # Get our Bootstrap4 stuff
 source("bs4.R", local=TRUE)
 
-   # This gets data from MySQL, then formats it for omDT()
+   # DT support functions. This one gets data from MySQL, then formats it for omDT()
 omRx = function(db, table, SELECT, WHERE, buttons) {  # SELECT must start with tableID or buttons won't work right
    Rx <- recGet(db, table, SELECT, WHERE)             # Get records to display
    if(Rx[1,1]==0) {                                   # if [1,1]==0, nothing was returned
@@ -294,11 +308,7 @@ if(showSysMsg) {
    sysMsg = ""
 }
 
-
 ### This is the ui; it uses the index.html template to load CSS and JavaScript files, etc.
-###    The <html> tag includes: style="font-size:1.8vw;" in an effort to make the font size
-###       sensitive to the screen size. The <body> tag has no styles. Note that BootStrap CSS
-###       has additional styles for both tags.
 
 ui <- htmlTemplate("index.html",
          uiBody = bs4("cf",
@@ -333,7 +343,7 @@ slimHead <- tagList(
    )
 )
 
-sessionNum = 0   # This app variable allows us to identify a session in the debugging output
+sessionNum = 0   # This app-global variable allows us to identify a session in the debugging output
 
 incSN = function() {
    sessionNum <<- sessionNum + 1
@@ -351,8 +361,8 @@ options(shiny.maxRequestSize = as.numeric(r)*1024^2 ) # convert MB to bytes
 ### Server Function
 ### Note that what's above here loads only one time, when the app starts.
 ### What's below here (the server function) runs every time a new session starts and stops when the session ends.
-###    Multiple users have different sessions from each other, of course, but when you use this skeleton,
-###    even single users end a session and start a new one every time they go to a different page on the site.
+###    Multiple users have different sessions from each other, of course, but with the open-meta.app, even
+###    single users end a session and start a new one every time they go to a different page on the site.
 
 server <- function(input, output, session) {
 
@@ -445,9 +455,9 @@ server <- function(input, output, session) {
 
 # Functions for running javascript on the browser
 #   Because these communicate using the session object, they have to be in the server.
-#   In general, the first parameter is the name of the function and the second is a list of named parameters
-#   The javascript code is loaded by the header template and is in the file open-meta.js
-#   All these functions are stored in the js$ global
+#   In general, the first parameter is the name of the function and the second is a list
+#   of named parameters. The javascript code is loaded by the header template and is in
+#   the file open-meta.js. All these functions are stored in the js$ global
    js = list()
 
    js$redirect = function(url) {
@@ -531,6 +541,7 @@ server <- function(input, output, session) {
 
    ### bTime()
    #   Use bTime to display server times in user's local time. For sTime(), see the top of app.R
+   #   Details: http://www.open-meta.org/technology/r-time-to-our-time-in-multi-user-shiny-web-applications/
    bTime = function(s, UTC2me=S$UTC2me) {  # bTime(t) = server time as "browser time" string
       t = ymd_hms(s) + UTC2me                             # depends on UTC2me offset, see js$getUTC2me().
       return(as.character.POSIXt(t))
@@ -548,9 +559,8 @@ server <- function(input, output, session) {
          S$U <<- emptySU( )                           # Use a blank S$U
          if(debugON) { cat("...cookie is blank.\n") }
       } else {
-         #S$user <<- userGet("**", tibble(c("sessionID", "=", input$js.sessionID)))   # depricated
          S$U <<- user1SU(tibble(c("sessionID", "=", input$js.sessionID)))
-         if(S$U$userID != 0) {   # Already logged in
+         if(S$U$userID != 0) {                        # Already logged in
             if(debugON) {
                cat(paste0("...user is ", S$U$userName, "\n"))
             }

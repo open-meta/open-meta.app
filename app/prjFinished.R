@@ -1,4 +1,4 @@
-### open-meta prjFinished.R
+### open-meta.app prjFinished.R
 ### Tom Weishaar - Feb 2018 - v0.1
 
 S$userOK <- S$U$sPowers > 0

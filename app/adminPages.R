@@ -1,4 +1,4 @@
-### open-meta adminPages.R
+### open-meta.app adminPages.R
 ### Tom Weishaar - Dec 2017 - v0.1
 
 # Although users without superpowers can't get here via the menus, they CAN get here by typing in the URL.

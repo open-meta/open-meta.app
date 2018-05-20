@@ -27,3 +27,5 @@ rsconnect/
 .Rproj.user
 open-meta.app.Rproj
 README.html
+om2_credentials.R
+temp

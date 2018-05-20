@@ -1,7 +1,9 @@
-# This is in a separate file because it's rarely used, but when it is, it's in two wildly different places
+### open-meta.app sql-create-table.R
+# Tom Weishaar
+
+# This is in a separate file because it's rarely used, but when it is, it's in two wildly different places.
 #    One is when initializing a new setup (sql-initialization.R)
 #    The other is when initializing a new project (prjNew.R)
-
 
 #  This function creates the SQL command to create a table, based on the given defintion
 createTable = function(db, table, dict=table.definition.list) {

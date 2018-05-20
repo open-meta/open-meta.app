@@ -1,4 +1,4 @@
-### open-meta Search.R
+### open-meta.app Search.R
 ### Tom Weishaar - Apr 2018 - v0.1
 
 # When we arrive here:
@@ -84,11 +84,12 @@ observeEvent(input$js.editorText, {
       },
       message(paste0("In input$js.editorText observer, no handler for ", id, "."))
    )
-   S$SRCH2$searchName[2] <<- esc(str_sub(input$searchName, 1, 254))
+   S$SRCH2$searchName[2] <<- esc(str_sub(input$searchName, 1, 254))    # VARCHAR(254) in SQL
    # $status filled in by "Check Search"
    S$SRCH2$database[2]   <<- input$database
    if(!is.null(input$otherDB)) {
-      S$SRCH2$otherDB[2] <<- esc(str_sub(input$otherDB, 1, 60))
+      S$SRCH2$otherDB[2] <<- esc(str_sub(input$otherDB, 1, 60))        # VARCHAR(60) in SQL
+print(S$SRCH2$otherDB[2])
    }
    S$SRCH2$beginDate[2]  <<- input$searchDates[1]
    S$SRCH2$endDate[2]    <<- input$searchDates[2]
@@ -169,11 +170,11 @@ if(S$P$Msg=="") {
                                  selectInput('database', 'Database', choices=databases,
                                  selected=S$SRCH2$database[2], selectize=FALSE)))
                         } else {
-                           addOtherDB = tagList(                       # "All Other"; change formatting, add field
+                           addOtherDB = tagList(                    # "All Other"; change formatting, add field
                               bs4("d",                              # different class puts dropdown above text input
                                  selectInput('database', 'Database', choices=databases,
-                                 selected=S$SRCH2$database[2], selectize=FALSE)),
-                              bs4("d", class="figure", ttextInput("otherDB", "Database Name")))  # add text input
+                                 selected=S$SRCH2$database[2], selectize=FALSE)),            # add text input-vvv
+                              bs4("d", class="figure", ttextInput("otherDB", "Database Name", value=S$SRCH2$otherDB[2])))
                         }
                         n = which(databases==S$SRCH2$database[2])   # get index into databases to determine which
                         tagList(                                    #   file formats to display

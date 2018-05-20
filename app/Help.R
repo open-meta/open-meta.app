@@ -1,4 +1,4 @@
-### Help.R
+### open-meta.app Help.R
 ### Tom Weishaar - Apr 2018 - v0.1
 
 # No chokidar because anyone can use this page; even login isn't required

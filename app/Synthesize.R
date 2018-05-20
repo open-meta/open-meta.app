@@ -1,5 +1,5 @@
-### open-meta Synthesize.R
-### Tom Weishaar - Apr 2018 - v0.1
+### open-meta.app Synthesize.R
+### Tom Weishaar - placeholder
 
 # When we arrive here:
 #   * S$U is a 1x5 tibble with userID, userName, email, sPowers, and emailOK

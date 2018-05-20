@@ -1,4 +1,4 @@
-### open-meta Protocol.R
+### open-meta.app Protocol.R
 ### Tom Weishaar - Apr 2018 - v0.1
 
 # When we arrive here:

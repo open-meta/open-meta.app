@@ -1,4 +1,4 @@
-### open-meta email-core.R
+### open-meta.app email-core.R
 ### Tom Weishaar - May 2018 - v0.2
 
 # v0.2 - Added "noEmail" flag to put send emails in a modal dialog; this makes it possible to run the app
