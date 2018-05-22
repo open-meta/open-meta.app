@@ -485,7 +485,7 @@ helpText='
 r = saveP(order, title, helpText)
 
 order="Di"
-title="Meta-baises"
+title="Meta-biases"
 helpText='
 <p>Empirical evidence suggests that a meta-analysis itself, as differentiated from the trials it summarizes, can be biased. The two primary forms of this bias are publication bias and outcome reporting bias. Publication bias results from the likelihood that trials with statistically significant results are more likely to be published. Outcome reporting bias results when researchers report only the significant results from a trial and leave unsignificant outcomes unreported. Discuss how you will guard against these types of bias.</p>
 '
