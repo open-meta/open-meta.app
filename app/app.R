@@ -13,17 +13,29 @@ debugON <- TRUE                # if TRUE, prints debugging info to the console (
 ### CREDENTIALS
 # You need to add four passwords to the credentials.R file to get started
 #    DO NOT put your credentials file on GitHub!
-if(file.exists("credentials.R")) {
-   source("credentials.R", local=TRUE)
-   if(debugON) { print("Local credentials loaded...") }
-} else {
+# if(file.exists("credentials.R")) {
+#    source("credentials.R", local=TRUE)
+#    if(debugON) { print("Local credentials loaded...") }
+# } else {
     source("../om2_credentials.R", local=TRUE)       # The cloud app hides the credentials in the app's parent's folder
     if(debugON) { print("Credentials loaded...") }
-}
+#}
 
 ### libraries
 library(shiny)
+library(htmltools)
+
 library(tidyverse)
+library(httr)           # This group is *installed* by tidyverse, but library(tidyverse)
+library(jsonlite)       #    doesn't attach them, so we have to do that by hand.
+library(lubridate)      #    For details, see:
+library(magrittr)       # http://www.open-meta.org/all/r-packages-attached-vs-loaded-all-about-those-doublecolons/
+library(stringi)
+library(xml2)
+
+library(RCurl)          # Need to add tis one to Lightsail
+library(rvest)
+
 library(pool)
 library(RMariaDB)
 library(mailR)
@@ -38,12 +50,15 @@ library(RefManageR)     # BibTeX library
 sTime = function(t=now(tz="UTC")) {                    # sTime() = now() as UTC string (aka "server time")
    return(paste(as.character.POSIXt(t), tz(t)))
 }
-   # escape input to prevent HTML injection
-esc = function(s) {
-#   s = str_replace_all(s, '"', "&quot;")
-#   s = str_replace_all(s, "'", "&#39;")
-#   s = str_replace_all(s, "`", "&#96;")
-   return(htmlEscape(s))
+   # ways to prevent HTML injection
+esc = function(s) {                            # depricated; need to remove usages before deleting, however...
+   return(htmltools::htmlEscape(s))
+}
+escHTML = function(s) {
+   return(htmltools::htmlEscape(s))
+}
+stripHTML = function(s) {
+   return(rvest::html_text(xml2::read_html(s)))
 }
 
 nat = function(x) {          # convert NAs in a logical vector to TRUE
