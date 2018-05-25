@@ -15,11 +15,17 @@ source("chokidar.R", local=TRUE)
 # Single place to define these.
 databases = c("PubMed", "Cochrane Central", "Web of Knowledge", "All Other")
 citeFormats = list(c("Live", "PMID", "MEDLINE or .nbib"), "Cochrane Central Export", "EndNote Desktop (.ciw)", c("RIS", "BibTeX", "PMID"))
-S$SRCH$id = 0     # Initialize for new search; edit will update
-rv$processFile    # Trigger to begin processFile observer
-rv$hitCounter = 0 # Trigger to update "Number of citations in this search" readonly field
-rv$render = 0     # Trigger to render page after dealing with input initializatons
-S$PF$trigger = 1  # Which section we're processing now (used with invalidateLater())
+S$SRCH$id = 0      # Initialize for new search; edit will update
+rv$processFile = 0 # Trigger to begin processFile observer
+rv$hitCounter = 0  # Trigger to update "Number of citations in this search" readonly field
+rv$render = 0      # Trigger to render page after dealing with input initializatons
+S$PF$trigger = 1   # Which section we're processing now (used with invalidateLater())
+
+S$PM = list()     # PubMed Search
+S$PM$minDelay = 400        # in milliseconds get this from settings eventually
+S$PM$lastTime = now()
+S$PM$search <- FALSE
+rv$PMsearch <- 0
 
 # Only needed on this page:
 searchGet = function(db=S$db, SELECT="", WHERE=tibble(c("searchID", ">", "0"))) {
@@ -72,11 +78,21 @@ observeEvent(input$js.editorText, {
    switch(id,
       "terms" = {
          S$SRCH2$terms[2] <<- t
-         return(js$getEdit("query"))
+         if(S$PM$search) {
+            S$PM$search <<- FALSE
+            rv$PMsearch <- rv$PMsearch + 1
+            return()                   # if we're doing a PubMed Search, go there now
+         } else {                      # else continue down the path we're headed...
+            return(js$getEdit("query"))
+         }
       },
       "query" = {
-         S$SRCH2$query[2] <<- t
-         return(js$getEdit("comment"))
+         if(S$SRCH2$database[2]=="PubMed" && S$SRCH2$CFchosen[2]=="Live") { # If this is a PubMed Live search
+            return(js$getEdit("comment"))                                   #   we got the Query from PubMed;
+         } else {                                                           #   don't overwrite it.
+            S$SRCH2$query[2] <<- t
+            return(js$getEdit("comment"))
+         }
       },
       "comment" = {
          S$SRCH2$comment[2] <<- t
@@ -230,10 +246,7 @@ if(S$P$Msg=="") {
                                     HTML("Terms"),
                                     bs4("quill", id="terms", S$SRCH2$terms[2]),
                                     bs4("d", bs4("btn", class="mb-3", id="searchpubmed", q=c("p", "s", "b"), "Search PubMed")),
-                                    if(S$SRCH2$query[2]!="") HTML("PubMed translated your Terms into this Query", "<p>", S$SRCH2$query[2], "</p>")
-
-                                    # Make this a readonly input
-
+                                    if(S$SRCH2$query[2]!="") HTML("PubMed translated your Terms into this Query", "<p><i>", S$SRCH2$query[2], "</i></p>")
                                  )
                               } else {
                                  tagList(
@@ -667,6 +680,31 @@ loadFile = function() {
 #    )
 # })
 
+# PubMed search
+# Save terms in S$SRCH2$terms[2]; trigger rv$PMsearch
+observe({
+   if(rv$PMsearch>0) {
+print("=========Inside PMsearch observer")
+      pauseFor <- S$PM$minDelay - (seconds(now()-S$PM$lastTime)*1000)  # If required delay minus time elapsed is
+      if(pauseFor > 0) {                                               #    more than 0
+         invalidateLater(pauseFor)                                     #    pause that long
+      } else {                                                         # Otherwise, do the search
+         S$PM$lastTime <<- now()                                       # Note time of search execution
+         terms <- stripHTML(S$SRCH2$terms[2])                          # Remove any HTML from terms
+         Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?tool=rct.app&email=jtw2117@columbia.edu"
+         url <- paste0(Esearch, "&term=", str_replace_all(terms, " ", "+"))    # fix url; also replace " " with "+"
+         raw <- xml2::read_xml(RCurl::getURL(url))                                          # get xml
+         S$SRCH2$citesL1[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
+         S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
+         pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
+         r = tibble(SID=1:length(pmids), PMID=pmids)
+         S$SRCH2$fileRaw[2]  <<- toJSON(r)
+         isolate(rv$render <- rv$render + 1)
+      }
+   }
+})
+
+
 ### observer for omclick
 observeEvent(input$js.omclick, {
    if(debugON) {
@@ -748,10 +786,8 @@ observeEvent(input$js.omclick, {
          rv$modal_warning <- rv$modal_warning + 1
       },
       "searchpubmed" = {
-         S$modal_title <<- "Upcoming Feature"
-         S$modal_text <<- HTML("<p>Ability to search PubMed coming soon.</p>")
-         S$modal_size <<- "l"
-         rv$modal_warning <- rv$modal_warning + 1
+         S$PM$search <<- TRUE                       # Flag to tell input$js.editorText to run rv$PMsearch observer
+         return(js$getEdit("terms"))                #   after getting terms out of Quill editor
       },
       "save" = {
          S$saveSearch <<- TRUE
