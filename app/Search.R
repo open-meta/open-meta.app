@@ -137,11 +137,12 @@ print(S$SRCH2$otherDB[2])
          rv$modal_warning <- rv$modal_warning + 1
       } else {
          S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
-         S$hideMenus <<- FALSE            # Back to regular programming
          rv$menuActive = 1
+         S$hideMenus <<- FALSE            # Back to regular programming
+         rv$limn = rv$limn + 1            # Need to re-limn here to get menus back, but skip for modal dialog
       }
    } else {                               # Not a save, just a render
-      rv$render = rv$render + 1           # whether msg or not, next step is to render the page
+      rv$render = rv$render + 1           # If not a save, just proceed to next step of rendering the page
    }
 })
 
@@ -694,12 +695,24 @@ print("=========Inside PMsearch observer")
          Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?tool=rct.app&email=jtw2117@columbia.edu"
          url <- paste0(Esearch, "&term=", str_replace_all(terms, " ", "+"))    # fix url; also replace " " with "+"
          raw <- xml2::read_xml(RCurl::getURL(url))                                          # get xml
-         S$SRCH2$citesL1[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
-         S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
-         pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
-         r = tibble(SID=1:length(pmids), PMID=pmids)
-         S$SRCH2$fileRaw[2]  <<- toJSON(r)
-         isolate(rv$render <- rv$render + 1)
+         error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
+         if(is.na(error)) {                                            # An NA error message means no error!
+            S$SRCH2$citesL1[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
+            S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
+            pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
+            r = tibble(SID=1:length(pmids), PMID=pmids)
+            S$SRCH2$fileRaw[2]  <<- toJSON(r)
+            S$SRCH2$fileName[2] <<- "Live PubMed Search"
+            S$SRCH2$fileSize[2] <<- 0
+            S$SRCH2$fileType[2] <<- "xml"
+            S$SRCH2$fileTime[2] <<- sTime()
+            isolate(rv$render <- rv$render + 1)
+         } else {
+            S$modal_title <<- "PubMed Error"
+            S$modal_text <<- HTML0("<p>PubMed returned the following error: <b>", error, "</b></p>")
+            S$modal_size <<- "l"
+            isolate(rv$modal_warning <- rv$modal_warning + 1)
+         }
       }
    }
 })
@@ -790,6 +803,7 @@ observeEvent(input$js.omclick, {
          return(js$getEdit("terms"))                #   after getting terms out of Quill editor
       },
       "save" = {
+         # S$hideMenus <<- FALSE                    # With save, this happens later
          S$saveSearch <<- TRUE
          return(js$getEdit("terms"))
       },
