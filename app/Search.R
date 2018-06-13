@@ -80,6 +80,8 @@ observeEvent(input$js.editorText, {
          S$SRCH2$terms[2] <<- t
          if(S$PM$search) {
             S$PM$search <<- FALSE
+            S$SRCH2$beginDate[2]  <<- as.character(input$searchDates[1])  # Need these for the search
+            S$SRCH2$endDate[2]    <<- as.character(input$searchDates[2])
             rv$PMsearch <- rv$PMsearch + 1
             return()                   # if we're doing a PubMed Search, go there now
          } else {                      # else continue down the path we're headed...
@@ -107,8 +109,6 @@ observeEvent(input$js.editorText, {
       S$SRCH2$otherDB[2] <<- esc(str_sub(input$otherDB, 1, 60))        # VARCHAR(60) in SQL
 print(S$SRCH2$otherDB[2])
    }
-   S$SRCH2$beginDate[2]  <<- input$searchDates[1]
-   S$SRCH2$endDate[2]    <<- input$searchDates[2]
    # S$SRCH2$terms[2] handled above
    # S$SRCH2$query[2] handled above
    S$SRCH2$CFchosen[2]   <<- input$citeFormat
@@ -240,7 +240,7 @@ if(S$P$Msg=="") {
                               databaseFields,
                               citeLevelRadios,
                               ttextInput("searchName", "Search Name", value=S$SRCH2$searchName[2], groupClass="w-75"),
-                              dateRangeInput("searchDates", label="Date range of search",
+                              dateRangeInput("searchDates", label="Publication date range of this search",
                                        start=S$SRCH2$beginDate[2], end=S$SRCH2$endDate[2]),
                               if(S$SRCH2$CFchosen[2]=="Live") {
                                  tagList(
@@ -683,18 +683,43 @@ loadFile = function() {
 
 # PubMed search
 # Save terms in S$SRCH2$terms[2]; trigger rv$PMsearch
+
+
+# "1781/01/01"[PDAT] : "1781/02/01"[PDAT]
+
+   # terms_in = terms                                              # save for output
+   #    # update terms to include RetMax and search from date: yyyy/mm/dd as a string
+   # from_date=str_sub(from_date,1,10)
+   # to_date=str_sub(to_date,1,10)
+   # terms = paste0('&RetMax=', max, '&term=("', from_date, '"[MDAT]:"', to_date , '"[MDAT]) AND ', terms)
+
+#
+
 observe({
    if(rv$PMsearch>0) {
 print("=========Inside PMsearch observer")
+print(S$SRCH2$beginDate[2])
+print(S$SRCH2$endDate[2])
       pauseFor <- S$PM$minDelay - (seconds(now()-S$PM$lastTime)*1000)  # If required delay minus time elapsed is
       if(pauseFor > 0) {                                               #    more than 0
          invalidateLater(pauseFor)                                     #    pause that long
       } else {                                                         # Otherwise, do the search
          S$PM$lastTime <<- now()                                       # Note time of search execution
-         terms <- stripHTML(S$SRCH2$terms[2])                          # Remove any HTML from terms
+         max = 1
+         terms <- stripHTML(S$SRCH2$terms[2])                          # Remove <p></p> and any other HTML from terms
+         if(is.na(S$SRCH2$beginDate[2])) { S$SRCH2$beginDate[2] <<- "1000-01-01" }       # default begin date
+         if(is.na(S$SRCH2$endDate[2])) { S$SRCH2$endDate[2] <<- str_sub(now(), 1, 10) }  # default end date
+         if(str_detect(terms, coll("[PDAT]"))) {                       # coll means NOT REGEX
+            terms = paste0('&term=', terms)                            # Don't add PDAT if terms already has it
+         } else {
+            if(terms!="") { terms <- paste0(" AND ", terms) }          # Add AND (dates AND terms) unless terms is blank
+            terms = paste0('&term=("', S$SRCH2$beginDate[2], '"[PDAT]:"', S$SRCH2$endDate[2] , '"[PDAT])', terms)
+         }
          Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?tool=rct.app&email=jtw2117@columbia.edu"
-         url <- paste0(Esearch, "&term=", str_replace_all(terms, " ", "+"))    # fix url; also replace " " with "+"
-         raw <- xml2::read_xml(RCurl::getURL(url))                                          # get xml
+         url <- paste0(Esearch, '&RetMax=', max, str_replace_all(terms, " ", "+"))    # fix url; also replace " " with "+"
+print(url)
+         xml <- RCurl::getURL(url)                                     # get xml
+         raw <- xml2::read_xml(xml)                                    # read xml
          error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
          if(is.na(error)) {                                            # An NA error message means no error!
             S$SRCH2$citesL1[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
@@ -773,11 +798,12 @@ observeEvent(input$js.omclick, {
 "<p>Note that PubMed will convert your Date Range and Terms into a Query that will be ",
 "somewhat different from what you've entered. The PubMed-revised Query will be displayed after you search. ",
 "To edit the query, copy and paste it into the Terms field and search again.</p>",
-"<p>After searching you will also see the number of citations found by your search, ",
-"but not actual examples of the citations found. For that, enter the Query in ",
+"<p>After searching you will also see the <i>number</i> of citations found by your search, ",
+"but not actual <i>examples</i> of the citations. For that, enter the Query in ",
 "<a href='https://www.ncbi.nlm.nih.gov/pubmed/', target='_blank'>PubMed</a> itself.</p>",
-"<p>The search record will keep the PubMed IDs of the citations found by your search. These will be ",
-"expanded into complete citations, using Entrez, when the search record is processed.")
+"<p>This link provides complete information on PubMed's ",
+"<a href='https://www.ncbi.nlm.nih.gov/books/NBK3827/#pubmedhelp.Search_Field_Descriptions_and', target='_blank'>",
+"Search Field Descriptions and Tags</a>, which can be helpful for interpreting the returned Query.</p>")
             },
             "PMID" = {
                S$modal_text <<- HTML0("<p><b>PubMed PMID Format</b></p>",
