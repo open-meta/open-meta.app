@@ -13,8 +13,8 @@ source("chokidar.R", local=TRUE)
 #   * S$P$Modify  - whether the user has permission to modify things on this page
 
 # Single place to define these.
-databases = c("PubMed", "Cochrane Central", "Web of Knowledge", "All Other")
-citeFormats = list(c("Live", "PMID", "MEDLINE or .nbib"), "Cochrane Central Export", "EndNote Desktop (.ciw)", c("RIS", "BibTeX", "PMID"))
+databases = c("PubMed", "Cochrane Central", "Web of Science", "All Other")
+citeFormats = list(c("Live", "PMID", "MEDLINE or .nbib"), "Cochrane Central Export", "EndNote Desktop (.ciw)", c("RIS", "BibTeX", "MEDLINE or .nbib", "PMID"))
 S$SRCH$id = 0      # Initialize for new search; edit will update
 rv$processFile = 0 # Trigger to begin processFile observer
 rv$hitCounter = 0  # Trigger to update "Number of citations in this search" readonly field
@@ -204,7 +204,7 @@ if(S$P$Msg=="") {
                      }
                      citeLevelRadios = {
                         citeSelected = c("Level 1 only", "Level 2 only", "Both")[S$SRCH2$citeLevel[2]]
-                        if(!is.null(input$database) && input$database == "Web of Knowledge") {
+                        if(!is.null(input$database) && input$database == "Web of Science") {
                         radioButtons("citeLevel", label="Citations to include",
                            choices=list("Level 1 only", "Level 2 only", "Both"),
                            selected=citeSelected, inline=TRUE)
@@ -224,7 +224,7 @@ if(S$P$Msg=="") {
 # "<ul>",
 # "<li>First select a database - the inputs on the page change depending on the database you select.</li>",
 # "<li>PubMed-Live actually runs the terms you enter on PubMed (because it's open to the public) and tells you how many hits it finds.</li>",
-# "<li>If you pick <b><i>Web of Knowledge</i></b>, radio buttons will appear with the label <b>Citations to Include</b>.",
+# "<li>If you pick <b><i>Web of Science</i></b>, radio buttons will appear with the label <b>Citations to Include</b>.",
 #    "<i>Level 2</i> means the references cited by the Level 1 references. Level 2 is useful if your search is a very short",
 #    "list of other systematic reviews on your topic, but avoid it otherwise.</li>",
 # "<li>These databases all allow you to download references in several formats; choose the one that Open-Meta supports.</li>",
@@ -336,7 +336,7 @@ observeEvent(c(input$searchName, input$otherDB), {
 #    Also updates the filename readonly input to accomodate search editing
 observeEvent(rv$hitCounter, {
    if(!is.null(isolate(input$database)) && !is.null(S$SRCH2$citesL1[2]) && S$SRCH2$citesL1[2]>0) {                          # For CIW, report both Level 1 and Level 2
-      if(isolate(input$database)=="Web of Knowledge") {
+      if(isolate(input$database)=="Web of Science") {
          hc = paste0("Level 1: ", S$SRCH2$citesL1[2], "; Level 2: ", S$SRCH2$citesL2[2])
       } else {
          hc = format(S$SRCH2$citesL1[2], big.mark=",") # Otherwise, just the level 1 number, with commas
@@ -765,25 +765,126 @@ observeEvent(input$js.omclick, {
       "details" = {
          switch(input$citeFormat,
             "Live" = {
-               S$modal_text <<- HTML("<p>More about the Live format</p>")
+               S$modal_text <<- HTML0("<p><b>PubMed Live Format</b></p>",
+"<p>This is a live search of the US National Library of Medicine's PubMed database ",
+"using the Date Range and Terms you enter. Sponsored by the US National Institues of Health, ",
+"PubMed is a freely available resource. The Open-Meta app communicates with PubMed using ",
+"the library's <i>Entrez E-utilties</i> computer-to-computer interface.</p> ",
+"<p>Note that PubMed will convert your Date Range and Terms into a Query that will be ",
+"somewhat different from what you've entered. The PubMed-revised Query will be displayed after you search. ",
+"To edit the query, copy and paste it into the Terms field and search again.</p>",
+"<p>After searching you will also see the number of citations found by your search, ",
+"but not actual examples of the citations found. For that, enter the Query in ",
+"<a href='https://www.ncbi.nlm.nih.gov/pubmed/', target='_blank'>PubMed</a> itself.</p>",
+"<p>The search record will keep the PubMed IDs of the citations found by your search. These will be ",
+"expanded into complete citations, using Entrez, when the search record is processed.")
             },
             "PMID" = {
-               S$modal_text <<- HTML("<p>More about the PMID format</p>")
+               S$modal_text <<- HTML0("<p><b>PubMed PMID Format</b></p>",
+"<p><b>PMID</b> stands for <i>PubMed ID</i>. This format is just a text list of ",
+"identification numbers, with each number on its own line.</p><p>The beginning of a ",
+"file in this format looks like this (with different numbers):<pre>",
+"26068298
+26068297
+26429571
+26481332
+26219612</pre>",
+"<p>You can easily create a file like this by hand, which can be useful for entering extra ",
+"citations you've found outside a standard search if those citations are in PubMed. ",
+"PubMed itself will also let you download a citation file in this format. First click ",
+"<i>Send to</i>, set the Destination to <i>File</i>, and the Format to <i>PMID List</i> ",
+"as shown here:</p>",
+"<img src='http://assets.open-meta.org/images/pubmed-pmid.png' class='img-center'>")
             },
             "MEDLINE or .nbib" = {
-               S$modal_text <<- HTML("<p>More about the MEDLINE .nbib format</p>")
+S$modal_text <<- HTML0("<p><b>MEDLINE or .nbib Format</b></p>",
+"<p>The MEDLINE database is part of PubMed and is also available from Ovid and other ",
+"database vendors. The National Library of Medicine has created a controlled vocabulary of ",
+"medical subject headings, known as <b>MeSH</b>, that can be used on PubMed and MEDLINE to ",
+"find relevant citations.</p><p>The beginning of a MEDLINE-formatted (.nbib) file looks like this:</p>",
+"<pre>PMID- 26957379
+OWN - NLM
+STAT- MEDLINE
+DCOM- 20161230
+LR  - 20161231</pre>",
+"<p>Both PubMed and Ovid will let you download a citation file in this format. On PubMed, click ",
+"<i>Send to</i> and set the Destination to <i>Citation manager</i> as shown here:</p>",
+"<img src='http://assets.open-meta.org/images/pubmed-medline.png' class='img-center'>")
             },
             "Cochrane Central Export" = {
-               S$modal_text <<- HTML("<p>More about the Cochrane format</p>")
+S$modal_text <<- HTML0("<p><b>Cochrane Central Export Format</b></p>",
+"<p>The Cochrane Central Register of Controlled Trials (<a href='http://cochranelibrary-wiley.com/cochranelibrary/search', target='_blank'>CENTRAL</a>) ",
+"contains a record for every trial ever examined in Cochrane's own systematic reviews. It's updated monthly with ",
+"new trial records from MEDLINE, EMBASE, and additional sources. It also supports the US National Library of ",
+"Medicine's <b>MeSH</b> subject vocabulary.</p><p>The beginning of a CENTRAL file looks like this:</p>",
+"<pre>Record #1 of 14
+ID: CD000227
+AU: Avenell Alison
+AU: Mak Jenson CS
+AU: O'Connell Dianne
+</pre>",
+"<p>The big advantage of CENTRAL is that it provides all the randomized controlled trials ever found by Cochrane researchers, ",
+"who are the gold-standard experts in systematic reviewing. It also provides one-click access to everything it finds for you. ",
+"After refining your search, simply click the <i>Export all</i> link shown here:</p>",
+"<img src='http://assets.open-meta.org/images/cochrane-central-1.png', class='img-center'",
+"<p><br>When exporting from CENTRAL, make sure you pick the <b>Citation And Abstract</b> <i>File type</i> as ",
+"shown here, rather than <b>Citation Only</b>. For <i>Export type</i>, match your own computer's operating system.</p>",
+"<img src='http://assets.open-meta.org/images/cochrane-central-2.png', class='img-center'"
+)
             },
             "EndNote Desktop (.ciw)" = {
-               S$modal_text <<- HTML("<p>More about the EndNote format</p>")
+S$modal_text <<- HTML0("<p><b>EndNote Desktop (.ciw) Format</b></p>",
+"<p>The <i>Web of Science</i> database and the <i>EndNote</i> citation manager are both products of the same company, ",
+"Clarivate Analytics. Like <i>Cochrane CENTRAL</i>, <i>Web of Science</i> is a little weird because it won't save ",
+"citations in the most popular formats. But, like CENTRAL, it has a unique feature that can be very helpful for ",
+"systematic reviews: It can give you all the articles cited by an older systematic review on your topic.</p>",
+"<p>The beginning of an Endnote Desktop (.ciw) file looks like this:</p>",
+"<pre>FN Clarivate Analytics Web of Science
+VR 1.0
+PT J
+AU Abu-Mouch, Saif
+   Fireman, Zvi</pre>",
+"<p>There are four steps to capturing the citations in a prior systematic review. First, search for the review you want ",
+"in the <i>Web of Science Core Collection</i> (Web of Science can also give you MEDLINE citations, among others, but those don\'t ",
+"include cited references). Once you find it, click on its title. Here's what that part looks like:</p>",
+"<img src='http://assets.open-meta.org/images/web-of-science-1.png', class='img-center'",
+"<p><br>This will open a page that shows two numbers in a large font. The upper number leads to newer articles that have cited ",
+"this one. The lower number leads to the older articles this systematic review cited. You want to click on that second ",
+"number. Here's what that part looks like:</p>",
+"<img src='http://assets.open-meta.org/images/web-of-science-2.png', class='img-center'",
+"<p><br>Next, some download controls will appear at the top of a page listing the first of those citations. ",
+"Without checking any boxes next to article titles, select <i>Save to EndNote desktop</i> from the dropdown. ",
+"Here's what that looks like:</p>",
+"<img src='http://assets.open-meta.org/images/web-of-science-3.png', class='img-center'",
+"<p><br>Finally, a box like the next graphic will appear. It allows you to download up to 500 citations at once. If there are ",
+"more, as in this example, you'll have to repeat this part to capture the additional references. In addition to entering ",
+"the record numbers, make sure you specify that you want each record to include the <b>Abstract</b>.</p>",
+"<img src='http://assets.open-meta.org/images/web-of-science-4.png', class='img-center'",
+"<p><br>Note that you don't actually want to <i>Send to EndNote</i>, you want to save the citation file on your computer so ",
+"that you can upload it to the Open-Meta app. If your system insists on loading the files into EndNote, try this on a system ",
+"that doesn't have EndNote installed."
+)
             },
             "RIS" = {
-               S$modal_text <<- HTML("<p>More about the .ris and BibTex formats</p>")
+S$modal_text <<- HTML0("<p><b>RIS Format</b></p>",
+"<p>The <a href='https://en.wikipedia.org/wiki/RIS_(file_format)', target='_blank'>RIS citation format</a> is supported by ",
+"most bibliographic databases and citation managers.</p>",
+"<p>The beginning of a RIS file looks like this:</p>",
+"<pre>TY  - JOUR
+AU  - Weishaar, Tom
+AU  - Vergili, Joyce Marcley
+T1  - Vitamin D Status Is a Biological Determinant of Health Disparities
+JO  - Journal of the Academy of Nutrition & Dietetics</pre>"
+)
             },
             "BibTeX" = {
-               S$modal_text <<- HTML("<p>More about the .ris and BibTex formats</p>")
+S$modal_text <<- HTML0("<p><b>BibTeX Format</b></p>",
+"<p>The <a href='https://en.wikipedia.org/wiki/BibTeX', target='_blank'>BibTeX citation format</a> is supported by ",
+"most bibliographic databases and citation managers.</p>",
+"<p>The beginning of a BibTeX file looks like this:</p>",
+"<pre>@article{EJ101442620130701,
+Abstract = {Foodborne illnesses remain....}, </pre>"
+)
             },
             message(paste0("In input$js.omclick observer for details, no handler for ", input$citeFormat, "."))
          )

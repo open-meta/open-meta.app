@@ -2,10 +2,8 @@
 ### Tom Weishaar - May 2018 - v0.3
 
 ### FLAGS
-
 #burnItAllDown = TRUE          # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
 burnItAllDown = FALSE
-
 showSysMsg = TRUE              # Controls whether the big red box shows on the main site pages or not
 sink(file=stderr())            # When on a server, this makes sure what we print() appears in the log...
 debugON <- TRUE                # if TRUE, prints debugging info to the console (or server log)
@@ -13,15 +11,14 @@ debugON <- TRUE                # if TRUE, prints debugging info to the console (
 ### CREDENTIALS
 # You need to add four passwords to the credentials.R file to get started
 #    DO NOT put your credentials file on GitHub!
-# if(file.exists("credentials.R")) {
-#    source("credentials.R", local=TRUE)
-#    if(debugON) { print("Local credentials loaded...") }
-# } else {
-    source("../om2_credentials.R", local=TRUE)       # The cloud app hides the credentials in the app's parent's folder
-    if(debugON) { print("Credentials loaded...") }
-#}
+if(file.exists("../om2_credentials.R")) {
+   source("../om2_credentials.R", local=TRUE)       # The cloud app hides the credentials in the app's parent's folder
+} else {
+   source("credentials.R", local=TRUE)
+}
+if(debugON) { print("Credentials loaded...") }
 
-### libraries
+### LIBRARIES
 library(shiny)
 library(htmltools)
 
@@ -30,8 +27,8 @@ library(httr)           # This group is *installed* by tidyverse, but library(ti
 library(jsonlite)       #    doesn't attach them, so we have to do that by hand.
 library(lubridate)      #    For details, see:
 library(magrittr)       # http://www.open-meta.org/all/r-packages-attached-vs-loaded-all-about-those-doublecolons/
-library(stringi)
-library(xml2)
+library(stringi)        #
+library(xml2)           #
 
 library(RCurl)          # Need to add tis one to Lightsail
 library(rvest)
@@ -89,8 +86,8 @@ naf = function(x) {          # convert NAs in a logical vector to FALSE
 #       recSave().
 #    In recSave(rec, db) db defaults to om$prime, for project dbs, use the S$db global,
 #       which holds the db name of the current project. recSave() always uses the
-#       `table-name`ID field to determine which table and record to update;
-#       zero inserts a new record; you can get the record number from the data returned.
+#       `table-name`ID field to determine which table and record to update; an ID of
+#       zero inserts a new record; you can get the new record's ID from the data returned.
 #    If there is an update clash (users overwriting each other's work), clash will == 1
 #       and the details of the clash will be in clashFacts. The adminUsers.R page has some
 #       example code for dealing with clashes.
@@ -212,11 +209,6 @@ generate_id <- function() {
    # Generate a short, numeric-only code for email verification and lost passwords
 generate_code <- function() {
    return(paste(collapse = '', sample(0:9, size = 6, replace = TRUE)))    # this one doesn't need to be unique
-}
-
-   # Generate a short random number used to create new input ids on each render (see bs4 buttons)
-generate_rnd <- function(z=4) {
-   return(paste0(sample(c(as.character(0:9), letters, str_to_upper(letters)), size=z, replace=TRUE), collapse=""))
 }
 
    # Get our Bootstrap4 stuff
@@ -412,7 +404,7 @@ server <- function(input, output, session) {
    S$modal_title <- ""         # These need to be initalized...
    S$modal_text <- ""
    S$modal_size <- ""
-   S$hideMenus = FALSE         # TRUE when only choice should be Save or Cancel
+   S$hideMenus = FALSE         # TRUE to make only available choices Save and Cancel
 
    if(debugON) {
       S$sessionNum <- incSN()   # get an id number for this session
