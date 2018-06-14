@@ -405,6 +405,7 @@ server <- function(input, output, session) {
    rv$modal_warning <- 0       # used with an observer below to bring up modal warning dialogs
    S$modal_title <- ""         # These need to be initalized...
    S$modal_text <- ""
+   S$modal_footer <- ""
    S$modal_size <- ""
    S$hideMenus = FALSE         # TRUE to make only available choices Save and Cancel
 
@@ -517,20 +518,23 @@ server <- function(input, output, session) {
 ### Modal Warning
    # an observer to send modal warnings
    # to call:
-   # S$modal_title <- ""
-   # S$modal_text <- ""   embedded HTML is ok
+   # S$modal_title <<- ""
+   # S$modal_text <<- ""   embedded HTML is ok
+   # S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))  # allows multiple buttons
    # rv$modal_warning <- rv$modal_warning + 1
    observeEvent(rv$modal_warning, {
-         if(S$modal_size=="") { S$modal_size <<- "m" }
-         showModal(modalDialog(
-            title = HTML(S$modal_title),
-            HTML(S$modal_text),
-            footer = modalButton("Ok"),
-            size=S$modal_size
-         ))
-         S$modal_title <<- ""
-         S$modal_text <<- ""
-         S$modal_size <<- ""
+      if(class(S$modal_footer[1])=="character") { S$modal_footer <<- modalButton("OK") } # one-button default
+      if(S$modal_size=="") { S$modal_size <<- "m" }
+      showModal(modalDialog(
+         title = HTML(S$modal_title),
+         HTML(S$modal_text),
+         footer = S$modal_footer,
+         size = S$modal_size
+      ))
+      S$modal_title <<- ""
+      S$modal_text <<- ""
+      S$modal_footer <<- ""
+      S$modal_size <<- ""
    }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
 ### All the action starts here! ###

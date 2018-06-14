@@ -883,11 +883,17 @@ Abstract = {Foodborne illnesses remain....}, </pre>"
          rv$modal_warning <- rv$modal_warning + 1
       },
       "procSearch" = {
-         S$modal_title <<- "Upcoming Feature"
-         S$modal_text <<- HTML("<p>This will check for duplicates and, if necessary, obtain addtional bibliographic ",
-                               "details from PubMed. Then it will put the citations in the database, ready for Review.</p>")
+         S$modal_title <<- "No Undo!!!"
+S$modal_text <<- HTML0("<p>You can no longer Edit a Search after you process it. The citations found by this ",
+"Search will be checked againts the other citations in your project for duplicates. If necessary, the app will obtain ",
+"addtional bibliographic details from PubMed. Finally, it will add the citations to your project, ready for Review. ",
+"<b>This may take a few minutes and cannot be undone!</b> Are you sure you want to proceed?</p>")
          S$modal_size <<- "l"
+         S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))
          rv$modal_warning <- rv$modal_warning + 1
+      },
+      "OK2process" = {
+         removeModal()
       },
       "searchpubmed" = {
          S$PM$search <<- TRUE                       # Flag to tell input$js.editorText to run rv$PMsearch observer
@@ -906,5 +912,4 @@ Abstract = {Foodborne illnesses remain....}, </pre>"
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
-
 
