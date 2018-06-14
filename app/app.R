@@ -51,11 +51,13 @@ sTime = function(t=now(tz="UTC")) {                    # sTime() = now() as UTC 
 esc = function(s) {                            # depricated; need to remove usages before deleting, however...
    return(htmltools::htmlEscape(s))
 }
-escHTML = function(s) {
+escHTML = function(s) {                               # typically used with input$
+   if(is.null(s) || is.na(s) || s=="") { return("") } # deal with null and empty inputs - hurray!
    return(htmltools::htmlEscape(s))
 }
 stripHTML = function(s) {
-   return(rvest::html_text(xml2::read_html(s)))
+   if(is.null(s) || is.na(s) || s=="") { return("") }
+   return(rvest::html_text(xml2::read_html(paste0("<html>", s))))    # <html> forces read_html to see a string rather than a path
 }
 
 nat = function(x) {          # convert NAs in a logical vector to TRUE

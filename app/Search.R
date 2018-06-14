@@ -52,7 +52,7 @@ observeEvent(c(rv$menuActive, rv$limn, input$database, input$citeFormat), {
             S$SRCH2$terms[2]      <<- ""
             S$SRCH2$query[2]      <<- ""
             S$SRCH2$CFchosen[2]   <<- "Live"
-            S$SRCH2$citeLevel[2]  <<- 1
+            S$SRCH2$citeCount[2]  <<- 0
             S$SRCH2$fileName[2]   <<- ""
             S$SRCH2$comment[2]    <<- ""
             S$SRCH2$createDate[2] <<- sTime()
@@ -80,8 +80,8 @@ observeEvent(input$js.editorText, {
          S$SRCH2$terms[2] <<- t
          if(S$PM$search) {
             S$PM$search <<- FALSE
-            S$SRCH2$beginDate[2]  <<- as.character(input$searchDates[1])  # Need these for the search
-            S$SRCH2$endDate[2]    <<- as.character(input$searchDates[2])
+            S$SRCH2$beginDate[2]  <<- stripHTML(as.character(input$searchDates[1]))  # Need these for the search
+            S$SRCH2$endDate[2]    <<- stripHTML(as.character(input$searchDates[2]))
             rv$PMsearch <- rv$PMsearch + 1
             return()                   # if we're doing a PubMed Search, go there now
          } else {                      # else continue down the path we're headed...
@@ -102,33 +102,31 @@ observeEvent(input$js.editorText, {
       },
       message(paste0("In input$js.editorText observer, no handler for ", id, "."))
    )
-   S$SRCH2$searchName[2] <<- esc(str_sub(input$searchName, 1, 254))    # VARCHAR(254) in SQL
+   S$SRCH2$searchName[2] <<- stripHTML(str_sub(input$searchName, 1, 254))    # VARCHAR(254) in SQL
    # $status filled in by "Check Search"
-   S$SRCH2$database[2]   <<- input$database
+   S$SRCH2$database[2]   <<- stripHTML(input$database)
    if(!is.null(input$otherDB)) {
-      S$SRCH2$otherDB[2] <<- esc(str_sub(input$otherDB, 1, 60))        # VARCHAR(60) in SQL
-print(S$SRCH2$otherDB[2])
+      S$SRCH2$otherDB[2] <<- stripHTML(str_sub(input$otherDB, 1, 60))        # VARCHAR(60) in SQL
    }
    # S$SRCH2$terms[2] handled above
    # S$SRCH2$query[2] handled above
-   S$SRCH2$CFchosen[2]   <<- input$citeFormat
+   S$SRCH2$CFchosen[2]   <<- stripHTML(input$citeFormat)
    # $CFactual filled in by citeFile
-   if(!is.null(input$citeLevel)) {
-      S$SRCH2$citeLevel[2]  <<- which(c("Level 1 only", "Level 2 only", "Both") %in% input$citeLevel)
-   }
-   # $citesL1  filled in by citeFile
-   # $citesL2  filled in by citeFile
+   # $citeCount  filled in by citeFile
    # $fileName filled in by citeFile
    # $fileSize filled in by citeFile
    # $fileType filled in by citeFile
    # $fileTime filled in by citeFile
    # $fileRaw  filled in by citeFile???
    # S$SRCH2$comment[2] handled above
-   S$SRCH2$beginDate[2]  <<- as.character(input$searchDates[1])
-   S$SRCH2$endDate[2]    <<- as.character(input$searchDates[2])
+   S$SRCH2$beginDate[2]  <<- stripHTML(as.character(input$searchDates[1]))
+   S$SRCH2$endDate[2]    <<- stripHTML(as.character(input$searchDates[2]))
    if(S$saveSearch) {
       msg=""
-      if(input$searchName=="") {
+      if(S$SRCH2$database[2]=="All Other" && S$SRCH2$otherDB[2]=="") {
+         msg = paste0(msg, "<li>Your Database Name can't be blank.</li>")
+      }
+      if(S$SRCH2$searchName[2]=="") {
          msg = paste0(msg, "<li>Your Search Name can't be blank.</li>")
       }
       if(nchar(msg)) {                    # No render; put this on top of existing render
@@ -202,43 +200,11 @@ if(S$P$Msg=="") {
                            bs4("d", class="figure ml-1", bs4("btn", id="details", q=c("p", "s", "y"), "Format Details"))
                         )
                      }
-                     citeLevelRadios = {
-                        citeSelected = c("Level 1 only", "Level 2 only", "Both")[S$SRCH2$citeLevel[2]]
-                        if(!is.null(input$database) && input$database == "Web of Science") {
-                        radioButtons("citeLevel", label="Citations to include",
-                           choices=list("Level 1 only", "Level 2 only", "Both"),
-                           selected=citeSelected, inline=TRUE)
-                        } else {
-                           ""
-                        }
-                     }
                      restOfPage =tagList(
-#                         bs4("r", align="hc",
-#                            bs4("c10", tagList(
-#                               bs4("d", class="card bg-warning text-dark mx-auto my-4", bs4("d", class="card-body",
-#                                  bs4("d", class="card-title", h4(class='text-dark', "New Searches")),
-#                                  bs4("d", class="card-text", HTML(
-# "<p>The information you enter here will help you remember what you did when you write up your project.",
-# "But the important thing is that you can download references from citation databases and load them into Open-Meta ",
-# "(like you might otherwise load them into EndNote or another reference manager) to create the list of articles you will review.",
-# "<ul>",
-# "<li>First select a database - the inputs on the page change depending on the database you select.</li>",
-# "<li>PubMed-Live actually runs the terms you enter on PubMed (because it's open to the public) and tells you how many hits it finds.</li>",
-# "<li>If you pick <b><i>Web of Science</i></b>, radio buttons will appear with the label <b>Citations to Include</b>.",
-#    "<i>Level 2</i> means the references cited by the Level 1 references. Level 2 is useful if your search is a very short",
-#    "list of other systematic reviews on your topic, but avoid it otherwise.</li>",
-# "<li>These databases all allow you to download references in several formats; choose the one that Open-Meta supports.</li>",
-# "<li>If you select 'Other', you need to hand-enter the database name and select the format the downloaded references use.</li>",
-# "<li>If you want to use a database that doesn't support any Open-Meta formats, let us know and we\'ll see what we can do.</li>",
-# "</ul></p>",
-# "<p><b>Not only that...</b></p>")
-#                               )))
-#                         ))),
                         bs4("r", align="hc",
                            bs4("c10", tagList(
                               h4(S$pageTitle),
                               databaseFields,
-                              citeLevelRadios,
                               ttextInput("searchName", "Search Name", value=S$SRCH2$searchName[2], groupClass="w-75"),
                               dateRangeInput("searchDates", label="Publication date range of this search",
                                        start=S$SRCH2$beginDate[2], end=S$SRCH2$endDate[2]),
@@ -250,11 +216,17 @@ if(S$P$Msg=="") {
                                     if(S$SRCH2$query[2]!="") HTML("PubMed translated your Terms into this Query", "<p><i>", S$SRCH2$query[2], "</i></p>")
                                  )
                               } else {
+                                 if(S$SRCH2$database[2]!="All Other") {
+                                    thisDB <- paste0(" from ", stripHTML(input$database))
+                                 } else {
+                                    thisDB <- stripHTML(input$otherDB)
+                                    thisDB <- ifelse(thisDB=="", "", paste0(" from ", thisDB))
+                                 }
                                  tagList(
                                     HTML("Query"),
                                     bs4("quill", id="query", S$SRCH2$query[2]),
                                     fileInput("citeFile",
-                                       paste0("Choose the Reference File you downloaded from ", S$SRCH2$database[2]),
+                                       paste0("Select the ", stripHTML(input$citeFormat) , " file you downloaded", thisDB),
                                        width="75%",
                                        placeholder = ifelse(S$SRCH2$fileName[2]=="", "No file selected", S$SRCH2$fileName[2])
                                     )
@@ -317,11 +289,9 @@ if(S$P$Msg=="") {
 # This observer watches for text longer than the database definition on VARCHAR fields
 observeEvent(c(input$searchName, input$otherDB), {
       msg=""
-#      if(nchar(input$searchName)>254) {
       if(!is.null(input$searchName) && nchar(input$searchName)>254) {
          msg = "The Search Name is limited to 254 characters."
       }
-#      if(nchar(input$otherDB)>60) {
       if(!is.null(input$otherDB) && nchar(input$otherDB)>60) {
          msg = "The Database Name is limited to 60 characters."
       }
@@ -335,12 +305,8 @@ observeEvent(c(input$searchName, input$otherDB), {
 # Run this observer primarily to update the "Number of citations in this search" readonly text input
 #    Also updates the filename readonly input to accomodate search editing
 observeEvent(rv$hitCounter, {
-   if(!is.null(isolate(input$database)) && !is.null(S$SRCH2$citesL1[2]) && S$SRCH2$citesL1[2]>0) {                          # For CIW, report both Level 1 and Level 2
-      if(isolate(input$database)=="Web of Science") {
-         hc = paste0("Level 1: ", S$SRCH2$citesL1[2], "; Level 2: ", S$SRCH2$citesL2[2])
-      } else {
-         hc = format(S$SRCH2$citesL1[2], big.mark=",") # Otherwise, just the level 1 number, with commas
-      }
+   if(!is.null(input$database) && !is.null(S$SRCH2$citeCount[2]) && S$SRCH2$citeCount[2]>0) {
+      hc = format(S$SRCH2$citeCount[2], big.mark=",")  # Add commas
    } else {
       hc = ""                                          # Blank if result is 0
    }
@@ -358,7 +324,7 @@ observeEvent(rv$hitCounter, {
 # need to save text vector at end if it's ok (or BibTex)
 
 observeEvent(input$citeFile, {
-   S$SRCH2$fileName[2] <<- input$citeFile$name
+   S$SRCH2$fileName[2] <<- stripHTML(input$citeFile$name)
    S$SRCH2$fileSize[2] <<- input$citeFile$size
    S$SRCH2$fileType[2] <<- input$citeFile$type
 #   S$SRCH2$fileRaw[2]  <<- read_file(input$citeFile$datapath) # We'll do this later when we're sure the file is good
@@ -367,8 +333,7 @@ observeEvent(input$citeFile, {
    fileOK <- TRUE              #   likewise
    mismatch = TRUE             # Assume an error
    S$SRCH2$CFactual[2] <<- "BAD" #    likewise
-   S$SRCH2$citesL1[2] <<- 0    #    likewise
-   S$SRCH2$citesL2[2] <<- 0    #    likewise
+   S$SRCH2$citeCount[2] <<- 0    #    likewise
    # First check file's extension (But does this work on Macs???)
    fnParts = str_split(S$SRCH2$fileName[2], "[.]")
    fileExt = fnParts[[1]][[length(fnParts[[1]])]]
@@ -389,7 +354,7 @@ observeEvent(input$citeFile, {
       # This section figures out the file format
       if(length(r)>0 && all(!is.na(suppressWarnings(as.numeric(r))))) {  # PMID is all numeric but could be only 1 line!
          S$SRCH2$CFactual[2] <<- "PMID"
-         S$SRCH2$citesL1[2] <<- length(r)
+         S$SRCH2$citeCount[2] <<- length(r)
          if(input$citeFormat=="PMID") mismatch = FALSE
       } else {                                                 # Otherwise needs to have at least 2 lines
          if(length(r)<6) {                                     #    to test for CIW, but none of the remaining
@@ -400,40 +365,39 @@ observeEvent(input$citeFile, {
             TF.vec = r=="PMID- "                               #    only for the remaining tests.
             if(any(TF.vec)) {
                S$SRCH2$CFactual[2] <<- "MEDLINE or .nbib"                 # The sum tells us how many "PMID- " cells
-               S$SRCH2$citesL1[2] <<- sum(TF.vec)              #    there are, which is the number of hits
+               S$SRCH2$citeCount[2] <<- sum(TF.vec)              #    there are, which is the number of hits
                if(input$citeFormat=="MEDLINE or .nbib") mismatch = FALSE
             } else {
                TF.vec = r=="TY  - "
                if(any(TF.vec)) {
                   S$SRCH2$CFactual[2] <<- "RIS"
-                  S$SRCH2$citesL1[2] <<- sum(TF.vec)           # Likewise
+                  S$SRCH2$citeCount[2] <<- sum(TF.vec)           # Likewise
                   if(input$citeFormat=="RIS") mismatch = FALSE
                } else {
                   TF.vec = r=="Record"
                   if(any(TF.vec)) {
                      S$SRCH2$CFactual[2] <<- "Cochrane Central Export"
-                     S$SRCH2$citesL1[2] <<- sum(TF.vec)        # Likewise
+                     S$SRCH2$citeCount[2] <<- sum(TF.vec)        # Likewise
                      if(input$citeFormat=="Cochrane Central Export") mismatch = FALSE
                  } else {
                      TF.vec = str_sub(r, 1, 3)=="PT "
                      if(r[2]=="VR 1.0") {                      # This test is a little different (not any()), as
                         S$SRCH2$CFactual[2] <<- "EndNote Desktop (.ciw)"  #   .ciw files have a version number in row 2
-                        S$SRCH2$citesL1[2] <<- sum(TF.vec)
+                        S$SRCH2$citeCount[2] <<- sum(TF.vec)
                         r <- str_sub(r,1,2)                                          # take r down to 2 chars
                         while(length(i <- which(r == "  ")) > 0) { r[i] <- r[i-1] }  # fill in blanks with one above
-                        S$SRCH2$citesL2[2] <<- sum(r=="CR")                          # how many CRs?
                         if(input$citeFormat=="EndNote Desktop (.ciw)") mismatch = FALSE
                      } else {
                         TF.vec = str_sub(r, 1, 1)=="@"         # All we have to go on for BibTeX is lines that start
                         if(any(TF.vec)) {                      #   with @
                            S$SRCH2$CFactual[2] <<- "BibTeX"
-                           S$SRCH2$citesL1[2] <<- sum(TF.vec)
+                           S$SRCH2$citeCount[2] <<- sum(TF.vec)
                            if(input$citeFormat=="BibTex") mismatch = FALSE
       }}}}}}}
    }
    if(S$SRCH2$CFactual[2]=="BAD") {
       msg = paste0(msg, "<li>This file is in an unknown format. It begins like this:</li></ul><pre>",
-                  paste0(esc(str_sub(rf[1:6], 1, 95)), collapse="<br>"), "</pre><ul>")
+                  paste0(escHTML(str_sub(rf[1:6], 1, 95)), collapse="<br>"), "</pre><ul>")
    }
    if(S$SRCH2$CFactual[2]=="BLANK") {
       msg = paste0(msg, "<li>The file you've uploaded is either empty or a type of file Open-Meta doesn't support.</li>")
@@ -453,7 +417,7 @@ observeEvent(input$citeFile, {
       loadFile()
       if(mismatch) {
          S$modal_title <<- "Warning!"
-         S$modal_text <<- HTML("You have the File Format set to ", input$citeFormat, " but the actual format ",
+         S$modal_text <<- HTML("You have the File Format set to ", stripHTML(input$citeFormat), " but the actual format ",
                                "of this file is ", S$SRCH2$CFactual[2], ". We'll assume you uploaded the correct file, ",
                                "but are you sure? You can click Browse again to upload a different file if necessary.")
          S$modal_size <<- "l"
@@ -697,9 +661,9 @@ loadFile = function() {
 
 observe({
    if(rv$PMsearch>0) {
-print("=========Inside PMsearch observer")
-print(S$SRCH2$beginDate[2])
-print(S$SRCH2$endDate[2])
+# print("=========Inside PMsearch observer")
+# print(S$SRCH2$beginDate[2])
+# print(S$SRCH2$endDate[2])
       pauseFor <- S$PM$minDelay - (seconds(now()-S$PM$lastTime)*1000)  # If required delay minus time elapsed is
       if(pauseFor > 0) {                                               #    more than 0
          invalidateLater(pauseFor)                                     #    pause that long
@@ -717,12 +681,12 @@ print(S$SRCH2$endDate[2])
          }
          Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?tool=rct.app&email=jtw2117@columbia.edu"
          url <- paste0(Esearch, '&RetMax=', max, str_replace_all(terms, " ", "+"))    # fix url; also replace " " with "+"
-print(url)
+# print(url)
          xml <- RCurl::getURL(url)                                     # get xml
          raw <- xml2::read_xml(xml)                                    # read xml
          error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
          if(is.na(error)) {                                            # An NA error message means no error!
-            S$SRCH2$citesL1[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
+            S$SRCH2$citeCount[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
             S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
             pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
             r = tibble(SID=1:length(pmids), PMID=pmids)
