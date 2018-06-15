@@ -2,8 +2,8 @@
 ### Tom Weishaar - May 2018 - v0.3
 
 ### FLAGS
-#burnItAllDown = TRUE          # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
-burnItAllDown = FALSE
+burnItAllDown = TRUE          # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
+#burnItAllDown = FALSE
 showSysMsg = TRUE              # Controls whether the big red box shows on the main site pages or not
 sink(file=stderr())            # When on a server, this makes sure what we print() appears in the log...
 debugON <- TRUE                # if TRUE, prints debugging info to the console (or server log)

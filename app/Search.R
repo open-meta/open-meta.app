@@ -20,6 +20,7 @@ rv$processFile = 0 # Trigger to begin processFile observer
 rv$hitCounter = 0  # Trigger to update "Number of citations in this search" readonly field
 rv$render = 0      # Trigger to render page after dealing with input initializatons
 S$PF$trigger = 1   # Which section we're processing now (used with invalidateLater())
+S$uploadMaxCites <- as.numeric(settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxCites")))$value)
 
 S$PM = list()     # PubMed Search
 S$PM$minDelay = 400        # in milliseconds get this from settings eventually
@@ -126,7 +127,7 @@ observeEvent(input$js.editorText, {
    # $fileType  filled in by citeFile
    # $fileTime  filled in by citeFile
    # $fileRaw   filled in by citeFile???
-   if(S$SRCH$saveFlag) {                          # Can't save a search if any of these are bad.
+   if(S$SRCH$saveFlag) {                                # Can't save a search if any of these are bad.
       S$SRCH$saveFlag <<- FALSE
       msg=""
       if(S$SRCH2$database[2]=="All Other" && S$SRCH2$otherDB[2]=="") {
@@ -144,32 +145,34 @@ observeEvent(input$js.editorText, {
       if(!any(is.na(input$searchDates)) && !(input$searchDates[1] < input$searchDates[2])) {
          msg = paste0(msg, "<li>Final Publication Date must be after Initial Publication Date.</li>")
       }
-      if(S$SRCH$processFlag) {                    # A search can be saved if these are bad, but not processed.
+      if(S$SRCH$processFlag) {                          # A search can be saved if these are bad, but not processed.
          if(stripHTML(S$SRCH2$query[2])=="") {
             msg = paste0(msg, "<li>Your Query can't be blank.</li>")
          }
-         if(S$SRCH2$CFchosen[2]=="Live") {        # PubMed
-            if(S$SRCH2$citeCount[2]==0) {         # PubMed, no cites
+         if(S$SRCH2$CFchosen[2]=="Live") {              # PubMed
+            if(S$SRCH2$citeCount[2]==0) {               # PubMed, no cites
                msg = paste0(msg, "<li>There are no citations to process. You need to modify your terms or dates ",
                                  "and search PubMed again.</li>")
             }
-            if(S$SRCH2$citeCount[2]>3000) {       # PubMed, too many cites
-               msg = paste0(msg, "<li>Your search has over 3,000 citations, which is too many to process. You need ",
-                                 "to modify your terms or dates and search PubMed again. If you really want to review ",
-                                 "over 3,000 citations, create multiple searches, splitting them up by publication date ",
+            if(S$SRCH2$citeCount[2]>S$uploadMaxCites) { # PubMed, too many cites
+               msg = paste0(msg, "<li>Your search has over ", format(S$uploadMaxCites, big.mark=","), " citations, ",
+                                 "which is too many to process. You need to modify your terms or dates and search ",
+                                 "PubMed again. If you really want to review over ", format(S$uploadMaxCites, big.mark=","),
+                                 " citations, create multiple searches, splitting them up by publication date ",
                                  "into smaller chunks.</li>")
             }
-         } else {                                 # Not PubMed
-            if(S$SRCH2$citeCount[2]>3000) {       # Other, too many cites
-               msg = paste0(msg, "<li>Your search has over 3,000 citations, which is too many to process. You need ",
-                                 "to modify your terms or dates and upload a smaller file. If you really want to review ",
-                                 "over 3,000 citations, split the citations up by publication date into smaller chunks ",
-                                 "and create multiple searches.</li>")
+         } else {                                       # Not PubMed
+            if(S$SRCH2$citeCount[2]>S$uploadMaxCites) { # Other, too many cites
+               msg = paste0(msg, "<li>Your search has over ", format(S$uploadMaxCites, big.mark=","), " citations, ",
+                                 "which is too many to process. You need to modify your terms or dates and upload ",
+                                 "a smaller file. If you really want to review over ",
+                                 format(S$uploadMaxCites, big.mark=","), " citations, split the citations up by ",
+                                 "publication date into smaller chunks and create multiple searches.</li>")
             }
-            if(S$SRCH2$citeCount[2]==0) {         # Other, no cites
-               if(S$SRCH2$CFactual[2]=="") {      # Other, no file so no cites
+            if(S$SRCH2$citeCount[2]==0) {               # Other, no cites
+               if(S$SRCH2$CFactual[2]=="") {            # Other, no file so no cites
                   msg = paste0(msg, "<li>There are no citations to process. You need to upload a citation file.</li>")
-               } else {                           # Other, file but no cites
+               } else {                                 # Other, file but no cites
                   msg = paste0(msg, "<li>There are no citations to process in the file you've uploaded.</li>")
                }
             } else {                              # We have a file, check its validity
@@ -478,7 +481,7 @@ observeEvent(input$citeFile, {
       rv$modal_warning <- rv$modal_warning + 1
    }
    if(fileOK) {
-      loadFile()
+    #  loadFile()
       if(mismatch) {
          S$modal_title <<- "Warning!"
          S$modal_text <<- HTML("You have the File Format set to ", stripHTML(input$citeFormat), " but the actual format ",
@@ -739,17 +742,27 @@ observe({
          raw <- xml2::read_xml(xml)                                    # read xml
          error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
          if(is.na(error)) {                                            # An NA error message means no error!
-            S$SRCH2$citeCount[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
+            S$SRCH2$citeCount[2] <<- as.numeric(xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count")))
             S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
             pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
-            if(length(pmids)==0) {                                     # Check for at least 1 hit
+            if(S$SRCH2$citeCount[2]==0) {                              # Check for at least 1 hit
                S$modal_title <<- "PubMed Error"
                S$modal_text <<- HTML0("<p>Nothing found.</p>")
                isolate(rv$modal_warning <- rv$modal_warning + 1)
                return()
             }
-            r = tibble(SID=1:length(pmids), PMID=pmids)
-            S$SRCH2$fileRaw[2]  <<- toJSON(r)
+            if(S$SRCH2$citeCount[2]>S$uploadMaxCites) {                # Check for too many hits
+               S$modal_title <<- "PubMed Error"
+               S$modal_text <<- HTML0("<p>Your search has over ", format(S$uploadMaxCites, big.mark=","), " citations, ",
+                                 "which is too many to process. You need to modify your terms or dates and search ",
+                                 "PubMed again. If you really want to review over ", format(S$uploadMaxCites, big.mark=","),
+                                 " citations, create multiple searches, splitting them up by publication date ",
+                                 "into smaller chunks.</p>")
+               isolate(rv$modal_warning <- rv$modal_warning + 1)
+               return()
+            }
+#            r = tibble(SID=1:length(pmids), PMID=pmids)
+#            S$SRCH2$fileRaw[2]  <<- toJSON(r)
             S$SRCH2$fileName[2] <<- "Live PubMed Search"
             S$SRCH2$fileSize[2] <<- 0
             S$SRCH2$fileType[2] <<- "xml"

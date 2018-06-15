@@ -26,11 +26,13 @@ output$uiHead <- renderUI({rv$limn; isolate({
 output$uiMeat <- renderUI({rv$limn; isolate({
    if(rv$limn) {
       if(S$U$sPowers >= S$PG$spReq) {   # hide meat from weaklings
-         settings = settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxMB")))
+         uploadMaxMB = settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxMB")))
+         uploadMaxCites = settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxCites")))
          return(tagList(
             bs4("r", align="hc", bs4("c8",
-               ttextInput("uploadMaxMB", "Maximum File Upload Size", settings$value),
-               bs4("quill", id="upSizeCmt", settings$comment),
+               ttextInput("uploadMaxMB", "Maximum File Upload Size", uploadMaxMB$value),
+               ttextInput("uploadMaxCites", "Maximum Citations per Search", uploadMaxCites$value),
+               bs4("quill", id="upSizeCmt", uploadMaxMB$comment),
                bs4("d", class="text-right", bs4("btn", id="SaveUpSize", q=c("b"), class="mt-2", "Save")),
                bs4("hr")
             )),
@@ -43,18 +45,6 @@ output$uiMeat <- renderUI({rv$limn; isolate({
    }
 })})
 
-# databases = fromJSON(settingsGet("value", tibble(c("name", "=", "databases")))$value)
-# citeFormats = fromJSON(settingsGet("value", tibble(c("name", "=", "citeFormats")))$value)
-      # s = settingsGet()
-      # s$name[2] = "databases"
-      # s$value[2] = toJSON(c("PubMed-Live", "Cochrane-TXT", "Web of Knowledge-CIW", "Embase-CSV", "Ovid-RIS", "PMIDs-TXT", "Other"))
-      # s$comment[2] = paste0("<p></p>")
-      # r = recSaveR(s, pool=root.pool)
-      # s$name[2] = "citeFormats"
-      # s$value[2] = toJSON(c("RIS", "CSV", "CIW", "TXT", "BibTEX", "BibLatex"))
-      # s$comment[2] = paste0("<p></p>")
-      # r = recSaveR(s, pool=root.pool)
-
 observeEvent(input$restart_btn, {
    stopApp()
 })
@@ -65,13 +55,16 @@ observeEvent(input$js.editorText, {
    t = input$js.editorText[2]                  # The edited text
    switch(s,
       "upSizeCmt" = {
-         settings = settingsGet("**", tibble(c("name", "=", "uploadMaxMB")))
-         settings$value[2] = input$uploadMaxMB
-         settings$comment[2] = t
-         recSave(settings)
+         settings2 = settingsGet("**", tibble(c("name", "=", "uploadMaxMB")))
+         settings2$value[2] = input$uploadMaxMB
+         settings2$comment[2] = t
+         recSave(settings2)
+         settings2 = settingsGet("**", tibble(c("name", "=", "uploadMaxCites")))
+         settings2$value[2] = input$uploadMaxCites
+         recSave(settings2)
          options(shiny.maxRequestSize = as.numeric(input$uploadMaxMB)*1024^2 ) # convert MB to bytes
          S$modal_title <<- "Success"
-         S$modal_text <<- HTML("<p>Maximum File Upload Size Saved.</p>")
+         S$modal_text <<- HTML("<p>Maximum File Upload Size and Maximum Citations per Search saved.</p>")
          rv$modal_warning <- rv$modal_warning + 1
       }
    )

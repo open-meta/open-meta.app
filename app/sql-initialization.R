@@ -92,7 +92,14 @@ DB.Initialization = function(pool, burnItAllDown=FALSE) {
       s = settingsGet()
       s$name[2] = "uploadMaxMB"
       s$value[2] = "10"
-      s$comment[2] = paste0("<p>This is the maximum file upload size in MB. The Shiny default size is 5 MB. Our default is 10 MB, though you may need to set it larger for some projects, particularly if the citations include abstracts. In any case, this setting is app-specific, not session-specific, so it applies to everyone.</p>")
+      s$comment[2] = paste0("<p>This is the maximum file upload size in MB. The Shiny default size is 5 MB. ",
+                            "Our default is 10 MB, though you may need to set it larger for some projects. ",
+                            "An average citation uses about 2.75 MB, so 10 MB is about 3,500 citations. ",
+                            "In any case, these settings are app-specific, not session-specific, so they ",
+                            "apply to everyone.</p>")
+      r = recSaveR(s, pool=root.pool)
+      s$name[2] = "uploadMaxCites"
+      s$value[2] = "3500"
       r = recSaveR(s, pool=root.pool)
 
       # inititialise project table
