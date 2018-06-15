@@ -803,12 +803,14 @@ observeEvent(input$js.omclick, {
          }
          rv$menuActive = n                          # rv$menuActive takes us to top
       },
-      "editSearch" = {
-         if(S$P$Modify) { S$hideMenus <<- TRUE }    # Don't hide them if an error message is coming up
-         S$SRCH$justArrived <<- TRUE                     # When starting a new search and when starting to edit an old search
-         S$SRCH$id <<- n
-         rv$menuActive = 2
-         rv$limn = rv$limn + 1                      # Needed to hide menus
+      "editSearch" = {                              # This button is on the list of searches
+         if(S$P$Modify) {
+            S$hideMenus <<- TRUE
+            S$SRCH$justArrived <<- TRUE             # When starting a new search and when starting to edit an old search
+            S$SRCH$id <<- n
+            rv$menuActive = 2
+            rv$limn = rv$limn + 1                   # Needed to hide menus
+         }
       },
       "check" = {
          S$modal_title <<- "Upcoming Feature"
@@ -823,31 +825,39 @@ observeEvent(input$js.omclick, {
          #    msg = paste0(msg, "<li>End date can't be blank.</li>")
          # }
       },
-      "processCheck" = {
-         S$modal_title <<- "No Undo!!!"
+      "processCheck" = {                            # This button is part of new/edit Search
+         if(S$P$Modify) {
+            S$modal_title <<- "No Undo!!!"
 S$modal_text <<- HTML0("<p>Once you process a search successfully you can't change it, delete it, or delete its ",
 "citations. The citations found by this Search will be checked against the other citations in your project for ",
 "duplicates. If necessary, the app will obtain addtional bibliographic details from PubMed. Finally, it will add ",
 "the citations to your project, ready for Review. <b>This may take a few minutes and cannot be undone!</b> Are ",
 "you sure you want to proceed?</p>")
-         S$modal_size <<- "l"
-         S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))
-         rv$modal_warning <- rv$modal_warning + 1
+            S$modal_size <<- "l"
+            S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))
+            rv$modal_warning <- rv$modal_warning + 1
+         }
       },
       "OK2process" = {
-         removeModal()
-         S$SRCH$saveFlag <<- TRUE
-         S$SRCH$processFlag <<- TRUE
-         return(js$getEdit("terms"))
+         if(S$P$Modify) {
+            removeModal()
+            S$SRCH$saveFlag <<- TRUE
+            S$SRCH$processFlag <<- TRUE
+            return(js$getEdit("terms"))
+         }
       },
       "searchpubmed" = {
-         S$PM$search <<- TRUE                       # Flag to tell input$js.editorText to run rv$PMsearch observer
-         return(js$getEdit("terms"))                #   after getting terms out of Quill editor
+         if(S$P$Modify) {
+            S$PM$search <<- TRUE                       # Flag to tell input$js.editorText to run rv$PMsearch observer
+            return(js$getEdit("terms"))                #   after getting terms out of Quill editor
+         }
       },
       "save" = {
-         # S$hideMenus <<- FALSE                    # With save, this happens later
-         S$SRCH$saveFlag <<- TRUE
-         return(js$getEdit("terms"))
+         if(S$P$Modify) {
+            # S$hideMenus <<- FALSE                    # With save, this happens later
+            S$SRCH$saveFlag <<- TRUE
+            return(js$getEdit("terms"))
+         }
       },
       "cancel" = {
          S$hideMenus <<- FALSE                      # Back to regular programming
