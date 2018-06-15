@@ -27,6 +27,9 @@ S$PM$lastTime = now()
 S$PM$search <- FALSE
 rv$PMsearch <- 0
 
+S$SRCH$saveFlag <- FALSE
+S$SRCH$processFlag <- FALSE
+
 # Only needed on this page:
 searchGet = function(db=S$db, SELECT="", WHERE=tibble(c("searchID", ">", "0"))) {
    return(recGet(db, "search", SELECT, WHERE))
@@ -39,15 +42,15 @@ rv$menuActive = 1    # Start out on first sub-menu
 #    changes citeFormat. But need both triggers here or things don't work right.
 observeEvent(c(rv$menuActive, rv$limn, input$database, input$citeFormat), {
    if(rv$menuActive==2) {                           # Bypass all this if we're not editing a Search
-      if(S$justArrived) {                             # first time through
-         S$justArrived <<- FALSE
+      if(S$SRCH$justArrived) {                      # first time through
+         S$SRCH$justArrived <<- FALSE
          if(S$SRCH$id==0) {                         # Get a new record to save this search in
-            S$pageTitle <<- "Enter your search details"
+            S$SRCH$pageTitle <<- "Enter your search details"
             S$SRCH2 <<- searchGet()                 # These become the initial values displayed on a new search
             S$SRCH2$searchName[2] <<- ""
             S$SRCH2$database[2]   <<- "PubMed"
             S$SRCH2$otherDB[2]    <<- ""
-            S$SRCH2$beginDate[2]  <<- as.Date(NA)
+            S$SRCH2$beginDate[2]  <<- "1000-01-01"
             S$SRCH2$endDate[2]    <<- sTime()
             S$SRCH2$terms[2]      <<- ""
             S$SRCH2$query[2]      <<- ""
@@ -57,20 +60,23 @@ observeEvent(c(rv$menuActive, rv$limn, input$database, input$citeFormat), {
             S$SRCH2$comment[2]    <<- ""
             S$SRCH2$createDate[2] <<- sTime()
          } else {                                   # Get the record to edit
-            S$pageTitle <<- "Edit your search details"
+            S$SRCH$pageTitle <<- "Edit your search details"
             S$SRCH2 <<- searchGet(SELECT="**", WHERE=tibble(c("searchID", "=", S$SRCH$id)))
          }
-      } else {
-         S$saveSearch <<- FALSE
-         return(js$getEdit("terms"))             # Goto next observeEvent() to get current inputs before rendering
+      } else {                                   # NOT first time through; use current inputs
+         return(js$getEdit("terms"))             # Goto next observeEvent() to collect those inputs
       }
    }
    rv$render = rv$render + 1                     # Not editing, just render
 })
 
-# fills S$SRCH2 fields with current inputs; used by Render (S$saveSearch=FALSE) and by Save (S$saveSearch=TRUE)
+# fills S$SRCH2$... fields with current inputs; used by
+#    PubMed Search (S$PM$search=TRUE)
+#    Render        (S$PM$search=FALSE, S$SRCH$saveFlag=FALSE, S$SRCH$processFlag=FALSE)
+#    Save          (S$PM$search=FALSE, S$SRCH$saveFlag=TRUE,  S$SRCH$processFlag=FALSE)
+#    Process       (S$PM$search=FALSE, S$SRCH$saveFlag=TRUE,  S$SRCH$processFlag=TRUE)
 # To call this use:
-   # S$saveSearch <<- TRUE/FALSE
+   # S$SRCH$saveFlag <<- TRUE    (Any flags not set to TRUE can be assumed to be FALSE)
    # js$getEdit("terms")
 observeEvent(input$js.editorText, {
    id = input$js.editorText[1]         # The quill id
@@ -78,50 +84,50 @@ observeEvent(input$js.editorText, {
    switch(id,
       "terms" = {
          S$SRCH2$terms[2] <<- t
-         if(S$PM$search) {
+         if(S$PM$search) {                  # We're about to search PubMed
             S$PM$search <<- FALSE
             S$SRCH2$beginDate[2]  <<- stripHTML(as.character(input$searchDates[1]))  # Need these for the search
             S$SRCH2$endDate[2]    <<- stripHTML(as.character(input$searchDates[2]))
-            rv$PMsearch <- rv$PMsearch + 1
-            return()                   # if we're doing a PubMed Search, go there now
-         } else {                      # else continue down the path we're headed...
-            return(js$getEdit("query"))
+            rv$PMsearch <- rv$PMsearch + 1  # Run the PMsearch observer next
+            return()                        # that's all we need here
+         } else {
+            if(S$SRCH2$database[2]=="PubMed" && S$SRCH2$CFchosen[2]=="Live") { # If this search is PubMed Live
+               return(js$getEdit("comment"))                                   #   we got the Query from PubMed;
+            } else {                                                           #   don't overwrite it.
+               return(js$getEdit("query"))
+            }
          }
       },
       "query" = {
-         if(S$SRCH2$database[2]=="PubMed" && S$SRCH2$CFchosen[2]=="Live") { # If this is a PubMed Live search
-            return(js$getEdit("comment"))                                   #   we got the Query from PubMed;
-         } else {                                                           #   don't overwrite it.
-            S$SRCH2$query[2] <<- t
-            return(js$getEdit("comment"))
-         }
+         S$SRCH2$query[2] <<- t
+         return(js$getEdit("comment"))
       },
       "comment" = {
          S$SRCH2$comment[2] <<- t
-#         S$SRCH2$comment[2] <<- input$citeFile$datapath     # you can stick stuff in the comments for debugging
       },
       message(paste0("In input$js.editorText observer, no handler for ", id, "."))
    )
    S$SRCH2$searchName[2] <<- stripHTML(str_sub(input$searchName, 1, 254))    # VARCHAR(254) in SQL
-   # $status filled in by "Check Search"
    S$SRCH2$database[2]   <<- stripHTML(input$database)
    if(!is.null(input$otherDB)) {
       S$SRCH2$otherDB[2] <<- stripHTML(str_sub(input$otherDB, 1, 60))        # VARCHAR(60) in SQL
    }
-   # S$SRCH2$terms[2] handled above
-   # S$SRCH2$query[2] handled above
    S$SRCH2$CFchosen[2]   <<- stripHTML(input$citeFormat)
-   # $CFactual filled in by citeFile
-   # $citeCount  filled in by citeFile
-   # $fileName filled in by citeFile
-   # $fileSize filled in by citeFile
-   # $fileType filled in by citeFile
-   # $fileTime filled in by citeFile
-   # $fileRaw  filled in by citeFile???
-   # S$SRCH2$comment[2] handled above
    S$SRCH2$beginDate[2]  <<- stripHTML(as.character(input$searchDates[1]))
    S$SRCH2$endDate[2]    <<- stripHTML(as.character(input$searchDates[2]))
-   if(S$saveSearch) {
+   # $status filled in by "Check Search"
+   # $terms  handled above
+   # $query  handled above
+   # comment handled above
+   # $CFactual  filled in by citeFile
+   # $citeCount filled in by citeFile
+   # $fileName  filled in by citeFile
+   # $fileSize  filled in by citeFile
+   # $fileType  filled in by citeFile
+   # $fileTime  filled in by citeFile
+   # $fileRaw   filled in by citeFile???
+   if(S$SRCH$saveFlag) {                          # Can't save a search if any of these are bad.
+      S$SRCH$saveFlag <<- FALSE
       msg=""
       if(S$SRCH2$database[2]=="All Other" && S$SRCH2$otherDB[2]=="") {
          msg = paste0(msg, "<li>Your Database Name can't be blank.</li>")
@@ -129,18 +135,76 @@ observeEvent(input$js.editorText, {
       if(S$SRCH2$searchName[2]=="") {
          msg = paste0(msg, "<li>Your Search Name can't be blank.</li>")
       }
-      if(nchar(msg)) {                    # No render; put this on top of existing render
+      if(is.na(input$searchDates[1])) {
+         msg = paste0(msg, "<li>Initial Publication Date can't be blank.</li>")
+      }
+      if(is.na(input$searchDates[2])) {
+         msg = paste0(msg, "<li>Final Publication Date can't be blank.</li>")
+      }
+      if(!any(is.na(input$searchDates)) && !(input$searchDates[1] < input$searchDates[2])) {
+         msg = paste0(msg, "<li>Final Publication Date must be after Initial Publication Date.</li>")
+      }
+      if(S$SRCH$processFlag) {                    # A search can be saved if these are bad, but not processed.
+         if(stripHTML(S$SRCH2$query[2])=="") {
+            msg = paste0(msg, "<li>Your Query can't be blank.</li>")
+         }
+         if(S$SRCH2$CFchosen[2]=="Live") {        # PubMed
+            if(S$SRCH2$citeCount[2]==0) {         # PubMed, no cites
+               msg = paste0(msg, "<li>There are no citations to process. You need to modify your terms or dates ",
+                                 "and search PubMed again.</li>")
+            }
+            if(S$SRCH2$citeCount[2]>3000) {       # PubMed, too many cites
+               msg = paste0(msg, "<li>Your search has over 3,000 citations, which is too many to process. You need ",
+                                 "to modify your terms or dates and search PubMed again. If you really want to review ",
+                                 "over 3,000 citations, create multiple searches, splitting them up by publication date ",
+                                 "into smaller chunks.</li>")
+            }
+         } else {                                 # Not PubMed
+            if(S$SRCH2$citeCount[2]>3000) {       # Other, too many cites
+               msg = paste0(msg, "<li>Your search has over 3,000 citations, which is too many to process. You need ",
+                                 "to modify your terms or dates and upload a smaller file. If you really want to review ",
+                                 "over 3,000 citations, split the citations up by publication date into smaller chunks ",
+                                 "and create multiple searches.</li>")
+            }
+            if(S$SRCH2$citeCount[2]==0) {         # Other, no cites
+               if(S$SRCH2$CFactual[2]=="") {      # Other, no file so no cites
+                  msg = paste0(msg, "<li>There are no citations to process. You need to upload a citation file.</li>")
+               } else {                           # Other, file but no cites
+                  msg = paste0(msg, "<li>There are no citations to process in the file you've uploaded.</li>")
+               }
+            } else {                              # We have a file, check its validity
+               if(S$SRCH2$CFchosen[2]=="BAD" || S$SRCH2$CFchosen[2]=="BLANK") {
+                     msg = paste0(msg, "<li>The file you uploaded isn't a valid citation file.</li>")
+               } else {                           # Do chosen and actual formats match?
+                  if(S$SRCH2$CFchosen[2]!="Live" && S$SRCH2$CFchosen[2]!=S$SRCH2$CFactual[2]) {
+                     msg = paste0(msg, "<li>The file format you specified, ", S$SRCH2$CFchosen[2], " doesn't match the format ",
+                                       "of the file you uploaded, which is ", S$SRCH2$CFactual[2], ".</li>")
+                  }
+               }
+            }
+         }
+      }
+      if(nchar(msg)) {                            # No render if there's a modal; put this on top of existing render
          S$modal_title <<- "Whoops!"
-         S$modal_text <<- HTML("<p>Can't save:<ul>", msg, "</ul></p>")
+         if(S$SRCH$processFlag) {
+            S$SRCH$processFlag <<- FALSE
+            S$modal_text <<- HTML("<p>Can't process:<ul>", msg, "</ul></p>")
+         } else {
+            S$modal_text <<- HTML("<p>Can't save:<ul>", msg, "</ul></p>")
+         }
          rv$modal_warning <- rv$modal_warning + 1
       } else {
          S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+         if(S$SRCH$processFlag) {
+            S$SRCH$processFlag <<- FALSE
+            processSearch()                       # This is elsewhere to simplify code for this observer
+         }
          rv$menuActive = 1
          S$hideMenus <<- FALSE            # Back to regular programming
          rv$limn = rv$limn + 1            # Need to re-limn here to get menus back, but skip for modal dialog
       }
-   } else {                               # Not a save, just a render
-      rv$render = rv$render + 1           # If not a save, just proceed to next step of rendering the page
+   } else {                               # Not a save or process, just a render
+      rv$render = rv$render + 1           # If not a save or process, just proceed to next step of rendering the page
    }
 })
 
@@ -203,7 +267,7 @@ if(S$P$Msg=="") {
                      restOfPage =tagList(
                         bs4("r", align="hc",
                            bs4("c10", tagList(
-                              h4(S$pageTitle),
+                              h4(S$SRCH$pageTitle),
                               databaseFields,
                               ttextInput("searchName", "Search Name", value=S$SRCH2$searchName[2], groupClass="w-75"),
                               dateRangeInput("searchDates", label="Publication date range of this search",
@@ -240,7 +304,7 @@ if(S$P$Msg=="") {
                               HTML('<div class="text-right mt-3">'),
                               bs4("btn", id="cancel", n=1, q="b", "Cancel"),
                               bs4("btn", id="save", n=1, q="b", "Save Search"),
-                              bs4("btn", id="check", n=1, q=ifelse(S$SRCH2$status[2]==0, "r", "g"), "Check Search"),
+                              bs4("btn", id="processCheck", n=1, q=ifelse(S$SRCH2$status[2]==0, "r", "g"), "Process Search"),
                               HTML('</div>')
                         )))
                      )
@@ -358,14 +422,14 @@ observeEvent(input$citeFile, {
          if(input$citeFormat=="PMID") mismatch = FALSE
       } else {                                                 # Otherwise needs to have at least 2 lines
          if(length(r)<6) {                                     #    to test for CIW, but none of the remaining
-            S$SRCH2$CFactual[2] <<- "BLANK"                               #    formats are less than 5 lines, probably more...
+            S$SRCH2$CFactual[2] <<- "BLANK"                    #    formats are less than 5 lines, probably more...
             mismatch = FALSE                                   # TRUE sends the wrong message
          } else {
             r <- str_sub(r,1,6)                                # Cut the strings back to first 6 characters
             TF.vec = r=="PMID- "                               #    only for the remaining tests.
             if(any(TF.vec)) {
-               S$SRCH2$CFactual[2] <<- "MEDLINE or .nbib"                 # The sum tells us how many "PMID- " cells
-               S$SRCH2$citeCount[2] <<- sum(TF.vec)              #    there are, which is the number of hits
+               S$SRCH2$CFactual[2] <<- "MEDLINE or .nbib"      # The sum tells us how many "PMID- " cells
+               S$SRCH2$citeCount[2] <<- sum(TF.vec)            #    there are, which is the number of hits
                if(input$citeFormat=="MEDLINE or .nbib") mismatch = FALSE
             } else {
                TF.vec = r=="TY  - "
@@ -427,7 +491,8 @@ observeEvent(input$citeFile, {
    rv$hitCounter = rv$hitCounter + 1    # update hits after uploading file
 })
 
-loadFile = function() {
+processSearch = function() {
+   return()
    switch(S$SRCH2$CFactual[2],
       "BibTeX" = {
          # Needs library(RefManageR)!!!
@@ -647,18 +712,6 @@ loadFile = function() {
 
 # PubMed search
 # Save terms in S$SRCH2$terms[2]; trigger rv$PMsearch
-
-
-# "1781/01/01"[PDAT] : "1781/02/01"[PDAT]
-
-   # terms_in = terms                                              # save for output
-   #    # update terms to include RetMax and search from date: yyyy/mm/dd as a string
-   # from_date=str_sub(from_date,1,10)
-   # to_date=str_sub(to_date,1,10)
-   # terms = paste0('&RetMax=', max, '&term=("', from_date, '"[MDAT]:"', to_date , '"[MDAT]) AND ', terms)
-
-#
-
 observe({
    if(rv$PMsearch>0) {
 # print("=========Inside PMsearch observer")
@@ -689,6 +742,12 @@ observe({
             S$SRCH2$citeCount[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count"))
             S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
             pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
+            if(length(pmids)==0) {                                     # Check for at least 1 hit
+               S$modal_title <<- "PubMed Error"
+               S$modal_text <<- HTML0("<p>Nothing found.</p>")
+               isolate(rv$modal_warning <- rv$modal_warning + 1)
+               return()
+            }
             r = tibble(SID=1:length(pmids), PMID=pmids)
             S$SRCH2$fileRaw[2]  <<- toJSON(r)
             S$SRCH2$fileName[2] <<- "Live PubMed Search"
@@ -720,7 +779,7 @@ observeEvent(input$js.omclick, {
          S$hideMenus <<- FALSE
          if(n=="2") {                               # New Search
             if(S$P$Modify) { S$hideMenus <<- TRUE } # Don't hide menus if an error message is coming up
-            S$justArrived <<- TRUE                  # When starting a new search and when starting to edit an old search
+            S$SRCH$justArrived <<- TRUE                  # When starting a new search and when starting to edit an old search
             S$SRCH$id <<-0
             rv$limn = rv$limn + 1                   # Needed to hide menus
          }
@@ -730,6 +789,13 @@ observeEvent(input$js.omclick, {
             rv$modal_warning <- rv$modal_warning + 1
          }
          rv$menuActive = n                          # rv$menuActive takes us to top
+      },
+      "editSearch" = {
+         if(S$P$Modify) { S$hideMenus <<- TRUE }    # Don't hide them if an error message is coming up
+         S$SRCH$justArrived <<- TRUE                     # When starting a new search and when starting to edit an old search
+         S$SRCH$id <<- n
+         rv$menuActive = 2
+         rv$limn = rv$limn + 1                      # Needed to hide menus
       },
       "check" = {
          S$modal_title <<- "Upcoming Feature"
@@ -743,20 +809,44 @@ observeEvent(input$js.omclick, {
          # if(is.na(input$searchDates[2])) {
          #    msg = paste0(msg, "<li>End date can't be blank.</li>")
          # }
-         },
-      "editSearch" = {
-         if(S$P$Modify) { S$hideMenus <<- TRUE }    # Don't hide them if an error message is coming up
-         S$justArrived <<- TRUE                     # When starting a new search and when starting to edit an old search
-         S$SRCH$id <<- n
-         rv$menuActive = 2
-         rv$limn = rv$limn + 1                      # Needed to hide menus
+      },
+      "processCheck" = {
+         S$modal_title <<- "No Undo!!!"
+S$modal_text <<- HTML0("<p>Once you process a search successfully you can't change it, delete it, or delete its ",
+"citations. The citations found by this Search will be checked against the other citations in your project for ",
+"duplicates. If necessary, the app will obtain addtional bibliographic details from PubMed. Finally, it will add ",
+"the citations to your project, ready for Review. <b>This may take a few minutes and cannot be undone!</b> Are ",
+"you sure you want to proceed?</p>")
+         S$modal_size <<- "l"
+         S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))
+         rv$modal_warning <- rv$modal_warning + 1
+      },
+      "OK2process" = {
+         removeModal()
+         S$SRCH$saveFlag <<- TRUE
+         S$SRCH$processFlag <<- TRUE
+         return(js$getEdit("terms"))
+      },
+      "searchpubmed" = {
+         S$PM$search <<- TRUE                       # Flag to tell input$js.editorText to run rv$PMsearch observer
+         return(js$getEdit("terms"))                #   after getting terms out of Quill editor
+      },
+      "save" = {
+         # S$hideMenus <<- FALSE                    # With save, this happens later
+         S$SRCH$saveFlag <<- TRUE
+         return(js$getEdit("terms"))
+      },
+      "cancel" = {
+         S$hideMenus <<- FALSE                      # Back to regular programming
+         rv$menuActive = 1
+         rv$limn = rv$limn + 1
       },
       "details" = {
          switch(input$citeFormat,
             "Live" = {
                S$modal_text <<- HTML0("<p><b>PubMed Live Format</b></p>",
 "<p>This is a live search of the US National Library of Medicine's PubMed database ",
-"using the Date Range and Terms you enter. Sponsored by the US National Institues of Health, ",
+"using the Date Range and Terms you specify. Sponsored by the US National Institues of Health, ",
 "PubMed is a freely available resource. The Open-Meta app communicates with PubMed using ",
 "the library's <i>Entrez E-utilties</i> computer-to-computer interface.</p> ",
 "<p>Note that PubMed will convert your Date Range and Terms into a Query that will be ",
@@ -765,6 +855,10 @@ observeEvent(input$js.omclick, {
 "<p>After searching you will also see the <i>number</i> of citations found by your search, ",
 "but not actual <i>examples</i> of the citations. For that, enter the Query in ",
 "<a href='https://www.ncbi.nlm.nih.gov/pubmed/', target='_blank'>PubMed</a> itself.</p>",
+"<p>The earliest publication date currently in PubMed is in the 1780s. Since this could change, our default start date ",
+"is the beginning of the year 1000. You can, of course, change this to whatever works best for you. However, if you start ",
+"at the year zero and end before today, PubMed may return false positives. The ending publication date defaults to the ",
+"day the search was created.</p>",
 "<p>This link provides complete information on PubMed's ",
 "<a href='https://www.ncbi.nlm.nih.gov/books/NBK3827/#pubmedhelp.Search_Field_Descriptions_and', target='_blank'>",
 "Search Field Descriptions and Tags</a>, which can be helpful for interpreting the returned Query.</p>")
@@ -819,8 +913,7 @@ AU: O'Connell Dianne
 "<img src='http://assets.open-meta.org/images/cochrane-central-1.png', class='img-center'",
 "<p><br>When exporting from CENTRAL, make sure you pick the <b>Citation And Abstract</b> <i>File type</i> as ",
 "shown here, rather than <b>Citation Only</b>. For <i>Export type</i>, match your own computer's operating system.</p>",
-"<img src='http://assets.open-meta.org/images/cochrane-central-2.png', class='img-center'"
-)
+"<img src='http://assets.open-meta.org/images/cochrane-central-2.png', class='img-center'")
             },
             "EndNote Desktop (.ciw)" = {
 S$modal_text <<- HTML0("<p><b>EndNote Desktop (.ciw) Format</b></p>",
@@ -852,8 +945,7 @@ AU Abu-Mouch, Saif
 "<img src='http://assets.open-meta.org/images/web-of-science-4.png', class='img-center'",
 "<p><br>Note that you don't actually want to <i>Send to EndNote</i>, you want to save the citation file on your computer so ",
 "that you can upload it to the Open-Meta app. If your system insists on loading the files into EndNote, try this on a system ",
-"that doesn't have EndNote installed."
-)
+"that doesn't have EndNote installed.")
             },
             "RIS" = {
 S$modal_text <<- HTML0("<p><b>RIS Format</b></p>",
@@ -864,8 +956,7 @@ S$modal_text <<- HTML0("<p><b>RIS Format</b></p>",
 AU  - Weishaar, Tom
 AU  - Vergili, Joyce Marcley
 T1  - Vitamin D Status Is a Biological Determinant of Health Disparities
-JO  - Journal of the Academy of Nutrition & Dietetics</pre>"
-)
+JO  - Journal of the Academy of Nutrition & Dietetics</pre>")
             },
             "BibTeX" = {
 S$modal_text <<- HTML0("<p><b>BibTeX Format</b></p>",
@@ -873,8 +964,7 @@ S$modal_text <<- HTML0("<p><b>BibTeX Format</b></p>",
 "most bibliographic databases and citation managers.</p>",
 "<p>The beginning of a BibTeX file looks like this:</p>",
 "<pre>@article{EJ101442620130701,
-Abstract = {Foodborne illnesses remain....}, </pre>"
-)
+Abstract = {Foodborne illnesses remain....}, </pre>")
             },
             message(paste0("In input$js.omclick observer for details, no handler for ", input$citeFormat, "."))
          )
@@ -882,34 +972,12 @@ Abstract = {Foodborne illnesses remain....}, </pre>"
          S$modal_size <<- "l"
          rv$modal_warning <- rv$modal_warning + 1
       },
-      "procSearch" = {
-         S$modal_title <<- "No Undo!!!"
-S$modal_text <<- HTML0("<p>You can no longer Edit a Search after you process it. The citations found by this ",
-"Search will be checked againts the other citations in your project for duplicates. If necessary, the app will obtain ",
-"addtional bibliographic details from PubMed. Finally, it will add the citations to your project, ready for Review. ",
-"<b>This may take a few minutes and cannot be undone!</b> Are you sure you want to proceed?</p>")
-         S$modal_size <<- "l"
-         S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))
-         rv$modal_warning <- rv$modal_warning + 1
-      },
-      "OK2process" = {
-         removeModal()
-      },
-      "searchpubmed" = {
-         S$PM$search <<- TRUE                       # Flag to tell input$js.editorText to run rv$PMsearch observer
-         return(js$getEdit("terms"))                #   after getting terms out of Quill editor
-      },
-      "save" = {
-         # S$hideMenus <<- FALSE                    # With save, this happens later
-         S$saveSearch <<- TRUE
-         return(js$getEdit("terms"))
-      },
-      "cancel" = {
-         S$hideMenus <<- FALSE                      # Back to regular programming
-         rv$menuActive = 1
-         rv$limn = rv$limn + 1
-      },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
+observeEvent(input$searchDates, {
+   print("-----")
+   print(paste0("beginDate class: ", class(input$searchDates[1]), ", value: ", input$searchDates[1]))
+   print(paste0("endDate class: ", class(input$searchDates[2]), ", value: ", input$searchDates[2]))
+})

@@ -518,6 +518,7 @@ server <- function(input, output, session) {
 ### Modal Warning
    # an observer to send modal warnings
    # to call:
+   # S$modal_size (s, m, or l; "" is m)
    # S$modal_title <<- ""
    # S$modal_text <<- ""   embedded HTML is ok
    # S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))  # allows multiple buttons
