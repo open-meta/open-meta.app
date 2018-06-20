@@ -45,7 +45,7 @@ observeEvent(c(rv$menuActive, rv$limn, input$database, input$citeFormat), {
    if(rv$menuActive==2) {                           # Bypass all this if we're not editing a Search
       if(S$SRCH$justArrived) {                      # first time through
          S$SRCH$justArrived <<- FALSE
-         if(S$SRCH$id==0) {                         # Get a new record to save this search in
+         if(S$P$Modify && S$SRCH$id==0) {           # Get a new record to save this search in
             S$SRCH$pageTitle <<- "Enter your search details"
             S$SRCH2 <<- searchGet()                 # These become the initial values displayed on a new search
             S$SRCH2$searchName[2] <<- ""
@@ -60,9 +60,13 @@ observeEvent(c(rv$menuActive, rv$limn, input$database, input$citeFormat), {
             S$SRCH2$fileName[2]   <<- ""
             S$SRCH2$comment[2]    <<- ""
             S$SRCH2$createDate[2] <<- sTime()
-         } else {                                   # Get the record to edit
-            S$SRCH$pageTitle <<- "Edit your search details"
+         } else {                                   # Get the record to view or edit
             S$SRCH2 <<- searchGet(SELECT="**", WHERE=tibble(c("searchID", "=", S$SRCH$id)))
+            if(S$P$Modify && S$SRCH2$status==0) {
+               S$SRCH$pageTitle <<- "Edit your search details"
+            } else {
+               S$SRCH$pageTitle <<- "View search details"
+            }
          }
       } else {                                   # NOT first time through; use current inputs
          return(js$getEdit("terms"))             # Goto next observeEvent() to collect those inputs
@@ -211,145 +215,224 @@ observeEvent(input$js.editorText, {
    }
 })
 
+#if(rv$limn && S$P$Msg=="") {
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({rv$render; isolate({
-      if(rv$limn && S$P$Msg=="") {
-            switch(as.character(rv$menuActive),
-               "1" = {
-                  restOfPage = tagList(
-                     DTOutput("showSearches")
-                  )
-                  output$showSearches  <- renderDT({                    # Get project's searches
-                     Rx = omRx(                                         # Now get their user info
-                        db = S$db,
-                        table = "search",
-                        SELECT = c("searchID", "searchName", "beginDate", "endDate", "status"),
-                        WHERE = tibble(c("deleted", "=", 0)),
-                        buttons = list(edit=list(id="editSearch", label="Edit Search", q="y", class=""),
-                                       process=list(id="procSearch", label="Process", q="r", class=""))
-                     )
-                     # if you need to further modify Rx, you can do it here.
-                     Rx <- Rx[,-1]                                      # Remove ID column
-                     Rx$status = ifelse(Rx$status==0, "Incomplete",
-                                    ifelse(Rx$status==1, "Process-Ready",
-                                       ifelse(Rx$status==2, "Processed", "Updated")))
-                     omDT(Rx,                                           #    ...moving buttons to 6 and 7
-                        cnames = c("Search Name", "Begin Date", "End Date", "Status", "Edit", "Process"),
-                        colesc = c(1:4),                                # columns to escape (minus means don't escape)
-                        noText = "No searches found for this project"      # What to say when there are no results
-                     )
-                  },
-                  # renderDT() parameters go here:
-                  server = FALSE
-                  )
-               },
-               "2" = {
-                  if(S$P$Modify) {                                  # S$SRCH2 has info for inputs in all cases
-                     databaseFields = {
-                        if(S$SRCH2$database[2]!="All Other") {      # Not "All Other"; no otherDB field
-                           addOtherDB = tagList(
-                              bs4('d', class='figure',
-                                 selectInput('database', 'Database', choices=databases,
-                                 selected=S$SRCH2$database[2], selectize=FALSE)))
-                        } else {
-                           addOtherDB = tagList(                    # "All Other"; change formatting, add field
-                              bs4("d",                              # different class puts dropdown above text input
-                                 selectInput('database', 'Database', choices=databases,
-                                 selected=S$SRCH2$database[2], selectize=FALSE)),            # add text input-vvv
-                              bs4("d", class="figure", ttextInput("otherDB", "Database Name", value=S$SRCH2$otherDB[2])))
-                        }
-                        n = which(databases==S$SRCH2$database[2])   # get index into databases to determine which
-                        tagList(                                    #   file formats to display
-                           addOtherDB,                              # add stuff from above
-                           bs4("d", class="figure ml-1",
-                              selectInput('citeFormat', 'File Format', choices=citeFormats[[n]],
-                                 selected=S$SRCH2$CFchosen[2], selectize=FALSE)),
-                           bs4("d", class="figure ml-1", bs4("btn", id="details", q=c("p", "s", "y"), "Format Details"))
-                        )
-                     }
-                     restOfPage =tagList(
-                        bs4("r", align="hc",
-                           bs4("c10", tagList(
-                              h4(S$SRCH$pageTitle),
-                              databaseFields,
-                              ttextInput("searchName", "Search Name", value=S$SRCH2$searchName[2], groupClass="w-75"),
-                              dateRangeInput("searchDates", label="Publication date range of this search",
-                                       start=S$SRCH2$beginDate[2], end=S$SRCH2$endDate[2]),
-                              if(S$SRCH2$CFchosen[2]=="Live") {
-                                 tagList(
-                                    HTML("Terms"),
-                                    bs4("quill", id="terms", S$SRCH2$terms[2]),
-                                    bs4("d", bs4("btn", class="mb-3", id="searchpubmed", q=c("p", "s", "b"), "Search PubMed")),
-                                    if(S$SRCH2$query[2]!="") HTML("PubMed translated your Terms into this Query", "<p><i>", S$SRCH2$query[2], "</i></p>")
-                                 )
-                              } else {
-                                 if(S$SRCH2$database[2]!="All Other") {
-                                    thisDB <- paste0(" from ", stripHTML(input$database))
-                                 } else {
-                                    thisDB <- stripHTML(input$otherDB)
-                                    thisDB <- ifelse(thisDB=="", "", paste0(" from ", thisDB))
-                                 }
-                                 tagList(
-                                    HTML("Query"),
-                                    bs4("quill", id="query", S$SRCH2$query[2]),
-                                    fileInput("citeFile",
-                                       paste0("Select the ", stripHTML(input$citeFormat) , " file you downloaded", thisDB),
-                                       width="75%",
-                                       placeholder = ifelse(S$SRCH2$fileName[2]=="", "No file selected", S$SRCH2$fileName[2])
-                                    )
-                                 )
-                              },
-                              HTML('<div class="form-group w-50">',
-                              '<label class for="citeTotal">Number of citations in this search</label>',
-                              '<input id="citeTotal" type="text" class="form-control w-50" value="" readonly="readonly"></div>'),
-                              HTML("<div class='mt-3'>Comments</div>"),
-                              bs4("quill", id="comment", S$SRCH2$comment[2]),
-                              HTML('<div class="text-right mt-3">'),
-                              bs4("btn", id="cancel", n=1, q="b", "Cancel"),
-                              bs4("btn", id="save", n=1, q="b", "Save Search"),
-                              bs4("btn", id="processCheck", n=1, q=ifelse(S$SRCH2$status[2]==0, "r", "g"), "Process Search"),
-                              HTML('</div>')
-                        )))
-                     )
-                  rv$hitCounter = rv$hitCounter + 1 # To display filename and number of hits on Edit load
+      switch(as.character(rv$menuActive),
+         "1" = {                          # Search List
+            restOfPage = tagList(
+               DTOutput("showSearches")
+            )
+            # NOTE: If the user has permission to Modify searches, there will be two columns of buttons.
+            #    The first column is Edit when Search's status=0, View otherwise.
+            #    The second column is Delete when Search's status=0, Update if status=1, Blank otherwise
+            # If the user doesn't have Modify permission, there will be one column with View buttons only
+            output$showSearches  <- renderDT({
+               Rx = omRx(                 # Get project's searches
+                  db = S$db,
+                  table = "search",
+                  SELECT = c("searchID", "searchName", "beginDate", "endDate", "citeCount", "status"),
+                  WHERE = tibble(c("deleted", "=", 0)),
+                  if(S$P$Modify) {
+                     buttons = list(edit=list(id="editSearch", label="Edit", q="g", class=""),
+                                 delete=list(id="deleteAsk", label="Delete", q="r", class=""))
                   } else {
-                     if(S$P$O) {
-                        restOfPage = bs4("r", bs4("ca", class="mt-3 text-center",
-                           h5("Your project role doesn't include adding new searches.")
-                        ))
-                     } else {
-                        restOfPage = bs4("r", bs4("ca", class="mt-3 text-center",
-                           h5("Only project members with special roles can add or edit searches.")
-                        ))
-                     }
+                     buttons = list(edit=list(id="viewSearch", label="View", q="b", class=""))
                   }
-               },
-               "3" = {
+               )
+               # if you need to further modify Rx, you can do it here.
+               if(S$P$Modify) {
+                  Rx[Rx$status>0,7] <- bs4("btn", id="viewSearch", q="b", "View")
+                  Rx[Rx$status==1,8] <- bs4("btn", id="updateSearch", q="r", "Update")
+                  Rx[Rx$status>1,8] <- ""
+               }
+               Rx$citeCount <- format(Rx$citeCount, big.mark=",")
+               ###
+               Rx <- Rx[,-1]              # Remove ID column
+               Rx$status = ifelse(Rx$status==0, "Incomplete",
+                              ifelse(Rx$status==1, "Completed", "Updated"))
+               omDT(Rx,
+                  if(S$P$Modify) {
+                     cnames = c("Search Name", "Begin Date", "End Date", "Cites", "Status", "View", "Action")
+                  } else {
+                     cnames = c("Search Name", "Begin Date", "End Date", "Cites", "Status", "View")
+                  },
+                  colesc = c(1:5),        # columns to escape (minus means don't escape)
+                  noText = "No searches found for this project"      # What to say when there are no results
+               )
+            },
+            # renderDT() parameters go here:
+            server = FALSE
+            )
+         },
+         "2" = {                          # View or Edit or New Search: S$SRCH2 has info to display in all cases
+            if(S$P$Modify && S$SRCH2$status==0) {             # Edit (or New)
+               databaseFields = {
+                  if(S$SRCH2$database[2]!="All Other") {      # Not "All Other"; no otherDB field
+                     addOtherDB = tagList(
+                        bs4('d', class='figure',
+                           selectInput('database', 'Database', choices=databases,
+                           selected=S$SRCH2$database[2], selectize=FALSE)))
+                  } else {
+                     addOtherDB = tagList(                    # "All Other"; change formatting, add field
+                        bs4("d",                              # different class puts dropdown above text input
+                           selectInput('database', 'Database', choices=databases,
+                           selected=S$SRCH2$database[2], selectize=FALSE)),            # add text input-vvv
+                        bs4("d", class="figure", ttextInput("otherDB", "Database Name", value=S$SRCH2$otherDB[2])))
+                  }
+                  n = which(databases==S$SRCH2$database[2])   # get index into databases to determine which
+                  tagList(                                    #   file formats to display
+                     addOtherDB,                              # add stuff from above
+                     bs4("d", class="figure ml-1",
+                        selectInput('citeFormat', 'File Format', choices=citeFormats[[n]],
+                           selected=S$SRCH2$CFchosen[2], selectize=FALSE)),
+                     bs4("d", class="figure ml-1", bs4("btn", id="details", q=c("p", "s", "y"), "Format Details"))
+                  )
+               }
+               restOfPage =tagList(
+                  bs4("r", align="hc",
+                     bs4("c10", tagList(
+                        h4(S$SRCH$pageTitle),
+                        databaseFields,
+                        ttextInput("searchName", "Search Name", value=S$SRCH2$searchName[2], groupClass="w-75"),
+                        dateRangeInput("searchDates", label="Publication date range of this search",
+                                 start=S$SRCH2$beginDate[2], end=S$SRCH2$endDate[2]),
+                        if(S$SRCH2$CFchosen[2]=="Live") {
+                           tagList(
+                              HTML("Terms"),
+                              bs4("quill", id="terms", S$SRCH2$terms[2]),
+                              bs4("d", bs4("btn", class="mb-3", id="searchpubmed", q=c("p", "s", "b"), "Search PubMed")),
+                              if(S$SRCH2$query[2]!="") {
+                                 HTML("PubMed translated your Publication Dates and Terms into this Query",
+                                      "<p><i>", S$SRCH2$query[2], "</i></p>")
+                              }
+                           )
+                        } else {
+                           if(S$SRCH2$database[2]!="All Other") {
+                              thisDB <- paste0(" from ", stripHTML(input$database))
+                           } else {
+                              thisDB <- stripHTML(input$otherDB)
+                              thisDB <- ifelse(thisDB=="", "", paste0(" from ", thisDB))
+                           }
+                           tagList(
+                              HTML("Query"),
+                              bs4("quill", id="query", S$SRCH2$query[2]),
+                              fileInput("citeFile",
+                                 paste0("Select the ", stripHTML(input$citeFormat) , " file you downloaded", thisDB),
+                                 width="75%",
+                                 placeholder = ifelse(S$SRCH2$fileName[2]=="", "No file selected", S$SRCH2$fileName[2])
+                              )
+                           )
+                        },
+                        HTML('<div class="form-group w-50">',
+                        '<label class for="citeTotal">Number of citations in this search</label>',
+                        '<input id="citeTotal" type="text" class="form-control w-50" value="" readonly="readonly"></div>'),
+                        HTML("<div class='mt-3'>Comments</div>"),
+                        bs4("quill", id="comment", S$SRCH2$comment[2]),
+                        HTML('<div class="text-right mt-3">'),
+                        bs4("btn", id="cancel", n=1, q="b", "Cancel"),
+                        bs4("btn", id="save", n=1, q="b", "Save Search"),
+                        bs4("btn", id="processCheck", n=1, q=ifelse(S$SRCH2$status[2]==0, "r", "g"), "Process Search"),
+                        HTML('</div>')
+                  )))
+               )
+               rv$hitCounter = rv$hitCounter + 1 # To display filename and number of hits on Edit load
+            } else {
+               #### View ONLY
+               if(S$hideMenus) {          # Menus are hidden: at this point that means the user clicked View
+                  restOfPage =tagList(
+                     bs4("r", align="hc",
+                        bs4("c10", tagList(
+                           h4(S$SRCH$pageTitle),
+                           # Database and File Format
+                           HTML("<p>Database</p>",
+                                "<input type='text', value='",
+                                ifelse(S$SRCH2$database[2]!="All Other", S$SRCH2$database[2], S$SRCH2$otherDB[2]),
+                                "', class='form-control figure w-50', readonly='readonly'><br>",
+                                "<p>File Format</p><input type='text', value='",
+                                 S$SRCH2$CFchosen[2],
+                                "', class='form-control figure w-50', readonly='readonly'><br>"),
+                           # Search Name
+                           HTML("<p>Search Name</p>",
+                                "<input type='text', value='", S$SRCH2$searchName[2],
+                                "'class='form-control w-100', readonly='readonly'><br>"),
+                           # Pub date range
+                           HTML("<p>Publication date range of this search</p>",
+                                "<input type='text', value='",
+                                S$SRCH2$beginDate[2],
+                                "'class='d-inline form-control w-25', readonly='readonly'",
+                                ">&nbsp;to&nbsp;<input type='text', value='",
+                                S$SRCH2$endDate[2], "'class='d-inline form-control w-25', readonly='readonly'>"),
+                           # PubMed Terms & Query
+                           if(S$SRCH2$CFchosen[2]=="Live") {
+                              tagList(
+                                 HTML("<br><hr><p>Terms</p><p><i>", S$SRCH2$terms[2], "</i></p>"),
+                                 if(S$SRCH2$query[2]!="") {
+                                    HTML("<hr><p>PubMed translated your Publication Dates and Terms into this Query</p>", "<p><i>",
+                                         S$SRCH2$query[2], "</i></p><hr>")
+                                 }
+                              )
+                           } else {
+                           # Not PubMed Query & File Name
+                              tagList(
+                                 HTML("<br><hr><p>Query</p>"),
+                                 HTML("<p><i>", S$SRCH2$query[2], "</i></p><hr>",
+                                 "<p>Citation file</p>",
+                                 "<input type='text', value='",
+                                 S$SRCH2$fileName[2],
+                                 "'class='form-control w-100', readonly='readonly'><br>")
+                              )
+                           },
+                           #citeCount
+                           HTML("<p>Number of citations in this search</p>",
+                           "<input type='text' class='form-control w-50' value='",
+                           format(S$SRCH2$citeCount[2], big.mark=","),
+                           "' readonly='readonly'>"),
+                           # Cancel Button
+                           HTML('<div class="text-right mt-3">'),
+                           bs4("btn", id="cancel", n=1, q="b", "Cancel"),
+                           HTML('</div>')
+                     )))
+                  )
+                  rv$hitCounter = rv$hitCounter + 1 # To display filename and number of hits on Edit load
+               } else {                   # Menus not hidden, at this point that means user clicked New Search w/o adequate permissions
                   if(S$P$O) {
-                     restOfPage = bs4("r", bs4("ca", "Search Analysis to come..."))
+                     restOfPage = bs4("r", bs4("ca", class="mt-3 text-center",
+                        h5("Your project role doesn't include adding new searches.")
+                     ))
                   } else {
                      restOfPage = bs4("r", bs4("ca", class="mt-3 text-center",
-                        h5("You must be a member of the project to see the search analysis.")
+                        h5("Only project members with special roles can add or edit searches.")
                      ))
                   }
                }
-            )
-         searchPageMenu = {
-            if(S$hideMenus) {
-               ""
+            }
+         },
+         "3" = {                          # Search Analysis
+            if(S$P$O) {
+               restOfPage = bs4("r", bs4("ca", "Search Analysis to come..."))
             } else {
-               bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Search List", "New Search", "Search Analysis"))
+               restOfPage = bs4("r", bs4("ca", class="mt-3 text-center",
+                  h5("You must be a member of the project to see the search analysis.")
+               ))
             }
          }
-         return(tagList(
-            bs4("r", align="hc",
-               bs4("c10", tagList(
-                  searchPageMenu,
-                  restOfPage
-               ))
-            )
-         ))
+      )
+   searchPageMenu = {
+      if(S$hideMenus) {
+         ""
+      } else {
+         bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Search List", "New Search", "Search Analysis"))
       }
+   }
+   return(tagList(
+      bs4("r", align="hc",
+         bs4("c10", tagList(
+            searchPageMenu,
+            restOfPage
+         ))
+      )
+   ))
    })})
 }
 
@@ -725,7 +808,7 @@ observe({
          invalidateLater(pauseFor)                                     #    pause that long
       } else {                                                         # Otherwise, do the search
          S$PM$lastTime <<- now()                                       # Note time of search execution
-         max = 1
+         max = paste0('&RetMax=', S$uploadMaxCites)
          terms <- stripHTML(S$SRCH2$terms[2])                          # Remove <p></p> and any other HTML from terms
          if(is.na(S$SRCH2$beginDate[2])) { S$SRCH2$beginDate[2] <<- "1000-01-01" }       # default begin date
          if(is.na(S$SRCH2$endDate[2])) { S$SRCH2$endDate[2] <<- str_sub(now(), 1, 10) }  # default end date
@@ -736,7 +819,7 @@ observe({
             terms = paste0('&term=("', S$SRCH2$beginDate[2], '"[PDAT]:"', S$SRCH2$endDate[2] , '"[PDAT])', terms)
          }
          Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?tool=rct.app&email=jtw2117@columbia.edu"
-         url <- paste0(Esearch, '&RetMax=', max, str_replace_all(terms, " ", "+"))    # fix url; also replace " " with "+"
+         url <- paste0(Esearch, max, str_replace_all(terms, " ", "+")) # fix url; also replace " " with "+"
 # print(url)
          xml <- RCurl::getURL(url)                                     # get xml
          raw <- xml2::read_xml(xml)                                    # read xml
@@ -745,6 +828,8 @@ observe({
             S$SRCH2$citeCount[2] <<- as.numeric(xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count")))
             S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
             pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
+print(max)
+print(length(pmids))
             if(S$SRCH2$citeCount[2]==0) {                              # Check for at least 1 hit
                S$modal_title <<- "PubMed Error"
                S$modal_text <<- HTML0("<p>Nothing found.</p>")
@@ -761,8 +846,8 @@ observe({
                isolate(rv$modal_warning <- rv$modal_warning + 1)
                return()
             }
-#            r = tibble(SID=1:length(pmids), PMID=pmids)
-#            S$SRCH2$fileRaw[2]  <<- toJSON(r)
+            r = tibble(SID=1:length(pmids), PMID=pmids)
+            S$SRCH2$fileRaw[2]  <<- toJSON(r)
             S$SRCH2$fileName[2] <<- "Live PubMed Search"
             S$SRCH2$fileSize[2] <<- 0
             S$SRCH2$fileType[2] <<- "xml"
@@ -791,8 +876,8 @@ observeEvent(input$js.omclick, {
       "sub" = {
          S$hideMenus <<- FALSE
          if(n=="2") {                               # New Search
-            if(S$P$Modify) { S$hideMenus <<- TRUE } # Don't hide menus if an error message is coming up
-            S$SRCH$justArrived <<- TRUE                  # When starting a new search and when starting to edit an old search
+            if(S$P$Modify) { S$hideMenus <<- TRUE } # Don't hide menus if a NOT PERMITTED error message is coming up
+            S$SRCH$justArrived <<- TRUE             # When starting a new search and to view/edit an old search
             S$SRCH$id <<-0
             rv$limn = rv$limn + 1                   # Needed to hide menus
          }
@@ -803,13 +888,45 @@ observeEvent(input$js.omclick, {
          }
          rv$menuActive = n                          # rv$menuActive takes us to top
       },
-      "editSearch" = {                              # This button is on the list of searches
+      "viewSearch" = {                              # This button is on the list of searches when the user can't modify
+         S$hideMenus <<- TRUE
+         S$SRCH$justArrived <<- TRUE                # Gets the data to view
+         S$SRCH$id <<- n
+         rv$menuActive = 2
+         rv$limn = rv$limn + 1                      # Needed to hide menus
+      },
+      "editSearch" = {                              # This button is on the list of searches for powerful users
          if(S$P$Modify) {
             S$hideMenus <<- TRUE
-            S$SRCH$justArrived <<- TRUE             # When starting a new search and when starting to edit an old search
+            S$SRCH$justArrived <<- TRUE             # Gets the data to edit
             S$SRCH$id <<- n
             rv$menuActive = 2
             rv$limn = rv$limn + 1                   # Needed to hide menus
+         }
+      },
+      "deleteAsk" = {                            # This button is on the list of searches for powerful users before a search is complete
+         if(S$P$Modify) {
+            S$modal_title <<- "No Undo!!!"
+            S$modal_text <<- HTML0("<p>Once you delete a search it's gone.</p>")
+            S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", id="deleteSearch", n=n, q="on", "Delete"))
+            rv$modal_warning <- rv$modal_warning + 1
+         }
+      },
+      "deleteSearch" = {                            # This button is on the list of searches for powerful users before a search is complete
+         removeModal()
+         if(S$P$Modify) {
+            S$SRCH2 <<- searchGet(SELECT="**", WHERE=tibble(c("searchID", "=", n)))
+            S$SRCH2$deleted[2] <<- 1
+            S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+            rv$limn = rv$limn + 1                   # Re-display search list
+         }
+      },
+      "updateSearch" = {                            # This button is on the list of searches for powerful users when Search is completed
+         if(S$P$Modify) {
+            S$modal_title <<- "Upcoming Feature"
+            S$modal_text <<- HTML("<p>The ability to update a search is coming soon.</p>")
+            S$modal_size <<- "l"
+            rv$modal_warning <- rv$modal_warning + 1
          }
       },
       "check" = {
@@ -834,13 +951,13 @@ S$modal_text <<- HTML0("<p>Once you process a search successfully you can't chan
 "the citations to your project, ready for Review. <b>This may take a few minutes and cannot be undone!</b> Are ",
 "you sure you want to proceed?</p>")
             S$modal_size <<- "l"
-            S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "OK"))
+            S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "Process"))
             rv$modal_warning <- rv$modal_warning + 1
          }
       },
       "OK2process" = {
+         removeModal()
          if(S$P$Modify) {
-            removeModal()
             S$SRCH$saveFlag <<- TRUE
             S$SRCH$processFlag <<- TRUE
             return(js$getEdit("terms"))
@@ -999,8 +1116,8 @@ Abstract = {Foodborne illnesses remain....}, </pre>")
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
-observeEvent(input$searchDates, {
-   print("-----")
-   print(paste0("beginDate class: ", class(input$searchDates[1]), ", value: ", input$searchDates[1]))
-   print(paste0("endDate class: ", class(input$searchDates[2]), ", value: ", input$searchDates[2]))
-})
+# observeEvent(input$searchDates, {
+#    print("-----")
+#    print(paste0("beginDate class: ", class(input$searchDates[1]), ", value: ", input$searchDates[1]))
+#    print(paste0("endDate class: ", class(input$searchDates[2]), ", value: ", input$searchDates[2]))
+# })
