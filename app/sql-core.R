@@ -55,30 +55,73 @@ newRec = function(table, dict=table.definition.list) {
    r[2,naVec] = ""          # in row 2, make the NAs ""; this will force an update on the first save.
    return(r)
 }
+#  This function creates the SQL command to create a table, based on the given defintion
+createTable = function(db, table, dict=table.definition.list, citeNum=0) {
+   dict.def <- dict[[table]]
+   if(table=="cite") {                                         # special handling for cite tables
+      tableDB = dbt(db, paste0("cite", citeNum), dbLink)       # escaped cite db.tableN name
+   } else {
+      tableDB = dbt(db, table, dbLink)                         # escapted regular db.table name
+   }
+   r = paste0("CREATE TABLE ", tableDB, " (")
+   for(i in 1:nrow(dict.def)) {
+      name = paste0("`", dict.def$Name[i], "` ")
+      type = paste0(dict.def$Type[i])
+      if(dict.def$Size[i]!="") {
+         type = paste0(type, "(", dict.def$Size[i], ")")
+      }
+      nosign = ""
+      if(dict.def$NoSign[i]=="T") nosign = " UNSIGNED"
+      nonull = " NOT NULL"                                     # Don't allow NULLs anywhere
+      default=""                                               # This has to be defined ahead of time for switch()
+      switch(dict.def$Default[i],
+         AUTOINC = default <- " AUTO_INCREMENT",
+         s = default <- " DEFAULT ''",
+         z = default <- " DEFAULT 0",
+         x = default <- "",
+         UPDATE = stop("Use sTime() and bTime() and store times in DB as strings."),
+         { stop("Undefined default in createTable()") }
+      )
+      key = ""
+      if(dict.def$Key[i]!="" && dict.def$Key[i]!="COMBO") key = paste0(" ", dict.def$Key[i])
+      r = paste0(r, name, type, nosign, nonull, default, key, ", ")
+   }
+   if(any(dict.def$Key=="COMBO")) {
+      keys = dict.def$Name[dict.def$Key=="COMBO"]
+      k=""
+      for(i in 1:length(keys)) {
+         k = paste0(k, "`", keys[i], "`,")
+      }
+      k = str_sub(k,1,nchar(k)-1)
+      r = paste0(r, "UNIQUE (", k, "), ")
+   }
+   return(paste0(str_sub(r,1,nchar(r)-2),");"))
+}
+# createTable("user", table.definition.list)
 
 # forms `db`.`table`
-dbt = function(db, table, pool=shiny.pool) {
-   return(paste0(dbQuoteIdentifier(pool, db), ".", dbQuoteIdentifier(pool, table)))
+dbt = function(db, table, dbLink) {
+   return(paste0(dbQuoteIdentifier(dbLink, db), ".", dbQuoteIdentifier(dbLink, table)))
 }
 # Turns a tibble into quoted, scrubbed, and separated name=value SET pairs for recSave()
-QsetQ = function(Qset, pool) {
+QsetQ = function(Qset, dbLink) {
    q = character(0)
    n = colnames(Qset)
    for(i in 1:(ncol(Qset))) {
-      q[i] = paste0(dbQuoteIdentifier(pool, n[i]), "=", dbQuoteString(pool, as.character(Qset[2,i])))
+      q[i] = paste0(dbQuoteIdentifier(dbLink, n[i]), "=", dbQuoteString(dbLink, as.character(Qset[2,i])))
    }
    return(paste0(q, collapse = ", "))        # First paste creates the pairs, second the SET string
 }
 # properly converts WHERE tibble into wherePairs for Queries
-wherez = function(WHERE, pool) {   # WHERE is a tibble
+wherez = function(WHERE, dbLink) {   # WHERE is a tibble
    w = ""
    for(i in 1:ncol(WHERE)) {                                  # Need all this to keep from putting quotes on numbers
       if(WHERE[[2,1]]!=" IN " && suppressWarnings(is.na(as.numeric(WHERE[[3,i]])))) { # An NA means it's a string
-         v = dbQuoteString(pool, WHERE[[3,i]])
+         v = dbQuoteString(dbLink, WHERE[[3,i]])
       } else {
          v = WHERE[[3,i]]
       }
-      w[i] = paste0(dbQuoteIdentifier(pool, WHERE[[1,i]]), WHERE[[2,i]], v)
+      w[i] = paste0(dbQuoteIdentifier(dbLink, WHERE[[1,i]]), WHERE[[2,i]], v)
    }
    return(paste0(w, collapse = " AND "))
 }
@@ -87,6 +130,8 @@ wherez = function(WHERE, pool) {   # WHERE is a tibble
 #    SELECT is a vector of field names
 #    WHERE is a 3-row tibble of fields, operators, and values
 recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
+   dbLink <- poolCheckout(pool)                                    # get a dbLink from the pool
+   on.exit(poolReturn(dbLink), add = TRUE)                         # return it when done, even if there's an error
 # Do some routing
    return2 = FALSE
    if(SELECT[1]=="") {                                             # return a blank record for editing
@@ -125,7 +170,7 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
    }
 # Turn SELECT into selects
    if(SELECT[1]!="*") {                                    # don't quote "*"
-      selects = dbQuoteIdentifier(pool, SELECT)            #   but quote everything else (SELECT is a vector)
+      selects = dbQuoteIdentifier(dbLink, SELECT)            #   but quote everything else (SELECT is a vector)
       selects = paste0(selects, collapse=",")              #   then collapse the vector into a single string
    } else {
       selects = "*"
@@ -136,12 +181,10 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
          WHERE = cbind(WHERE, tibble(c("deleted", "=", "0"))) #   (To get deleted or ALL records, you need to add your own
       }                                                       #    deleted column to the WHERE tibble.)
    }
-   wherePairs = wherez(WHERE, pool)
+   wherePairs = wherez(WHERE, dbLink)
 # Execute QUERY
-   QUERY = paste0("SELECT ", selects, " FROM ", dbt(db, table, pool), " WHERE ", wherePairs, ";")
+   QUERY = paste0("SELECT ", selects, " FROM ", dbt(db, table, dbLink), " WHERE ", wherePairs, ";")
 print(QUERY)
-   dbLink <- poolCheckout(pool)                            # get a dbLink from the pool
-   on.exit(poolReturn(dbLink), add = TRUE)                 # return it when done, even if there's an error
    r = dbGetQuery(dbLink, QUERY)                           # perform SQL Query
 # Return Data or New Empty Record
    if(nrow(r)>0)  {                                        # r is number of rows found
@@ -190,6 +233,8 @@ print(QUERY)
 #   except in the case of an existing update clash, when the SET is returned.
 
 recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
+   dbLink <- poolCheckout(pool)                 # get a dbLink from the pool
+   on.exit(poolReturn(dbLink), add = TRUE)      # return dbLink when done, even if there's an error
    modalMsg=list(title="", text="")                                        # return these to server for activation
  # Using the name of the ID field, determine the table to save this in
    setFields = colnames(SET)                                               # Names of columns to be saved
@@ -235,12 +280,9 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
    dropSet = dropSet & !(colnames(SET) %in% sacredFields)   # Force-keep the sacred columns to see what they are on the server.
    Qset = SET[, !dropSet]                          # flip logical vector to drop what was TRUE
    dbError = FALSE
- # pool checkout/checkin
-   dbLink <- poolCheckout(pool)                 # get a dbLink from the pool
-   on.exit(poolReturn(dbLink), add = TRUE)      # return dbLink when done, even if there's an error
    if(SET[[2,1]]==0) {                          # INSERT - `table`ID==0, so this is a new col
  # INSERT
-      QUERY = paste0("INSERT INTO ", dbt(db, table, pool), " SET ", QsetQ(Qset, pool), ";")
+      QUERY = paste0("INSERT INTO ", dbt(db, table, dbLink), " SET ", QsetQ(Qset, dbLink), ";")
       r = dbExecute(dbLink, QUERY)              # r is an integer
       if(r==1) {                                # number of rows updated
          r = dbGetQuery(dbLink, "SELECT LAST_INSERT_ID()")    # r is a tibble!
@@ -252,10 +294,10 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
       }
    } else {                                     # UPDATE - `table`ID != 0, so this col exists
  # UPDATE
-      wherePairs = wherez(tibble(c(setFields[1], "=", SET[[2,1]])), pool) # For this we need only a rowID-based WHERE
-      selects = paste0(dbQuoteIdentifier(pool, colnames(Qset)), collapse=",")  # collapse vector to single, quoted string
-      sQUERY = paste0("SELECT ", selects, " FROM ", dbt(db, table, pool), " WHERE ", wherePairs, ";")
-      uQUERY = paste0("UPDATE ", dbt(db, table, pool), " SET ", QsetQ(Qset, pool), " WHERE ", wherePairs, ";")
+      wherePairs = wherez(tibble(c(setFields[1], "=", SET[[2,1]])), dbLink) # For this we need only a rowID-based WHERE
+      selects = paste0(dbQuoteIdentifier(dbLink, colnames(Qset)), collapse=",")  # collapse vector to single, quoted string
+      sQUERY = paste0("SELECT ", selects, " FROM ", dbt(db, table, dbLink), " WHERE ", wherePairs, ";")
+      uQUERY = paste0("UPDATE ", dbt(db, table, dbLink), " SET ", QsetQ(Qset, dbLink), " WHERE ", wherePairs, ";")
 #print(uQUERY)
  # SQL Transaction Start: See https://cran.r-project.org/web/packages/pool/pool.pdf
       r = dbBegin(dbLink)   #, "START TRANSACTION;")     # Transaction because there are multiple steps here
@@ -314,7 +356,7 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
                         " in the following ways:<ul>", paste0(cell, collapse = ""),
                         "</ul>Clashing fields now have the more recent update, but these may be incorrect.</p>")
             }
-            uQUERY = paste0("UPDATE ", dbt(db, table, pool), " SET ", QsetQ(Qset, pool), " WHERE ", wherePairs, ";")
+            uQUERY = paste0("UPDATE ", dbt(db, table, dbLink), " SET ", QsetQ(Qset, dbLink), " WHERE ", wherePairs, ";")
             r = dbExecute(dbLink, uQUERY)
             if(r==1) {                                         # was 1 row updated?
                r = dbCommit(dbLink)  #, "COMMIT;")             #    Yes, finish transaction
@@ -353,6 +395,30 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
 # u$regDate = sTime()
 # u$sessionID = u$userName   # generate_id() would be better if it works here
 # recSave(u, "Admin")
+
+### This is a special function for creating and saving an entire cite table at once, Used by the Search.R page.
+citeTable = function(r, db, id) {
+   dbLink <- poolCheckout(shiny.pool)                                   # this one is always shiny.pool; not called during init
+   on.exit(poolReturn(dbLink), add = TRUE)                              # return dbLink when done, even if there's an error
+   tableDB = dbt(db, paste0("cite",id), dbLink)                         # db.table name
+   rValues = paste(                                                     # change NA to "" and prevent SQL injection
+       dbQuoteString(dbLink, ifelse(is.na(r$type), "", r$type)),
+       dbQuoteString(dbLink, ifelse(is.na(r$title), "", r$title)),
+       dbQuoteString(dbLink, ifelse(is.na(r$author), "", r$author)),
+       dbQuoteString(dbLink, ifelse(is.na(r$journal), "", r$journal)),
+       dbQuoteString(dbLink, ifelse(is.na(r$Y), "", r$Y)),
+       dbQuoteString(dbLink, ifelse(is.na(r$V), "", r$V)),
+       dbQuoteString(dbLink, ifelse(is.na(r$N), "", r$N)),
+       dbQuoteString(dbLink, ifelse(is.na(r$P), "", r$P)),
+       dbQuoteString(dbLink, ifelse(is.na(r$abstract), "", r$abstract)),
+       dbQuoteString(dbLink, ifelse(is.na(r$pmid), "", r$pmid)),
+       dbQuoteString(dbLink, ifelse(is.na(r$pmcid), "", r$pmcid)),
+       dbQuoteString(dbLink, ifelse(is.na(r$doi), "", r$doi)),
+       sep=',', collapse='),(')
+   dbr = dbExecute(dbLink, paste0("DROP TABLE IF EXISTS ", tableDB, ";")) # Drop any existing cite table for this search
+   dbr = dbExecute(dbLink, createTable(db, "cite", citeNum=id))           # Create a new cite table
+   dbr = dbExecute(dbLink, paste0("INSERT INTO ", tableDB, " (", paste0(names(r), collapse=","), ") VALUES(", rValues, ");"))
+}
 
 ### These are the functions for getting a tibble from a table. There is special function for each table.
 # When getting records, there are three possibilities.

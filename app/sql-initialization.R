@@ -5,12 +5,8 @@
 
 # Also creates "admin" and "shiny" users.
 
-#  Load the function that creates the SQL command to create a table, based on the given defintion
-source("sql-create-table.R", local=TRUE)  # createTable = function(db, table, dict=table.definition.list)
-
-DB.Initialization = function(pool, burnItAllDown=FALSE) {
-   dbLink <- poolCheckout(pool)                  # get a dbLink from the pool
-   on.exit(poolReturn(dbLink), add = TRUE)       # return dbLink when done, even if there's an error
+DB.Initialization = function(burnItAllDown=FALSE) {
+   # caller must set up dbLink
 
    # TEST CODE - deletes users and database so the rest of the code is tested
    if(burnItAllDown) {
@@ -61,9 +57,8 @@ DB.Initialization = function(pool, burnItAllDown=FALSE) {
       r = dbExecute(dbLink, createTable("om$prime", "membership"))
       r = dbExecute(dbLink, createTable("om$prime", "protoHelp"))
       r = dbExecute(dbLink, createTable("om$prime", "settings"))
-
       # inititialise user table
-      u = userGet()
+      u = userGet(pool=root.pool)
       u$userName[2] = "Admin"
       u$hashedPW[2] = hashpw(admin_password)
       u$email[2] = admin_email_address
@@ -89,21 +84,27 @@ DB.Initialization = function(pool, burnItAllDown=FALSE) {
       }
 
       # inititialise settings table
-      s = settingsGet()
-      s$name[2] = "uploadMaxMB"
-      s$value[2] = "10"
-      s$comment[2] = paste0("<p>This is the maximum file upload size in MB. The Shiny default size is 5 MB. ",
-                            "Our default is 10 MB, though you may need to set it larger for some projects. ",
-                            "An average citation uses about 2.75 MB, so 10 MB is about 3,500 citations. ",
-                            "In any case, these settings are app-specific, not session-specific, so they ",
-                            "apply to everyone.</p>")
-      r = recSaveR(s, pool=root.pool)
+      s = settingsGet(pool=root.pool)
+      # s$name[2] = "uploadMaxMB"
+      # s$value[2] = "16"
       s$name[2] = "uploadMaxCites"
       s$value[2] = "3500"
+      s$comment[2] = paste0("<p>This is the maximum number of citations that can be uploaded at one time. You ",
+                            "can increase this, perhaps up to 5,000, but it's better to encourage users to ",
+                            "split their citations up into multiple, smaller searches.</p>",
+                            "<p><br></p>",
+                            "<p>Shiny has a default upload size of 5 MB that our code increases to 16 MB. MySQL ",
+                            "has a <i>max_allowed_packet</i> that defaults to 4 MB; our code increases this ",
+                            "one to 16 MB as well. These changes are near the top of the app.R file and are ",
+                            "required by the cite upload and table save in Search.R.</p>",
+                            "<p><br></p>",
+                            "<p>An average citation uses about 2.75 KB, so 16 MB should be plenty for up to 5,000 ",
+                            "citations. In any case, this setting is app-specific, not session-specific, ",
+                            "so it applies to everyone.</p>")
       r = recSaveR(s, pool=root.pool)
 
       # inititialise project table
-      prj = projectGet()
+      prj = projectGet(pool=root.pool)
 #      prj$projectName[2] = paste0(sample(words,12), collapse=" ")
       prj$projectName[2] = "Effect of daily vitamin D<sub>3</sub> supplementation on human health and performance"
       PROJECTNAME = prj$projectName[2]
@@ -119,7 +120,7 @@ DB.Initialization = function(pool, burnItAllDown=FALSE) {
       # }
 
       # initialize membership table
-      membership = membershipGet()
+      membership = membershipGet(pool=root.pool)
       membership$userID[2] = 1
       membership$projectID[2] = 1
       membership$role[2] <- "Principal Investigator"
@@ -139,7 +140,7 @@ DB.Initialization = function(pool, burnItAllDown=FALSE) {
       # }
 
       # inititialise page table
-      pg = pageGet()
+      pg = pageGet(pool=root.pool)
       pg$spReq[2] = 0
       pg$pageType[2] = 0
       pg$pageText[2] = ""

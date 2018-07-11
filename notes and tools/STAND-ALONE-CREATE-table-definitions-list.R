@@ -152,7 +152,7 @@ F8  = tibble(Name="terms",      Type="TEXT",      Size="",    NoSign="",  NoNull
 F9  = tibble(Name="query",      Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
 F10 = tibble(Name="CFchosen",   Type="VARCHAR",   Size="30",  NoSign="",  NoNull="",  Default="s",       Key="")
 F11 = tibble(Name="CFactual",   Type="VARCHAR",   Size="30",  NoSign="",  NoNull="",  Default="s",       Key="")
-F12 = tibble(Name="citeCount",  Type="SMALLINT",  Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
+F12 = tibble(Name="citeCount",  Type="INT",       Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
 F13 = tibble(Name="createDate", Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
 F14 = tibble(Name="procDate",   Type="VARCHAR",   Size="23",  NoSign="",  NoNull="",  Default="s",       Key="")
 F15 = tibble(Name="updateDate", Type="VARCHAR",   Size="23",  NoSign="",  NoNull="",  Default="s",       Key="")
@@ -162,44 +162,32 @@ F18 = tibble(Name="fileName",   Type="VARCHAR",   Size="254", NoSign="",  NoNull
 F19 = tibble(Name="fileSize",   Type="INT",       Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 F20 = tibble(Name="fileType",   Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
 F21 = tibble(Name="fileTime",   Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F22 = tibble(Name="fileRaw",    Type="LONGTEXT",  Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F23 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F24 = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F25 = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F26 = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F27 = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F28 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
-F29 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F22 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F23 = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F24 = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F25 = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F26 = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F27 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F28 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 search=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
-                                        F20,F21,F22,F23,F24,F25,F26,F27,F28,F29) #,
+                                        F20,F21,F22,F23,F24,F25,F26,F27,F28) #,F29) #,
 #                                        F30,F31)
 
-# cite
+# cite - this is a special table format for temporarily savings cites; NO SQL.CORE fields
 F1  = tibble(Name="citeID",     Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
-F2  = tibble(Name="searchID",   Type="MEDIUMINT", Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
-F3  = tibble(Name="trialID",    Type="MEDIUMINT", Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
-
-
-
-F25 = tibble(Name="title",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F25 = tibble(Name="journal",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F25 = tibble(Name="authors",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F25 = tibble(Name="abstract",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F25 = tibble(Name="keywords",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F25 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F25 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-
-F2  = tibble(Name="PMID", Type="VARCHAR",   Size="20", NoSign="",  NoNull="",  Default="s",       Key="")
-
-
-F25 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F26 = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F27 = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F28 = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F29 = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F30 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
-F31 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-blurb=rbind(F1,F2,F3,F4,F5,F6)
+F2  = tibble(Name="type",       Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F3  = tibble(Name="title",      Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F4  = tibble(Name="author",     Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F5  = tibble(Name="journal",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F6  = tibble(Name="Y",          Type="VARCHAR",   Size="4",   NoSign="",  NoNull="T", Default="s",       Key="")
+F7  = tibble(Name="V",          Type="VARCHAR",   Size="50",  NoSign="",  NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="N",          Type="VARCHAR",   Size="50",  NoSign="",  NoNull="T", Default="s",       Key="")
+F9  = tibble(Name="P",          Type="VARCHAR",   Size="50",  NoSign="",  NoNull="T", Default="s",       Key="")
+F10 = tibble(Name="abstract",   Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F11 = tibble(Name="pmid",       Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
+F12 = tibble(Name="pmcid",      Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
+F13 = tibble(Name="doi",        Type="VARCHAR",   Size="200", NoSign="",  NoNull="T", Default="s",       Key="")
+cite=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13)
 
 # prj$hits
 # buildR <- function(nrecs=1) {                              # standard tibble for hits table
@@ -262,11 +250,11 @@ cull=rbind(F1,F2,F3,F4,F5,F6)
 ### Combine into a list and save
 table.definition.list = list(
    page=page, user=user, project=project, membership=membership, protoHelp=protoHelp, protocol=protocol,
-   settings=settings, search=search
+   settings=settings, search=search, cite=cite
 )
 saveRDS(table.definition.list, file="app/table.definition.list.RDS")
 ##################################################################################
 
-rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,F30,F31)
-rm(arm, blurb, cull, page, project, review, search, trial, user, membership, protocol, protoHelp,
+rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24,F25,F26,F27,F28,F29) #,F30,F31)
+rm(arm, cite, cull, page, project, review, search, trial, user, membership, protocol, protoHelp,
    settings)

@@ -31,3 +31,10 @@ if(Smtp.Username=="") {    # When noEmail is TRUE, in some places (e.g. trying t
 } else {                   #   different page. The redirect erases the modal dialog before you can see it.
    noEmail = FALSE
 }
+
+### PubMed credentials
+PubMed.Key <- ""           # PubMed search will work even if you don't have this.
+PubMed.Delay <- 400        # If you have a valid key, you can set this to 100; it's the minimum
+                           #     delay in milliseconds between PubMed (Entrez) API requests.
+                           #     Details at https://www.ncbi.nlm.nih.gov/books/NBK25497/
+                           #        search that page for "API keys"

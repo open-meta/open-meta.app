@@ -3,17 +3,15 @@
 
 # This file has the code needed to initialize a project
 
-# To to set pool and projectID before running this.
+# Need to set dbLink and projectID before running this.
 #    Called by sql-initialization to init the sample project
 #    Called by prjNew for all other projects
 
-   #  This function creates the SQL command to create a table, based on the given defintion
-source("sql-create-table.R", local=TRUE)   # provides createTable = function(db, table, dict=table.definition.list)
-
 initProject = function(projectID, projectName, pool) {
-
+   dbLink <- poolCheckout(pool)                                    # get a dbLink from the pool
+   on.exit(poolReturn(dbLink), add = TRUE)                         # return it when done, even if there's an error
+   # distinguish between run at db initialization and run for new project
    newInstall = FALSE
-# distinguish between run at db initialization and run for new project
    if(!exists("S")) {                # If the S$ list doesn't exist, this is a new installation, not a new project...
       newInstall = TRUE
       S = list()                     #   ...so we need to make an S$ for inside this function only
@@ -21,10 +19,10 @@ initProject = function(projectID, projectName, pool) {
       S$db = paste0("om$prj_", projectID)
    }
 
-   r = dbExecute(pool, paste0("CREATE DATABASE `", S$db, "`;"))  # Create the project db
-   r = dbExecute(pool, createTable(S$db, "settings"))            # Create its tables
-   r = dbExecute(pool, createTable(S$db, "protocol"))            # Create its tables
-   r = dbExecute(pool, createTable(S$db, "search"))              # Create its tables
+   r = dbExecute(dbLink, paste0("CREATE DATABASE `", S$db, "`;"))  # Create the project db
+   r = dbExecute(dbLink, createTable(S$db, "settings")) # Create its tables
+   r = dbExecute(dbLink, createTable(S$db, "protocol")) # Create its tables
+   r = dbExecute(dbLink, createTable(S$db, "search"))   # Create its tables
 
 ### Membership table is done by caller on both new installs and new projects
 

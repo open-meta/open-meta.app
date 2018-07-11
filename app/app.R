@@ -2,8 +2,8 @@
 ### Tom Weishaar - May 2018 - v0.3
 
 ### FLAGS
-burnItAllDown = TRUE          # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
-#burnItAllDown = FALSE
+#burnItAllDown = TRUE          # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
+burnItAllDown = FALSE
 showSysMsg = TRUE              # Controls whether the big red box shows on the main site pages or not
 sink(file=stderr())            # When on a server, this makes sure what we print() appears in the log...
 debugON <- TRUE                # if TRUE, prints debugging info to the console (or server log)
@@ -30,15 +30,15 @@ library(magrittr)       # http://www.open-meta.org/all/r-packages-attached-vs-lo
 library(stringi)        #
 library(xml2)           #
 
-library(RCurl)          # Need to add tis one to Lightsail
+library(RCurl)          # Need to add this one to Lightsail
 library(rvest)
+library(RefManageR)
 
 library(pool)
 library(RMariaDB)
 library(mailR)
 library(bcrypt)         # password encryption
 library(DT)             # JavaScript tables
-library(RefManageR)     # BibTeX library
 
 ###  GLOBAL FUNCTIONS
 # Time Functions (way up here because sTime() is needed by sql-initialization)
@@ -135,13 +135,19 @@ root.pool <- dbPool(                                  # log in as root to see if
    user = "root",
    password = SQL.Passwords[1]
 )
-SQL.DBs <- dbGetQuery(root.pool, "SHOW DATABASES")
+dbLink <- poolCheckout(root.pool)                     # get a dbLink from the pool
+
+r = dbExecute(dbLink, "SET GLOBAL max_allowed_packet=16777216;")   # Enlarge MySQL max packet size to 16MB
+options(shiny.maxRequestSize = 16*1024^2 )            # Enlarge Shiny file upload size to 16MB
+
+SQL.DBs <- dbGetQuery(dbLink, "SHOW DATABASES")
 if(burnItAllDown || !("om$prime" %in% SQL.DBs$Database)) {
    if(debugON) { print("Initializing database...") }
    source("sql-initialization.R", local=TRUE)         # This file is loaded only if we need to init databases
-   r = DB.Initialization(root.pool, burnItAllDown)
-   if(debugON) { print(r) }                           # r is just an initialization completion message
+   r = DB.Initialization(burnItAllDown)
+   if(debugON) { print(r) }                           # r is an initialization completion message
 }
+poolReturn(dbLink)                                    # return dbLink
 poolClose(root.pool)                                  # log out of root
 
 shiny.pool <- dbPool(                                 # log in as shiny
@@ -361,11 +367,6 @@ incSN = function() {
 
 # this is a tibble of all pages; this can be shared by all sessions, so we'll load it here
 allPages = pageGet(c("pageName", "spReq"), tibble(c("deleted", "=", 0)))
-
-# How large a file can be uploaded. This can be changed in Admin Panel. Setting is app-wide, not session-specific.
-r = settingsGet("value", tibble(c("name", "=", "uploadMaxMB")))$value
-options(shiny.maxRequestSize = as.numeric(r)*1024^2 ) # convert MB to bytes
-
 
 ### Server Function
 ### Note that what's above here loads only one time, when the app starts.

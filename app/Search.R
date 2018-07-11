@@ -15,28 +15,28 @@ source("chokidar.R", local=TRUE)
 # Single place to define these.
 databases = c("PubMed", "Cochrane Central", "Web of Science", "All Other")
 citeFormats = list(c("Live", "PMID", "MEDLINE or .nbib"), "Cochrane Central Export", "EndNote Desktop (.ciw)", c("RIS", "BibTeX", "MEDLINE or .nbib", "PMID"))
-S$SRCH$id = 0      # Initialize for new search; edit will update
-rv$processFile = 0 # Trigger to begin processFile observer
-rv$hitCounter = 0  # Trigger to update "Number of citations in this search" readonly field
-rv$render = 0      # Trigger to render page after dealing with input initializatons
-S$PF$trigger = 1   # Which section we're processing now (used with invalidateLater())
+S$SRCH$id = 0         # Initialize for new search; edit will update
+rv$processFile = 0    # Trigger to begin processFile observer
+rv$hitCounter = 0     # Trigger to update "Number of citations in this search" readonly field
+rv$render = 0         # Trigger to render page after dealing with input initializatons
+S$PF$trigger = 1      # Which section we're processing now (used with invalidateLater())
 S$uploadMaxCites <- as.numeric(settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxCites")))$value)
 
-S$PM = list()     # PubMed Search
-S$PM$minDelay = 400        # in milliseconds get this from settings eventually
+S$PM = list()         # PubMed Search
 S$PM$lastTime = now()
 S$PM$search <- FALSE
 rv$PMsearch <- 0
 
 S$SRCH$saveFlag <- FALSE
 S$SRCH$processFlag <- FALSE
+S$msg = ""
 
 # Only needed on this page:
 searchGet = function(db=S$db, SELECT="", WHERE=tibble(c("searchID", ">", "0"))) {
    return(recGet(db, "search", SELECT, WHERE))
 }
 
-rv$menuActive = 1    # Start out on first sub-menu
+rv$menuActive = 1     # Start out on first sub-menu
 
 # Need this to make choices stick without changing other inputs
 # Not sure how to keep this from running twice when changing the database as that also
@@ -130,7 +130,6 @@ observeEvent(input$js.editorText, {
    # $fileSize  filled in by citeFile
    # $fileType  filled in by citeFile
    # $fileTime  filled in by citeFile
-   # $fileRaw   filled in by citeFile???
    if(S$SRCH$saveFlag) {                                # Can't save a search if any of these are bad.
       S$SRCH$saveFlag <<- FALSE
       msg=""
@@ -191,7 +190,7 @@ observeEvent(input$js.editorText, {
             }
          }
       }
-      if(nchar(msg)) {                            # No render if there's a modal; put this on top of existing render
+      if(nchar(msg)) {                    # No render if there's a modal; put this on top of existing render
          S$modal_title <<- "Whoops!"
          if(S$SRCH$processFlag) {
             S$SRCH$processFlag <<- FALSE
@@ -204,7 +203,7 @@ observeEvent(input$js.editorText, {
          S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
          if(S$SRCH$processFlag) {
             S$SRCH$processFlag <<- FALSE
-            processSearch()                       # This is elsewhere to simplify code for this observer
+            processSearch()               # This is elsewhere to simplify code for this observer
          }
          rv$menuActive = 1
          S$hideMenus <<- FALSE            # Back to regular programming
@@ -241,7 +240,7 @@ if(S$P$Msg=="") {
                   }
                )
                # if you need to further modify Rx, you can do it here.
-               if(S$P$Modify) {
+               if(S$P$Modify && nrow(Rx)>0) {
                   Rx[Rx$status>0,7] <- bs4("btn", id="viewSearch", q="b", "View")
                   Rx[Rx$status==1,8] <- bs4("btn", id="updateSearch", q="r", "Update")
                   Rx[Rx$status>1,8] <- ""
@@ -471,47 +470,42 @@ observeEvent(rv$hitCounter, {
 #    Ends with either a failure message or an update to "Number of citations in this search".
 
 # need to save fileOK somewhere for completeness test...
-# need to save text vector at end if it's ok (or BibTex)
+# need to save text vector at end if it's ok (or BibTeX)
 
 observeEvent(input$citeFile, {
+   start.time <- Sys.time()
+   on.exit(print(Sys.time() - start.time))
    S$SRCH2$fileName[2] <<- stripHTML(input$citeFile$name)
    S$SRCH2$fileSize[2] <<- input$citeFile$size
    S$SRCH2$fileType[2] <<- input$citeFile$type
-#   S$SRCH2$fileRaw[2]  <<- read_file(input$citeFile$datapath) # We'll do this later when we're sure the file is good
    S$SRCH2$fileTime[2] <<- sTime()
-   msg <- ""                   # Assume no error
-   fileOK <- TRUE              #   likewise
-   mismatch = TRUE             # Assume an error
-   S$SRCH2$CFactual[2] <<- "BAD" #    likewise
-   S$SRCH2$citeCount[2] <<- 0    #    likewise
+   msg <- ""                                                   # Assume no error
+   fileOK <- TRUE                                              #   likewise
+   mismatch = TRUE                                             # Assume an error
+   S$SRCH2$CFactual[2] <<- "BAD"                               #    likewise
+   S$SRCH2$citeCount[2] <<- 0                                  #    likewise
    # First check file's extension (But does this work on Macs???)
    fnParts = str_split(S$SRCH2$fileName[2], "[.]")
    fileExt = fnParts[[1]][[length(fnParts[[1]])]]
    if(!(str_to_lower(fileExt) %in% c("txt", "ciw", "ris", "bib", "nbib"))) {
       msg = paste0(msg, "<li>This file's extension is <b>.", fileExt, "</b>. That's not a file type Open-Meta can import.</li>")
    } else {
-      # Has this file already been uploaded in another search?
-      f = recGet(S$db, "search", "fileName", tibble(c("deleted", "=", 0)))
-      if(S$SRCH2$fileName[2] %in% f$fileName) {
-         msg <- "<li>This file name is in an earlier search. Unless all your citation files have the same name (not good), it is almost certainly not the file you want here.</li>"
-      }
-
       # Read file as a string vector, one line of file per cell, then delete blank lines
       # Can still choke on odd files with nulls, like gifs.
-      rf <- stri_read_lines(input$citeFile$datapath)           # "experimental" but fixes encoding issues
-      r <- rf[str_trim(rf)!=""]
+      raw <- stri_read_lines(input$citeFile$datapath)          # "experimental" but seems to fix encoding issues
+      raw <- raw[str_trim(raw)!=""]                            # raw is character vector; trim and delete blank lines
 
       # This section figures out the file format
-      if(length(r)>0 && all(!is.na(suppressWarnings(as.numeric(r))))) {  # PMID is all numeric but could be only 1 line!
+      if(length(raw)>0 && all(!is.na(suppressWarnings(as.numeric(raw))))) {  # PMID is all numeric but could be only 1 line!
          S$SRCH2$CFactual[2] <<- "PMID"
-         S$SRCH2$citeCount[2] <<- length(r)
+         S$SRCH2$citeCount[2] <<- length(raw)
          if(input$citeFormat=="PMID") mismatch = FALSE
       } else {                                                 # Otherwise needs to have at least 2 lines
-         if(length(r)<6) {                                     #    to test for CIW, but none of the remaining
+         if(length(raw)<6) {                                   #    to test for CIW, but none of the remaining
             S$SRCH2$CFactual[2] <<- "BLANK"                    #    formats are less than 5 lines, probably more...
             mismatch = FALSE                                   # TRUE sends the wrong message
          } else {
-            r <- str_sub(r,1,6)                                # Cut the strings back to first 6 characters
+            r <- str_sub(raw,1,6)                              # Cut the strings back to first 6 characters
             TF.vec = r=="PMID- "                               #    only for the remaining tests.
             if(any(TF.vec)) {
                S$SRCH2$CFactual[2] <<- "MEDLINE or .nbib"      # The sum tells us how many "PMID- " cells
@@ -521,13 +515,13 @@ observeEvent(input$citeFile, {
                TF.vec = r=="TY  - "
                if(any(TF.vec)) {
                   S$SRCH2$CFactual[2] <<- "RIS"
-                  S$SRCH2$citeCount[2] <<- sum(TF.vec)           # Likewise
+                  S$SRCH2$citeCount[2] <<- sum(TF.vec)         # Likewise
                   if(input$citeFormat=="RIS") mismatch = FALSE
                } else {
                   TF.vec = r=="Record"
                   if(any(TF.vec)) {
                      S$SRCH2$CFactual[2] <<- "Cochrane Central Export"
-                     S$SRCH2$citeCount[2] <<- sum(TF.vec)        # Likewise
+                     S$SRCH2$citeCount[2] <<- sum(TF.vec)      # Likewise
                      if(input$citeFormat=="Cochrane Central Export") mismatch = FALSE
                  } else {
                      TF.vec = str_sub(r, 1, 3)=="PT "
@@ -542,12 +536,12 @@ observeEvent(input$citeFile, {
                         if(any(TF.vec)) {                      #   with @
                            S$SRCH2$CFactual[2] <<- "BibTeX"
                            S$SRCH2$citeCount[2] <<- sum(TF.vec)
-                           if(input$citeFormat=="BibTex") mismatch = FALSE
+                           if(input$citeFormat=="BibTeX") mismatch = FALSE
       }}}}}}}
    }
    if(S$SRCH2$CFactual[2]=="BAD") {
       msg = paste0(msg, "<li>This file is in an unknown format. It begins like this:</li></ul><pre>",
-                  paste0(escHTML(str_sub(rf[1:6], 1, 95)), collapse="<br>"), "</pre><ul>")
+                  paste0(escHTML(str_sub(raw[1:6], 1, 95)), collapse="<br>"), "</pre><ul>")
    }
    if(S$SRCH2$CFactual[2]=="BLANK") {
       msg = paste0(msg, "<li>The file you've uploaded is either empty or a type of file Open-Meta doesn't support.</li>")
@@ -564,184 +558,303 @@ observeEvent(input$citeFile, {
       rv$modal_warning <- rv$modal_warning + 1
    }
    if(fileOK) {
-    #  loadFile()
+      msg = saveCites(raw)                                           # File looks good, save in cites table
+      f = recGet(S$db, "search", "fileName", tibble(c("searchID", "!=", S$SRCH$id)))
+      if(S$SRCH2$fileName[2] %in% f$fileName) {                # Has this file already been uploaded in another search?
+         msg <- paste0(msg, "<li>This file name is in an earlier search. Unless all your citation files ",
+                       "have the same name, it may not be the file you want here.</li>")
+      }
       if(mismatch) {
-         S$modal_title <<- "Warning!"
-         S$modal_text <<- HTML("You have the File Format set to ", stripHTML(input$citeFormat), " but the actual format ",
-                               "of this file is ", S$SRCH2$CFactual[2], ". We'll assume you uploaded the correct file, ",
-                               "but are you sure? You can click Browse again to upload a different file if necessary.")
+         msg <- paste0(msg, "<li>You have the File Format set to ", stripHTML(input$citeFormat), " but the actual ",
+                       "format of this file is ", S$SRCH2$CFactual[2], ".</li>")
+      }
+      if(nchar(msg)>0) {
+         S$modal_title <<- "Warning..."
+         S$modal_text <<- paste0("Just so you know:<ul>", msg, "</ul>",
+                                 "<p>We'll assume you uploaded the correct file, but are you sure? ",
+                                 "You can click Browse again to upload a different file if necessary.</p>")
          S$modal_size <<- "l"
          rv$modal_warning <- rv$modal_warning + 1
       }
    }
-   rv$hitCounter = rv$hitCounter + 1    # update hits after uploading file
+   rv$hitCounter = rv$hitCounter + 1                           # update hits after uploading file
 })
 
-processSearch = function() {
-   return()
-   switch(S$SRCH2$CFactual[2],
+### This is the magic vectorized sauce for turning a cite file into a table.
+###    Input is a cite file as a character vector, with one line of the file at each vector position
+###    1.) The lines are split into codes (cd) and values at splitAt, which is different for various cite file formats.
+###        NOTE: In theory, splitAt can be a regex ("="), but if the string appears more than once you get a mess.
+###    2.) If the code has a hyphen (.nbib), remove it; then trim spaces, leaving "no code" cd's blank.
+###    3.) Also trim values
+###    4.) While loop will fail if code in 1st row is blank, fix it now
+###    5.) While loop replaces blank codes with the preceeding valid code
+###    4,) Lines belonging to a single cite are grouped using SIDmark (a code designating the start of a cite)
+###    5.) Lines with the same code within a group are collapsed into one line with an "@'`#$%" separator for fixing later
+###    6.) Ungroup
+###    7.) Make a tibble with rows as cites and columns as codes
+###    8.) If there is row with SID=0 (the rows before the first SIDmark), delete it
+# Props: https://matthewlincoln.net/2016/06/06/tidying-a-crazy-single-column-table-with-readr-dplyr-and-tidyr.html
+cites2table = function(r, splitAt, SIDmark) {
+   r <- separate(r, 1, into = c("cd", "value"), sep=splitAt)   # split line, cd=chars(1:splitAt), value=chars(splitAt+)
+   r$cd = str_replace(r$cd, "-", "")                           # get rid of dash in code (for .nbib)
+   r$cd = str_trim(r$cd, side="right")                         # Make blanks blank and trim others
+   r$value = str_trim(r$value, side="both")                    # Trim values
+   r[[1,1]] = ifelse(r[[1,1]]=="", "zyzzy", r[[1,1]])          # Make sure 1st cell has a code for while loop
+# dplyr has a fill(variable) function, but it requires NAs, not blanks. Moreover, this while
+#    loop is very cool for filling in blank cds with the cd immediately above.
+# Props: https://stackoverflow.com/questions/38470355/r-fill-empty-cell-with-value-of-last-non-empty-cell
+   while(length(i <- which(r$cd == "")) > 0) { r$cd[i] <- r$cd[i-1] }
+   r <- r %>%
+     mutate(SID = cumsum(cd == SIDmark)) %>%                   # create SID numbering
+     group_by(SID, cd) %>%                                     # group by SID
+     summarize(value = paste(value, collapse = "@'`#$%")) %>%  # collapse duplicate cds within SID; collapse must be a literal!
+     ungroup() %>%                                             # remove grouping
+     spread(cd, value)                                         # 1 row per SID, 1 col per cd
+   r <- r[!r$SID==0,]                                          # Delete any rows with SID==0
+   return(r)
+}
+
+saveCites = function(r) {                                      # incoming r is a character vector
+   msg=""                                                      # initialize msg for no errors
+   r <- tibble(c=r)                                            # first change the character vector to a 1-col tibble
+   switch(S$SRCH2$CFactual[2],                                 # process based on file type
       "BibTeX" = {
-         # Needs library(RefManageR)!!!
-         r <- as.tibble(ReadBib(input$citeFile$datapath))
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\Eric.bib"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\WofK-bibtex.bib"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\WofK-bibtex2.bib"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\BibTeX-940 from Endnote.txt"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\badFormat.bib"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\biblatexExamples.bib"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\RJC.bib"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\test.bib"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\BibTex endnote long format.txt"
+# S = list()
+# S$SRCH2$fileName[2] = f
+         r <- suppressWarnings(ReadBib(input$citeFile$datapath))
+         if(length(r)==0) {                                               # Any valid Bib entries in file?
+            S$SRCH2$citeCount[2] <<- 0
+            return("<li>This file has no valid BibTeX entries.</li>")
+         }
+         t <- suppressWarnings(as.data.frame(r))
+         if(nrow(t)==0) {                                                 # Did any survive df conversion?
+            S$SRCH2$citeCount[2] <<- 0
+            return("<li>This file has no valid BibTeX entries.</li>")
+         }
+         if(S$SRCH2$citeCount[2] > nrow(t)) {                             # Adjust citeCount for any losses.
+            msg <- paste0("<li>", S$SRCH2$citeCount[2] - nrow(t), " of the entries in this file weren't valid and were dropped.</li>")
+            S$SRCH2$citeCount[2] <<- nrow(t)
+         }
+         for(c in 1:ncol(t)) {                                            # for each column of dataframe, remove all...
+            while(length(i <- which(str_sub(t[[c]],1,1) == "{")) > 0) { t[i,c] <- str_sub(t[i,c],2,-1) }    # leading and
+            while(length(i <- which(str_sub(t[[c]],-1,-1) == "}")) > 0) { t[i,c] <- str_sub(t[i,c],1,-2) }  # trailing brackets
+         }
+         t$author = str_replace_all(t$author, " and ", "; ")              # change " and " in author field to "; "
+         t$year = str_sub(t$year, 1, 4)                                   # Trim year to first four characters
+         t = as.tibble(t)                                                 # tibble it
+         TYcode = "bibtype"
+         TIcode = "title"
+         AUcode = "author"
+         Jcode  = "journaltitle"
+         Ycode  = "year"
+         Vcode  = "volume"
+         Ncode  = "number"
+         Pcode  = "pages"
+         ABcode = "abstract"
+         PMcode = "pmid"
+         PCcode = "pmcid"
+         DOcode = "doi"
       },
       "PMID" = {
-         r <- tibble(PMID=stri_read_lines(input$citeFile$datapath))
+# f = file.choose()
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\pubmed_PMID_result.txt"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\Citations\\pmids.txt"
+   t <- tibble(PMID = r[[1]])
+         TYcode = "PT"
+         TIcode = "TI"
+         AUcode = "AU"
+         Jcode  = "SO"
+         Ycode  = "YR"
+         Vcode  = "VL"
+         Ncode  = "NO"
+         Pcode  = "PG"
+         ABcode = "AB"
+         PMcode = "PMID"
+         PCcode = "pmcid"
+         DOcode = "DO"
       },
       "RIS" = {
-         r <- tibble(stri_read_lines(input$citeFile$datapath))
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\Ovid.ris"
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\ProQuestDocuments-2018-05-12.ris"
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\Ebsco-Academic Premier.ris"
-#         r <- tibble(stri_read_lines(f))
-         r <- separate(r, 1, into = c("variable", "value"), sep=6)
-         r$variable = str_sub(r$variable, 1, 2)
-         r <- mutate(r, SID = cumsum(variable == "TY"))
-         r <- group_by(r, SID, variable)
-         r <- summarize(r, value = paste(value, collapse = "; ")) %>%
-              ungroup() %>%                                                      # remove grouping
-              spread(variable, value)
-         # cnames = names(r)
-         # if(all(c("SP", "EP") %in% cnames)) {          # if we have both kinds of page numbers,
-         #    r$P <- ifelse(is.na(r$EP), r$SP, paste0(r$SP, "-", r$EP)) # glue them together in P
-         #    cnames = names(r)
-         # } else {                                      # otherwise, take the one we can get
-         #    cnames[cnames=="SP"] <- "P"
-         #    cnames[cnames=="EP"] <- "P"
-         # }
-         # if("PY" %in% cnames) {                        # if we have both kinds of years, prefer PY
-         #    cnames[cnames=="PY"] <- "Y"
-         # } else {
-         #    cnames[cnames=="Y1"] <- "Y"
-         # }
-         # cnames[cnames=="TY"] <- "Type"
-         # cnames[cnames=="T1"] <- "Title"
-         # cnames[cnames=="JF"] <- "Journal"
-         # cnames[cnames=="VL"] <- "V"
-         # cnames[cnames=="IS"] <- "N"
-         # cnames[cnames=="XX"] <- "PMID"
-         # cnames[cnames=="N2"] <- "Abstract"
-         # cnames[cnames=="AB"] <- "Abstract"
-         # cnames[cnames=="KW"] <- "Keywords"
-         # cnames[cnames=="A1"] <- "Authors"
-         # cnames[cnames=="AU"] <- "Authors"
-         # cnames[cnames=="L3"] <- "DOI"
-         # r <- r[nchar(cnames)!=2]               # NOTE that none of the new names can have 2 characters!!!
-         # names(r) <- cnames[nchar(cnames)!=2]          # Rename columns with non-2-char cnames
-         # r = r[!r$SID==0,]                             # If there is a row with SID==0, delete it
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\Ovid.ris"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\ProQuestDocuments-2018-05-12.ris"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\Ebsco-Academic Premier.ris"
+# r <- tibble(stri_read_lines(f))
+         t = cites2table(r, splitAt=6, SIDmark="TY")
+         cnames = names(t)                      # Deal with coding issues:
+         TYcode = "TY"
+         if("TT" %in% cnames) {                 # Title can be TT, TI, T1, or missing
+            TIcode = "TT"
+         } else {
+            if ("TI" %in% cnames) {
+               TIcode = "TI"
+            } else {
+               TIcode = "T1"
+         }}
+         if("AU" %in% cnames) {                 # Author can be AU, A1, or missing
+            AUcode = "AU"
+         } else {
+            AUcode = "A1"
+         }
+         if("JF" %in% cnames) {                 # Journal can be JF, JO, JA, J1, or missing
+            Jcode = "JF"
+         } else {
+            if("JO" %in% cnames) {
+               Jcode = "JO"
+            } else {
+               if("JA" %in% cnames) {
+                  Jcode = "JA"
+               } else {
+                  Jcode = "J1"
+         }}}
+         if("PY" %in% cnames) {                 # Year is first 4 characters of PY or Y1
+            Ycode = "PY"
+         } else {
+            Ycode = "Y1"
+         }
+         Vcode  = "VL"
+         if("IS" %in% cnames) {
+            Ncode = "IS"
+         } else {
+            Ncode = "M1"
+         }
+         if(all(c("SP", "EP") %in% cnames)) {                         # if we have both kinds of page numbers,
+            t$P <- ifelse(is.na(t$EP), t$SP, paste0(t$SP, "-", t$EP)) # glue them together in P
+            Pcode <- "P"
+         } else {                                                     # otherwise, take the one we can get
+            if("SP" %in% cnames) {
+               Pcode <- "SP"
+            } else {
+               Pcode <- "EP"
+         }}
+         if("AB" %in% cnames) {                        # Abstract can be AB, N2, or missing
+            ABcode = "AB"
+         } else {
+            ABcode = "N2"
+         }
+         PMcode = "XX"
+         PCcode = "pmcid"
+         if("DO" %in% cnames) {                        # DOI can be DO or L3
+            DOcode = "DO"
+         } else {
+            DOcode = "L3"
+         }
       },
       "MEDLINE or .nbib" = {
-         r <- tibble(stri_read_lines(input$citeFile$datapath))
 #         f= file.choose()
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\pubmed_MEDLINE_result.txt"
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\PubMed-citations.nbib"
-#         r <- tibble(stri_read_lines(f))
-         r <- separate(r, 1, into = c("variable", "value"), sep=4)
-         r$variable = str_sub(r$variable, 1, 4)
-         r$value    = str_sub(r$value, 3, -1)
-         r <- mutate(r, SID = cumsum(variable == "PMID"))
-         while(length(i <- which(r$variable == "    ")) > 0){ r$variable[i] <- r$variable[i-1] }
-         r <- group_by(r, SID, variable)
-         r <- summarize(r, value = paste(value, collapse = "; ")) %>%
-              ungroup() %>%                                                      # remove grouping
-              spread(variable, value)
-         # cnames = names(r)
-         # cnames[cnames=="PT  "] <- "TypeX"
-         # cnames[cnames=="TI  "] <- "Title"
-         # cnames[cnames=="JT  "] <- "Journal"
-         # cnames[cnames=="DP  "] <- "Y"        # Need to trim
-         # cnames[cnames=="VI  "] <- "V"
-         # cnames[cnames=="IP  "] <- "N"
-         # cnames[cnames=="PG  "] <- "P"
-         # cnames[cnames=="PMID"] <- "PMIDX"
-         # cnames[cnames=="AB  "] <- "Abstract"
-         # cnames[cnames=="MH  "] <- "Keywords"
-         # cnames[cnames=="FAU "] <- "Authors"
-         # cnames[cnames=="LID "] <- "DOI"             # Will trim below
-         # r <- r[nchar(cnames)!=2]                    # NOTE that none of the new names can have 2 characters!!!
-         # cnames <- cnames[nchar(cnames)!=2]          # Drop names with 2 characters
-         # r <- r[nchar(cnames)!=4]                    # NOTE that none of the new names can have 4 characters!!!
-         # cnames <- cnames[nchar(cnames)!=4]          # Drop names with 4 characters
-         # cnames[cnames=="TypeX"] <- "Type"           # Fix 4-char names
-         # cnames[cnames=="PMIDX"] <- "PMID"
-         # names(r) <- cnames
-         # r = r[!r$SID==0,]                           # If there is a row with SID==0, delete it
-         # r = r[,]
-         # r$Y = str_sub(r$Y, 1, 4)                    # Trim year, next 2 lines trim DOI
-         # cutAt = str_locate(r$DOI, fixed(" [doi]"))  # returns a matrix with begin and end of string in cols 1 & 2
-         # r$DOI <- ifelse(is.na(cutAt[,1]), "", str_sub(r$DOI, 1, cutAt[,1]-1))
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\pubmed_MEDLINE_result.txt"
+# f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\PubMed-citations.nbib"
+# r <- tibble(stri_read_lines(f))
+         t = cites2table(r, splitAt=5, SIDmark="PMID")
+         t$LID <- str_replace(t$LID, fixed(" [doi]"), "")
+         TYcode = "PT"
+         TIcode = "TI"
+         AUcode = "FAU"
+         Jcode  = "JT"
+         Ycode  = "DP"
+         Vcode  = "VI"
+         Ncode  = "IP"
+         Pcode  = "PG"
+         ABcode = "AB"
+         PMcode = "PMID"
+         PCcode = "PMCID"
+         DOcode = "LID"
       },
       "EndNote Desktop (.ciw)" = {
-         r <- tibble(stri_read_lines(input$citeFile$datapath))
 #         f= file.choose()
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\WebOfK Tom cites.ciw"
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\WebOfK - Endnote Desktop - Full Record and Cited References.ciw"
-#         r <- tibble(stri_read_lines(f))
-         r <- separate(r, 1, into = c("variable", "value"), sep=3)
-         r$variable = str_sub(r$variable, 1, 2)
-         r <- mutate(r, SID = cumsum(variable == "PT"))
-         while(length(i <- which(r$variable == "  ")) > 0){ r$variable[i] <- r$variable[i-1] }
-         r <- group_by(r, SID, variable)
-         r <- summarize(r, value = paste(value, collapse = "; ")) %>%
-              ungroup() %>%                                                      # remove grouping
-              spread(variable, value)
-         # cnames = names(r)
-         # if(all(c("BP", "EP") %in% cnames)) {          # if we have both kinds of page numbers,
-         #    r$P <- ifelse(is.na(r$BP), r$BP, paste0(r$BP, "-", r$EP)) # glue them together in P
-         #    cnames = names(r)
-         # } else {                                      # otherwise, take the one we can get
-         #    cnames[cnames=="BP"] <- "P"
-         #   cnames[cnames=="EP"] <- "P"
-         # }
-         # cnames[cnames=="DT"] <- "Type"
-         # cnames[cnames=="TI"] <- "Title"
-         # cnames[cnames=="SO"] <- "Journal"
-         # cnames[cnames=="PY"] <- "Y"
-         # cnames[cnames=="VL"] <- "V"
-         # cnames[cnames=="IS"] <- "N"
-         # cnames[cnames=="PM"] <- "PMID"
-         # cnames[cnames=="CR"] <- "CitedRefs"
-         # cnames[cnames=="AB"] <- "Abstract"
-         # cnames[cnames=="ID"] <- "Keywords"
-         # cnames[cnames=="AF"] <- "Authors"
-         # cnames[cnames=="DI"] <- "DOI"
-         # r <- r[nchar(cnames)!=2]               # NOTE that none of the new names can have 2 characters!!!
-         # names(r) <- cnames[nchar(cnames)!=2]          # Rename columns with non-2-char cnames
-         # r = r[!r$SID==0,]                             # If there is a row with SID==0, delete it
+         # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\WebOfK Tom cites.ciw"
+         # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\WebOfK - Endnote Desktop - Full Record and Cited References.ciw"
+         # r <- tibble(stri_read_lines(f))
+         t = cites2table(r, splitAt=3, SIDmark="PT")
+         t$P <- ifelse(is.na(t$EP), t$BP, paste0(t$BP, "-", t$EP))   # glue page numbers together in P
+         TYcode = "DT"
+         TIcode = "TI"
+         AUcode = "AF"
+         Jcode  = "SO"
+         Ycode  = "PY"
+         Vcode  = "VL"
+         Ncode  = "IS"
+         Pcode  = "P"
+         ABcode = "AB"
+         PMcode = "PM"
+         PCcode = "pmcid"
+         DOcode = "DI"
       },
       "Cochrane Central Export" = {
-         r <- tibble(stri_read_lines(input$citeFile$datapath))
-#         f <- file.choose()
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\180512 - Cochrane Central 14 hits.txt"
-#         f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\170331 - Cochrane Central Results.txt"
-#         r <- tibble(stri_read_lines(f))
-         r <- separate(r, 1, into = c("variable", "value"), sep=4)
-         r$variable = str_sub(r$variable, 1, 2)
-         r <- mutate(r, SID = cumsum(variable == "ID"))
-         r <- group_by(r, SID, variable)
-         r <- summarize(r, value = paste(value, collapse = "; ")) %>%
-              ungroup() %>%                                                      # remove grouping
-              spread(variable, value)
-         # cnames = names(r)
-         # cnames[cnames=="PT"] <- "Type"
-         # cnames[cnames=="TI"] <- "Title"
-         # cnames[cnames=="SO"] <- "Journal"
-         # cnames[cnames=="YR"] <- "Y"
-         # cnames[cnames=="VL"] <- "V"
-         # cnames[cnames=="NO"] <- "N"
-         # cnames[cnames=="PG"] <- "P"
-         # cnames[cnames=="PM"] <- "PMID"
-         # cnames[cnames=="AB"] <- "Abstract"
-         # cnames[cnames=="KY"] <- "Keywords"
-         # cnames[cnames=="AU"] <- "Authors"
-         # cnames[cnames=="DO"] <- "DOI"
-         # r <- r[nchar(cnames)!=2]               # NOTE that none of the new names can have 2 characters!!!
-         # names(r) <- cnames[nchar(cnames)!=2]          # Rename columns with non-2-char cnames
-         # r = r[!r$SID==0,]                             # If there is a row with SID==0, delete it
-         # r$PMID = str_sub(r$PMID, 8, -1)
+         # f <- file.choose()
+         # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\180512 - Cochrane Central 14 hits.txt"
+         # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\170331 - Cochrane Central Results.txt"
+         # r <- tibble(stri_read_lines(f))
+         t = cites2table(r, splitAt=4, SIDmark="ID:")
+         t[["PM:"]] <- str_sub(t[["PM:"]], 8, -1)                          # Delete "PUBMED " at beginning of column
+         if(!("PT:" %in% names(t))) {
+            t[["PT:"]] = rep("Cochrane Review", nrow(t))                   # If PT is missing, it's a Cochrane Review cite file
+         }
+         TYcode = "PT:"
+         TIcode = "TI:"
+         AUcode = "AU:"
+         Jcode  = "SO:"
+         Ycode  = "YR:"
+         Vcode  = "VL:"
+         Ncode  = "NO:"
+         Pcode  = "PG:"
+         ABcode = "AB:"
+         PMcode = "PM:"
+         PCcode = "pmcid"
+         DOcode = "DOI:"
       }
+   )  # end of switch()
+   # clear some memory
+   r = NULL
+   # This makes the tibble we'll save in the database
+   #   If a field value is missing from t, it creates a column of blanks; also, it makes sure a field isn't
+   #      longer than its database field definition.
+   tNames <- names(t)
+   nrows <- nrow(t)
+   r2 = tibble(
+      type =     str_sub(ifelse(rep(TYcode %in% tNames, nrows), t[[TYcode]], rep("",nrows)), 1, 65535),
+      title =    str_sub(ifelse(rep(TIcode %in% tNames, nrows), t[[TIcode]], rep("",nrows)), 1, 65535),
+      author =   str_sub(ifelse(rep(AUcode %in% tNames, nrows), t[[AUcode]], rep("",nrows)), 1, 65535),
+      journal =  str_sub(ifelse(rep(Jcode  %in% tNames, nrows), t[[Jcode]],  rep("",nrows)), 1, 65535),
+      Y =        str_sub(ifelse(rep(Ycode  %in% tNames, nrows), t[[Ycode]],  rep("",nrows)), 1, 4),
+      V =        str_sub(ifelse(rep(Vcode  %in% tNames, nrows), t[[Vcode]],  rep("",nrows)), 1, 50),
+      N =        str_sub(ifelse(rep(Ncode  %in% tNames, nrows), t[[Ncode]],  rep("",nrows)), 1, 50),
+      P =        str_sub(ifelse(rep(Pcode  %in% tNames, nrows), t[[Pcode]],  rep("",nrows)), 1, 50),
+      abstract = str_sub(ifelse(rep(ABcode %in% tNames, nrows), t[[ABcode]], rep("",nrows)), 1, 65535),
+      pmid =     str_sub(ifelse(rep(PMcode %in% tNames, nrows), t[[PMcode]], rep("",nrows)), 1, 15),
+      pmcid =    str_sub(ifelse(rep(PCcode %in% tNames, nrows), t[[PCcode]], rep("",nrows)), 1, 15),
+      doi =      str_sub(ifelse(rep(DOcode %in% tNames, nrows), t[[DOcode]], rep("",nrows)), 1, 200)
    )
-   S$SRCH2$fileRaw[2]  <<- toJSON(r)                                     # Save whole tibble in DB for now.
+   # Note, NAs are changed to "" by citeTable() in sql-core.R
+   #    and values are trimmed in cite2table() above
+   for(c in names(r2)) {                                              # "@'`#$%" was used in cite2table() to separate
+      if(c == "author") {                                             #    lines with the same code within a cite.
+         r2[[c]] = str_replace_all(r2[[c]], fixed("@'`#$%"), "; ")    #    Here we replace it with "; " for author
+      } else {
+         if(c == "doi") {                                             # In doi, we only want the first one
+            tf.vec = naf(str_detect(r2[[c]], fixed("@'`#$%")))
+            r2[[c]][tf.vec] = str_sub(r2[[c]][tf.vec], 1, str_locate(r2[[c]][tf.vec], fixed("@'`#$%"))[,1]-1)
+         } else {
+            r2[[c]] = str_replace_all(r2[[c]], fixed("@'`#$%"), " ")  #    Otherwise just a space.
+         }}
+   }
+   if(S$SRCH$id==0) {                            # if id = 0 we need to save the table to get an id for cite table
+      S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+      S$SRCH$id <<- S$SRCH2$searchID[1]
+   }
+   citeTable(r2, S$db, S$SRCH$id)                # save the data in the cite table for this search
+   return(msg)
 }
+
+
+
 # S$PF$trigger=0
 # This is an invalidateLater() cascade for processing a completed Search
 # rv$processFile = rv$processFile + 1      # start file processing
@@ -798,18 +911,27 @@ processSearch = function() {
 
 # PubMed search
 # Save terms in S$SRCH2$terms[2]; trigger rv$PMsearch
-observe({
-   if(rv$PMsearch>0) {
+observe({                                                              # observe rather than observeEvent because of
+   if(rv$PMsearch>0) {                                                 #    embedded invalidateLater()
+      start.time <- Sys.time()
+      on.exit(print(Sys.time() - start.time))
 # print("=========Inside PMsearch observer")
 # print(S$SRCH2$beginDate[2])
 # print(S$SRCH2$endDate[2])
-      pauseFor <- S$PM$minDelay - (seconds(now()-S$PM$lastTime)*1000)  # If required delay minus time elapsed is
-      if(pauseFor > 0) {                                               #    more than 0
+      pauseFor <- PubMed.Delay - (seconds(now()-S$PM$lastTime)*1000)   # PubMed.Delay comes from the credentials file...
+      if(pauseFor > 0) {                                               #    If required delay minus time elapsed is more than 0
          invalidateLater(pauseFor)                                     #    pause that long
+         return()                                                      #    done for now
       } else {                                                         # Otherwise, do the search
          S$PM$lastTime <<- now()                                       # Note time of search execution
          max = paste0('&RetMax=', S$uploadMaxCites)
          terms <- stripHTML(S$SRCH2$terms[2])                          # Remove <p></p> and any other HTML from terms
+         if(terms=="") {
+            S$modal_title <<- "PubMed Error"
+            S$modal_text <<- HTML0("<p>Please enter something to search for in Terms.</p>")
+            isolate(rv$modal_warning <- rv$modal_warning + 1)
+            return()
+         }
          if(is.na(S$SRCH2$beginDate[2])) { S$SRCH2$beginDate[2] <<- "1000-01-01" }       # default begin date
          if(is.na(S$SRCH2$endDate[2])) { S$SRCH2$endDate[2] <<- str_sub(now(), 1, 10) }  # default end date
          if(str_detect(terms, coll("[PDAT]"))) {                       # coll means NOT REGEX
@@ -818,18 +940,16 @@ observe({
             if(terms!="") { terms <- paste0(" AND ", terms) }          # Add AND (dates AND terms) unless terms is blank
             terms = paste0('&term=("', S$SRCH2$beginDate[2], '"[PDAT]:"', S$SRCH2$endDate[2] , '"[PDAT])', terms)
          }
-         Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?tool=rct.app&email=jtw2117@columbia.edu"
-         url <- paste0(Esearch, max, str_replace_all(terms, " ", "+")) # fix url; also replace " " with "+"
-# print(url)
+         Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?"
+         url <- paste0(Esearch, PubMed.Key, max,                       # PubMed.Key is in credentials; will work with a blank
+                       str_replace_all(terms, " ", "+"))               # fix url; also replace " " with "+"
          xml <- RCurl::getURL(url)                                     # get xml
          raw <- xml2::read_xml(xml)                                    # read xml
          error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
          if(is.na(error)) {                                            # An NA error message means no error!
             S$SRCH2$citeCount[2] <<- as.numeric(xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count")))
             S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
-            pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))
-print(max)
-print(length(pmids))
+            pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))   # This is a character vector
             if(S$SRCH2$citeCount[2]==0) {                              # Check for at least 1 hit
                S$modal_title <<- "PubMed Error"
                S$modal_text <<- HTML0("<p>Nothing found.</p>")
@@ -846,13 +966,14 @@ print(length(pmids))
                isolate(rv$modal_warning <- rv$modal_warning + 1)
                return()
             }
-            r = tibble(SID=1:length(pmids), PMID=pmids)
-            S$SRCH2$fileRaw[2]  <<- toJSON(r)
+            S$SRCH2$CFactual[2] <<- "PMID"
             S$SRCH2$fileName[2] <<- "Live PubMed Search"
             S$SRCH2$fileSize[2] <<- 0
             S$SRCH2$fileType[2] <<- "xml"
             S$SRCH2$fileTime[2] <<- sTime()
-            isolate(rv$render <- rv$render + 1)
+            saveCites(pmids)
+            isolate(rv$limn <- rv$limn + 1)                           # Need to use limn to save Name and Comments
+#            isolate(rv$render <- rv$render + 1)
          } else {
             S$modal_title <<- "PubMed Error"
             S$modal_text <<- HTML0("<p>PubMed returned the following error: <b>", error, "</b></p>")
@@ -1121,3 +1242,9 @@ Abstract = {Foodborne illnesses remain....}, </pre>")
 #    print(paste0("beginDate class: ", class(input$searchDates[1]), ", value: ", input$searchDates[1]))
 #    print(paste0("endDate class: ", class(input$searchDates[2]), ", value: ", input$searchDates[2]))
 # })
+
+# Add records in cite table to main Hits file
+#    Find and mark duplicates
+processSearch = function() {
+
+}
