@@ -184,7 +184,7 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
    wherePairs = wherez(WHERE, dbLink)
 # Execute QUERY
    QUERY = paste0("SELECT ", selects, " FROM ", dbt(db, table, dbLink), " WHERE ", wherePairs, ";")
-print(QUERY)
+#print(QUERY)
    r = dbGetQuery(dbLink, QUERY)                           # perform SQL Query
 # Return Data or New Empty Record
    if(nrow(r)>0)  {                                        # r is number of rows found
