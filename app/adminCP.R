@@ -37,17 +37,13 @@ output$uiMeat <- renderUI({rv$limn; isolate({
                bs4("hr")
             )),
             bs4("r", align="hc", bs4("c8",
-               actionButton("restart_btn", "Restart App", class="btn-danger"),
+               bs4("btn", id="restart", n=1, q="r", "Restart App"),
                bs4("hr")
             ))
          ))
       }
    }
 })})
-
-observeEvent(input$restart_btn, {
-   stopApp()
-})
 
 # Save runs this
 observeEvent(input$js.editorText, {
@@ -81,6 +77,9 @@ observeEvent(input$js.omclick, {
    switch(id,
       "SaveUpSize" = {
          js$getEdit("maxCitesCmt")
+      },
+      "restart" = {
+         stopApp()
       },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )

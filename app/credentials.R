@@ -20,13 +20,14 @@ SQL.Passwords <- c("root.pw", "admin.pw", "shiny.pw")
 #    For details see:
 #    http://www.open-meta.org/technology/how-to-send-email-from-r-with-the-help-of-amazon-ses-and-mailr/
 
-Smtp.Username <- ""        # You can still work on code development if these are blank.
-Smtp.Password <- ""        # In that case the if() statement below will tell the email code to put all
-Smtp.Server <- ""          #   sent emails in a modal dialog so you can see the subject and body
-Smtp.Port <- ""            #   but no email will actually be sent.
-Smtp.From <- ""
+SmtpUsername <- ""         # You can still work on code development if these are blank.
+SmtpPassword <- ""         # In that case the if() statement below will tell the email code to put all
+SmtpServer <- ""           #   sent emails in a modal dialog so you can see the subject and body
+SmtpPort <- ""             #   but no email will actually be sent.
+SmtpName <-""              # These are the default email "from" name and address
+SmtpAdr <-  ""             #   must be Amazon verified!
 
-if(Smtp.Username=="") {    # When noEmail is TRUE, in some places (e.g. trying to contact a project's
+if(SmtpUsername=="") {     # When noEmail is TRUE, in some places (e.g. trying to contact a project's
    noEmail = TRUE          #   leaders), sending email is immediately followed by a redirect to a
 } else {                   #   different page. The redirect erases the modal dialog before you can see it.
    noEmail = FALSE

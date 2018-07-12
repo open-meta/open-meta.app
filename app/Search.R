@@ -492,8 +492,17 @@ observeEvent(input$citeFile, {
    } else {
       # Read file as a string vector, one line of file per cell, then delete blank lines
       # Can still choke on odd files with nulls, like gifs.
-      raw <- stri_read_lines(input$citeFile$datapath)          # "experimental" but seems to fix encoding issues
-      raw <- raw[str_trim(raw)!=""]                            # raw is character vector; trim and delete blank lines
+
+      # Amazon Sys.getlocale()
+      # "LC_CTYPE=en_US.UTF-8;LC_NUMERIC=C;LC_TIME=en_US.UTF-8;LC_COLLATE=en_US.UTF-8;LC_MONETARY=en_US.UTF-8;LC_MESSAGES=en_US.UTF-8;LC_PAPER=en_US.UTF-8;LC_NAME=C;LC_ADDRESS=C;LC_TELEPHONE=C;LC_MEASUREMENT=en_US.UTF-8;LC_IDENTIFICATION=C"
+      # Windows Sys.getlocale()
+      # "LC_COLLATE=English_United States.1252;LC_CTYPE=English_United States.1252;LC_MONETARY=English_United States.1252;LC_NUMERIC=C;LC_TIME=English_United States.1252"
+
+
+
+      raw <- stri_read_lines(input$citeFile$datapath,          # "experimental" but seems to fix encoding issues
+                             locale="English_United States.1252")
+      raw <- str_trim(raw[str_trim(raw)!=""])                  # raw is character vector; trim and delete blank lines
 
       # This section figures out the file format
       if(length(raw)>0 && all(!is.na(suppressWarnings(as.numeric(raw))))) {  # PMID is all numeric but could be only 1 line!
@@ -714,11 +723,14 @@ saveCites = function(r) {                                      # incoming r is a
                } else {
                   Jcode = "J1"
          }}}
-         if("PY" %in% cnames) {                 # Year is first 4 characters of PY or Y1
+         if("PY" %in% cnames) {                 # Year is first 4 characters of PY or Y1 or Y2
             Ycode = "PY"
          } else {
-            Ycode = "Y1"
-         }
+            if("Y1" %in% cnames) {
+               Ycode = "Y1"
+            } else {
+               Ycode = "Y2"
+         }}
          Vcode  = "VL"
          if("IS" %in% cnames) {
             Ncode = "IS"
@@ -741,12 +753,15 @@ saveCites = function(r) {                                      # incoming r is a
          }
          PMcode = "XX"
          PCcode = "pmcid"
-         if("DO" %in% cnames) {                        # DOI can be DO or L3
-            DOcode = "DO"
+         if("DOI" %in% cnames) {                        # DOI can be DO or L3 or maybe DOI
+            DOcode = "DOI"
          } else {
-            DOcode = "L3"
-         }
-      },
+            if("DO" %in% cnames) {                        # DOI can be DO or L3
+               DOcode = "DO"
+            } else {
+               DOcode = "L3"
+            }
+      }},
       "MEDLINE or .nbib" = {
 #         f= file.choose()
 # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\pubmed_MEDLINE_result.txt"
@@ -915,9 +930,6 @@ observe({                                                              # observe
    if(rv$PMsearch>0) {                                                 #    embedded invalidateLater()
       start.time <- Sys.time()
       on.exit(print(Sys.time() - start.time))
-# print("=========Inside PMsearch observer")
-# print(S$SRCH2$beginDate[2])
-# print(S$SRCH2$endDate[2])
       pauseFor <- PubMed.Delay - (seconds(now()-S$PM$lastTime)*1000)   # PubMed.Delay comes from the credentials file...
       if(pauseFor > 0) {                                               #    If required delay minus time elapsed is more than 0
          invalidateLater(pauseFor)                                     #    pause that long
