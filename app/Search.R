@@ -477,6 +477,7 @@ observeEvent(input$citeFile, {
    on.exit({
       cat("### File upload ###\n")
       cat(paste0("File: ", S$SRCH2$fileName[2]), "\n")
+      cat(paste0("Type: ", S$SRCH2$fileType[2]), "\n")
       cat(paste0("Size: ", S$SRCH2$fileSize[2]), "\n")
       cat(paste0("Cites: ", S$SRCH2$citeCount[2]), "\n")
       print(Sys.time() - start.time)
@@ -498,8 +499,11 @@ observeEvent(input$citeFile, {
    } else {
       # Read file as a string vector, one line of file per cell, then delete blank lines
       # Can still choke on odd files with nulls, like gifs.
+      # Output of stri_read_lines is always UTF-8
       raw <- stri_read_lines(input$citeFile$datapath,          # "experimental" but seems to fix encoding issues
-                             locale="English_United States.1252")  #  tries rtf8 first, then Windows .1252
+                             locale = as.character(NA),        # NA here forces fallback_encoding if not UTF-8
+                             encoding="auto",                  # "auto" means use stri_detect2 to figure out encoding,
+                             fallback_encoding="windows-1252") # if fail (not UTF), assume it's windows-1252 (Win7 US default)
       raw <- raw[str_trim(raw)!=""]                            # raw is character vector; trim and delete blank lines
 
       # This section figures out the file format
