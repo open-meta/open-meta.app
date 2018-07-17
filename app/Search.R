@@ -64,7 +64,7 @@ observeEvent(c(rv$menuActive, rv$limn, input$database, input$citeFormat), {
             S$SRCH2$createDate[2] <<- sTime()
          } else {                                   # Get the record to view or edit
             S$SRCH2 <<- searchGet(SELECT="**", WHERE=tibble(c("searchID", "=", S$SRCH$id)))
-            if(S$P$Modify && S$SRCH2$status==0) {
+            if(S$P$Modify && S$SRCH2$status[2]==0) {
                S$SRCH$pageTitle <<- "Edit your search details"
             } else {
                S$SRCH$pageTitle <<- "View search details"
@@ -203,11 +203,11 @@ observeEvent(input$js.editorText, {
          }
          rv$modal_warning <- rv$modal_warning + 1
       } else {
-         S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
          if(S$SRCH$processFlag) {
             S$SRCH$processFlag <<- FALSE
             processSearch()               # This is elsewhere to simplify code for this observer
          }
+         S$SRCH2 <<- recSave(S$SRCH2, db=S$db)  # Save the search
          rv$menuActive = 1
          S$hideMenus <<- FALSE            # Back to regular programming
          rv$limn = rv$limn + 1            # Need to re-limn here to get menus back, but skip for modal dialog
@@ -235,18 +235,21 @@ if(S$P$Msg=="") {
                   table = "search",
                   SELECT = c("searchID", "searchName", "beginDate", "endDate", "citeCount", "status"),
                   WHERE = tibble(c("deleted", "=", 0)),
-                  if(S$P$Modify) {
-                     buttons = list(edit=list(id="editSearch", label="Edit", q="g", class=""),
+                  buttons = list(view=list(id="viewSearch", label="View", q="b", class=""),
+                                 update=list(id="updateSearch", label="Update", q="i", class=""),
+                                 edit=list(id="editSearch", label="Edit", q="g", class=""),
                                  delete=list(id="deleteAsk", label="Delete", q="r", class=""))
-                  } else {
-                     buttons = list(edit=list(id="viewSearch", label="View", q="b", class=""))
-                  }
                )
-               # if you need to further modify Rx, you can do it here.
-               if(S$P$Modify && nrow(Rx)>0) {
-                  Rx[Rx$status>0,7] <- bs4("btn", id="viewSearch", q="b", "View")
-                  Rx[Rx$status==1,8] <- bs4("btn", id="updateSearch", q="r", "Update")
-                  Rx[Rx$status>1,8] <- ""
+               # Adjust which buttons will show in table
+               if(nrow(Rx)>0) {                     # Skip this if nothing was returned.
+                  if(!S$P$Modify) {                    # Without permission to modify all you can do is View
+                     Rx = Rx[-c(7,8,10)]               #    delete all button columns but View
+                  } else {                                                  # User can modify Search
+                     Rx[[7]] <- ifelse(Rx[["status"]]==0, Rx[[9]], Rx[[7]]) # Incomplete: Edit-Delete
+                     Rx[[8]] <- ifelse(Rx[["status"]]==0, Rx[[10]],         # Complete: View-Update (default)
+                                    ifelse(Rx[["status"]]==2, "", Rx[[8]])) # Updated: View-Blank
+                     Rx = Rx[-c(9,10)]              # In either case, get rid of the final two button columns
+                  }
                }
                Rx$citeCount <- format(Rx$citeCount, big.mark=",")
                ###
@@ -268,7 +271,7 @@ if(S$P$Msg=="") {
             )
          },
          "2" = {                          # View or Edit or New Search: S$SRCH2 has info to display in all cases
-            if(S$P$Modify && S$SRCH2$status==0) {             # Edit (or New)
+            if(S$P$Modify && S$SRCH2$status[2]==0) {             # Edit (or New)
                databaseFields = {
                   if(S$SRCH2$database[2]!="All Other") {      # Not "All Other"; no otherDB field
                      addOtherDB = tagList(
@@ -466,15 +469,12 @@ observeEvent(rv$hitCounter, {
    updateTextInput(session, inputId="citeFile", value=S$SRCH2$fileName[2])
 })
 
-
 # This observer runs when a file upload has completed.
-# It captures the file and its metadata and does an initial scan to determine
+# It captures the file and its metadata, does an initial scan to determine
 #    whether the file is in a valid format and how many cites in has.
-#    Ends with either a failure message or an update to "Number of citations in this search".
-
-# need to save fileOK somewhere for completeness test...
-# need to save text vector at end if it's ok (or BibTeX)
-
+# Then it does a final scan based on the actual file format and adds the
+#    citation data to a citeN MySQL table, where N is the searchID. This
+#    table will later be processed to add its data to the project's main citation table.
 observeEvent(input$citeFile, {
    start.time <- Sys.time()
    on.exit({
@@ -1179,10 +1179,28 @@ observeEvent(input$js.omclick, {
       },
       "updateSearch" = {                            # This button is on the list of searches for powerful users when Search is completed
          if(S$P$Modify) {
-            S$modal_title <<- "Upcoming Feature"
-            S$modal_text <<- HTML("<p>The ability to update a search is coming soon.</p>")
-            S$modal_size <<- "l"
-            rv$modal_warning <- rv$modal_warning + 1
+            S$SRCH2 <<- searchGet(SELECT="**", WHERE=tibble(c("searchID", "=", n)))
+            S$SRCH2$status[2] <<- 2
+            S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+            S$SRCHu <<- searchGet()
+            S$SRCHu$searchName[2] <<- paste0("Update of... ", S$SRCH2$searchName[2])
+            S$SRCHu$database[2]   <<- S$SRCH2$database[2]
+            S$SRCHu$otherDB[2]    <<- S$SRCH2$otherDB[2]
+            S$SRCHu$beginDate[2]  <<- as.character.POSIXt(ymd(S$SRCH2$endDate[2])-1)  # Day before original's end date
+            S$SRCHu$endDate[2]    <<- str_sub(sTime(), 1, 10)
+            S$SRCHu$terms[2]      <<- S$SRCH2$terms[2]
+            S$SRCHu$query[2]      <<- S$SRCH2$query[2]
+            S$SRCHu$CFchosen[2]   <<- S$SRCH2$CFchosen[2]
+            S$SRCHu$citeCount[2]  <<- 0
+            S$SRCHu$fileName[2]   <<- ""
+            S$SRCHu$comment[2]    <<- ""
+            S$SRCHu$createDate[2] <<- sTime()
+            S$SRCH2 <<- recSave(S$SRCHu, db=S$db)
+            S$hideMenus <<- TRUE                       # Code from viewSearch above
+            S$SRCH$justArrived <<- TRUE
+            S$SRCH$id <<- S$SRCH2$searchID[1]
+            rv$menuActive = 2
+            rv$limn = rv$limn + 1
          }
       },
       "check" = {
@@ -1202,10 +1220,9 @@ observeEvent(input$js.omclick, {
          if(S$P$Modify) {
             S$modal_title <<- "No Undo!!!"
 S$modal_text <<- HTML0("<p>Once you process a search successfully you can't change it, delete it, or delete its ",
-"citations. The citations found by this Search will be checked against the other citations in your project for ",
-"duplicates. If necessary, the app will obtain addtional bibliographic details from PubMed. Finally, it will add ",
-"the citations to your project, ready for Review. <b>This may take a few minutes and cannot be undone!</b> Are ",
-"you sure you want to proceed?</p>")
+"citations. The citations found by this Search will be checked against the other citations in this search as well ",
+"as the citations in your project for duplicates. The unduplicated citations will be added to your project, ready ",
+"for Review. This may take a few minutes and <b>cannot be undone!</b> Are you sure you want to proceed?</p>")
             S$modal_size <<- "l"
             S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "Process"))
             rv$modal_warning <- rv$modal_warning + 1
@@ -1240,7 +1257,7 @@ S$modal_text <<- HTML0("<p>Once you process a search successfully you can't chan
       "details" = {
          switch(input$citeFormat,
             "Live" = {
-               S$modal_text <<- HTML0("<p><b>PubMed Live Format</b></p>",
+S$modal_text <<- HTML0("<p><b>PubMed Live Format</b></p>",
 "<p>This is a live search of the US National Library of Medicine's PubMed database ",
 "using the Date Range and Terms you specify. Sponsored by the US National Institues of Health, ",
 "PubMed is a freely available resource. The Open-Meta app communicates with PubMed using ",
@@ -1260,7 +1277,7 @@ S$modal_text <<- HTML0("<p>Once you process a search successfully you can't chan
 "Search Field Descriptions and Tags</a>, which can be helpful for interpreting the returned Query.</p>")
             },
             "PMID" = {
-               S$modal_text <<- HTML0("<p><b>PubMed PMID Format</b></p>",
+S$modal_text <<- HTML0("<p><b>PubMed PMID Format</b></p>",
 "<p><b>PMID</b> stands for <i>PubMed ID</i>. This format is just a text list of ",
 "identification numbers, with each number on its own line.</p><p>The beginning of a ",
 "file in this format looks like this (with different numbers):<pre>",
@@ -1381,5 +1398,11 @@ Abstract = {Foodborne illnesses remain....}, </pre>")
 # Add records in cite table to main Hits file
 #    Find and mark duplicates
 processSearch = function() {
-
+   if(S$P$Modify) {
+      S$SRCH2$status[2] <<- 1
+      S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+   }
 }
+
+
+
