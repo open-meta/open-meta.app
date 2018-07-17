@@ -138,7 +138,6 @@ root.pool <- dbPool(                                  # log in as root to see if
 dbLink <- poolCheckout(root.pool)                     # get a dbLink from the pool
 
 r = dbExecute(dbLink, "SET GLOBAL max_allowed_packet=16777216;")    # Enlarge MySQL max packet size to 16MB
-r = dbExecute(dbLink, "SET GLOBAL character_set_server='utf8mb4';") # Change from latin1 to utf8
 options(shiny.maxRequestSize = 16*1024^2 )            # Enlarge Shiny file upload size to 16MB
 
 SQL.DBs <- dbGetQuery(dbLink, "SHOW DATABASES")
