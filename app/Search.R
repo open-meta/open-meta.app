@@ -492,14 +492,15 @@ observeEvent(input$citeFile, {
    msg <- ""                                                   # Assume no error
    fileOK <- TRUE                                              #   likewise
    mismatch = TRUE                                             # Assume an error
-   S$SRCH2$CFactual[2] <<- "BAD"                               #    likewise
-   S$SRCH2$citeCount[2] <<- 0                                  #    likewise
    # First check file's extension (But does this work on Macs???)
    fnParts = str_split(S$SRCH2$fileName[2], "[.]")
    fileExt = fnParts[[1]][[length(fnParts[[1]])]]
    if(!(str_to_lower(fileExt) %in% c("txt", "ciw", "ris", "bib", "nbib"))) {
       msg = paste0(msg, "<li>This file's extension is <b>.", fileExt, "</b>. That's not a file type Open-Meta can import.</li>")
+      S$SRCH2$CFactual[2] <<- fileExt
    } else {
+      S$SRCH2$CFactual[2] <<- "BAD"                            # Assume an error
+      S$SRCH2$citeCount[2] <<- 0                               # Initialize
       # Read file as a string vector, one line of file per cell, then delete blank lines
       # Can still choke on odd files with nulls, like gifs.
       # Output of stri_read_lines is always UTF-8
@@ -610,7 +611,7 @@ observeEvent(input$citeFile, {
 cites2table = function(r, splitAt, SIDmark) {
 setProgress(.2)
    r <- separate(r, 1, into = c("cd", "value"), sep=splitAt)     # split line, cd=chars(1:splitAt), value=chars(splitAt+)
-   r$cd = str_replace(r$cd, coll("-"), "")                      # get rid of dash in code (for .nbib)
+   r$cd = str_replace(r$cd, coll("-"), "")                       # get rid of dash in code (for .nbib)
    r$cd = str_trim(r$cd, side="right")                           # Make blanks blank and trim others
    r$value = str_trim(r$value, side="both")                      # Trim values
    r[[1,1]] = ifelse(r[[1,1]]=="", "zyzzy", r[[1,1]])            # Make sure 1st cell has a code for while loop
@@ -706,91 +707,108 @@ setProgress(.5)
 # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\ProQuestDocuments-2018-05-12.ris"
 # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\Ebsco-Academic Premier.ris"
 # r <- tibble(stri_read_lines(f))
+         # Some vendors, like EBSCO, allow a search over multiple databases that don't use the same RIS codes. That's
+         #    why here we fill in NAs in the target column with data from RIS columns with redundant codes, all of
+         #    which could theoretically be in the uploaded file.
             t = cites2table(r, splitAt=6, SIDmark="TY")
-            cnames = names(t)                      # Deal with coding issues:
-            TYcode = "TY"
-            if("TT" %in% cnames) {                 # Title can be TT, TI, T1, or missing
-               TIcode = "TT"
-            } else {
-               if ("TI" %in% cnames) {
-                  TIcode = "TI"
-               } else {
-                  TIcode = "T1"
-            }}
-            if("AU" %in% cnames) {                 # Author can be AU, A1, or missing
-               AUcode = "AU"
-            } else {
-               AUcode = "A1"
+            cnames = names(t)                                        # Deal with coding issues:
+
+            TYcode = "TY"                                                  # Type - used for citations only
+
+            TIcode = "TI"                                                  # Title - can be TT, TI, T1, T2, or missing
+            if(!("TI" %in% cnames)) t$TI <- rep(as.character(NA), nrow(t)) # If there's no TI column, make one
+            if("TT" %in% cnames) { t$TI <- ifelse(is.na(t$TI), t$TT, t$TI) }
+            if("T1" %in% cnames) { t$TI <- ifelse(is.na(t$TI), t$T1, t$TI) }
+            if("T2" %in% cnames) { t$TI <- ifelse(is.na(t$TI), t$T2, t$TI) }
+
+            AUcode = "AU"                                                  # Author can be AU, A1, or missing
+            if(!("AU" %in% cnames)) t$AU <- rep(as.character(NA), nrow(t))
+            if("A1" %in% cnames) { t$AU <- ifelse(is.na(t$AU), t$A1, t$AU) }
+
+            Jcode = "JO"                                                   # Journal can be JO, JA, J1, JF, or missing
+            if(!("JO" %in% cnames)) t$JO <- rep(as.character(NA), nrow(t))
+            if("JA" %in% cnames) { t$JO <- ifelse(is.na(t$JO), t$JA, t$JO) }
+            if("J1" %in% cnames) { t$JO <- ifelse(is.na(t$JO), t$J1, t$JO) }
+            if("JF" %in% cnames) { t$JO <- ifelse(is.na(t$JO), t$JF, t$JO) }  # Full name is last choice (harder to match)
+
+            Ycode = "PY"                                                   # Year - can be PY, Y1, Y2, or missing
+            if(!("PY" %in% cnames)) t$PY <- rep(as.character(NA), nrow(t))
+            if("Y1" %in% cnames) { t$PY <- ifelse(is.na(t$PY), t$Y1, t$PY) }
+            if("Y2" %in% cnames) { t$PY <- ifelse(is.na(t$PY), t$Y2, t$PY) }
+
+            Vcode  = "VL"                                                  # Volume
+
+            Ncode = "IS"                                                   # Issue number
+            if(!("IS" %in% cnames)) t$IS <- rep(as.character(NA), nrow(t))
+            if("M1" %in% cnames) { t$IS <- ifelse(is.na(t$IS), t$M1, t$IS) }
+
+            SPcode <- "SP"                                                 # Page; only need starting page for matching
+            EPcode <- "EP"                                                 #   but need ending page to create citations
+
+            SNcode = "SN"                                                  # ISSN or book code
+            if(!("SN" %in% cnames)) t$SN <- rep(as.character(NA), nrow(t))          # Add "-" to ISSNs missing it
+            p <- which(naf((str_to_upper(t$TY)=="JOUR") & (nchar(t$SN)==8)))        # which() makes a shorter vector of row
+            t$SN[p] <- paste0(str_sub(t$SN[p], 1, 4), "-", str_sub(t$SN[p], 5, 8))  #   numbers to speed this up.
+
+            ABcode = "AB"                                                  # Abstract
+            if(!("AB" %in% cnames)) t$AB <- rep(as.character(NA), nrow(t))
+            if("N2" %in% cnames) { t$AB <- ifelse(is.na(t$AB), t$N2, t$AB) }
+
+            PMcode = "XX"                                                  # PMID
+            if(!("XX" %in% cnames)) t$XX <- rep(as.character(NA), nrow(t))
+            if("C5" %in% cnames) { t$XX <- ifelse(is.na(t$XX), t$C5, t$XX) }
+            if("U2" %in% cnames && any(str_sub(t$U2, 1, 6)=="PMID: ")) {   # EBSCO databases use this
+               t$XX <- ifelse(is.na(t$XX), str_sub(t$U2, 7, -2), t$XX)
             }
-            if("JF" %in% cnames) {                 # Journal can be JF, JO, JA, J1, or missing
-               Jcode = "JF"
-            } else {
-               if("JO" %in% cnames) {
-                  Jcode = "JO"
-               } else {
-                  if("JA" %in% cnames) {
-                     Jcode = "JA"
-                  } else {
-                     Jcode = "J1"
-            }}}
-            if("PY" %in% cnames) {                 # Year is first 4 characters of PY or Y1 or Y2
-               Ycode = "PY"
-            } else {
-               if("Y1" %in% cnames) {
-                  Ycode = "Y1"
-               } else {
-                  Ycode = "Y2"
-            }}
-            Vcode  = "VL"
-            if("IS" %in% cnames) {
-               Ncode = "IS"
-            } else {
-               Ncode = "M1"
+
+            PCcode = "LK"                                                  # PMCID
+
+            DOcode <- "DO"                                                 # DOI
+            if(!("DO" %in% cnames)) t$DO <- rep(as.character(NA), nrow(t))
+            if("DOI" %in% cnames) { t$DO <- ifelse(is.na(t$DO), t$DOI, t$DO) }
+            if("UR" %in% cnames) {                                         # EBSCO (a record can have multiple URs)
+               p <- str_locate(t$UR, coll("http://dx.doi.org/"))               # start-end matrix for "http://dx.doi.org/"
+               t$UR <- ifelse(is.na(p[,2]), p[,2], str_sub(t$UR, p[,2]+1, -1)) # NA or everything after "http://dx.doi.org/"
+               p <- str_locate(t$UR, coll("@'`#$%"))                           # start-end matrix for "@'`#$%"
+               t$UR <- ifelse(is.na(p[,1]), t$UR, str_sub(t$UR, 1, p[,1]-1))   # t$UR or part of string before "@'`#$%"
+               t$DO <- ifelse(is.na(t$DO), t$UR, t$DO)                         # if we don't already have a DOI, now we do
             }
-            if(all(c("SP", "EP") %in% cnames)) {                         # if we have both kinds of page numbers,
-               t$P <- ifelse(is.na(t$EP), t$SP, paste0(t$SP, "-", t$EP)) # glue them together in P
-               Pcode <- "P"
-            } else {                                                     # otherwise, take the one we can get
-               if("SP" %in% cnames) {
-                  Pcode <- "SP"
-               } else {
-                  Pcode <- "EP"
-            }}
-            if("AB" %in% cnames) {                        # Abstract can be AB, N2, or missing
-               ABcode = "AB"
-            } else {
-               ABcode = "N2"
-            }
-            PMcode = "XX"
-            PCcode = "pmcid"
-            if("DOI" %in% cnames) {                        # DOI can be DO or L3 or maybe DOI
-               DOcode = "DOI"
-            } else {
-               if("DO" %in% cnames) {                        # DOI can be DO or L3
-                  DOcode = "DO"
-               } else {
-                  DOcode = "L3"
-               }
-         }},
+            if("L3" %in% cnames)  { t$DO <- ifelse(is.na(t$DO), t$L3, t$DO) }
+         },
          "MEDLINE or .nbib" = {
 #         f= file.choose()
 # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\pubmed_MEDLINE_result.txt"
 # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\PubMed-citations.nbib"
 # r <- tibble(stri_read_lines(f))
             t = cites2table(r, splitAt=5, SIDmark="PMID")
-            t$LID <- str_replace(t$LID, coll(" [doi]"), "")
+            cnames = names(t)
             TYcode = "PT"
             TIcode = "TI"
             AUcode = "FAU"
+            if(!("FAU" %in% cnames)) t$FAU <- rep(as.character(NA), nrow(t))    # If author-full is missing, use
+            if("AU" %in% cnames) { t$FAU <- ifelse(is.na(t$FAU), t$AU, t$FAU) }  #   author-initial
             Jcode  = "JT"
             Ycode  = "DP"
             Vcode  = "VI"
             Ncode  = "IP"
-            Pcode  = "PG"
+            SPcode = "SP"
+            EPcode = "EP"
+               p <- str_locate(t$PG, coll("-"))                            # Split page numbers into SP and EP
+               t$SP <- ifelse(is.na(p[,1]), t$PG, str_sub(t$PG, 1, p[,1]-1))
+               t$EP <- ifelse(is.na(p[,2]), as.character(NA), str_sub(t$PG, p[,2]+1, -1))
+            SNcode = "IS"
+               p <- str_locate(t$IS, coll(" (linking)"))
+               t$IS = ifelse(is.na(p[,1]), str_sub(t$IS, 1, 9), str_sub(t$IS, p[,1]-10, p[,1]-1))
             ABcode = "AB"
             PMcode = "PMID"
             PCcode = "PMC"
             DOcode = "LID"
+               if(!("LID" %in% cnames)) t$LID <- rep(as.character(NA), nrow(t))    # Make sure there's a LID column
+               if("AID" %in% cnames) ifelse(is.na(t$LID), t$AID, paste0(t$LID, "@'`#$%", t$AID)) # paste LID and AID together
+               p <- str_locate(t$LID, coll(" [doi]"))
+               t$LID <- ifelse(is.na(p[,1]), as.character(NA), str_sub(t$LID, 1, p[,1]-1))  # chop off " [doi]" and following
+               p <- str_locate(t$LID, coll("@'`#$%"))
+               t$LID <- ifelse(is.na(p[,1]), t$LID, str_sub(t$LID, p[,2]+1, -1))            # chop off any part before doi
          },
          "EndNote Desktop (.ciw)" = {
 # f= file.choose()
@@ -801,20 +819,20 @@ setProgress(.5)
 # r <- tibble(stri_read_lines(f))
             t = cites2table(r, splitAt=2, SIDmark="PT")
             cnames = names(t)
-            if(all(c("SP", "EP") %in% cnames)) {                         # if we have both kinds of page numbers,
-               t$P <- ifelse(is.na(t$EP), t$SP, paste0(t$SP, "-", t$EP)) # glue them together in P
-               Pcode <- "P"
-            } else {
-               Pcode <-"SP"
-            }
             TYcode = "DT"
             TIcode = "TI"
             AUcode = "AF"
+            if(!("AF" %in% cnames)) t$AF <- rep(as.character(NA), nrow(t))    # If author-full is missing, use
+            if("AU" %in% cnames) { t$AF <- ifelse(is.na(t$AF), t$AU, t$AF) }  #   author-initial
             Jcode  = "SO"
             Ycode  = "PY"
             Vcode  = "VL"
             Ncode  = "IS"
-            Pcode  = "P"
+            SPcode  = "BP"
+            EPcode  = "EP"
+            SNcode  = "SN"
+            if(!("SN" %in% cnames)) t$SN <- rep(as.character(NA), nrow(t))    # If ISSN(SN) is missing, use
+            if("EI" %in% cnames) { t$SN <- ifelse(is.na(t$SN), t$EI, t$SN) }  #   ISSN(EI)
             ABcode = "AB"
             PMcode = "PM"
             PCcode = "pmcid"
@@ -826,10 +844,14 @@ setProgress(.5)
 # f = "C:\\Users\\Tom\\Documents\\SugarSync-Tom\\Open-Meta.org\\GitHub - Open-Meta\\sandbox\\app\\Citations\\170331 - Cochrane Central Results.txt"
 # r <- tibble(stri_read_lines(f))
             t = cites2table(r, splitAt=4, SIDmark="ID:")
-            t[["PM:"]] <- str_sub(t[["PM:"]], 8, -1)                          # Delete "PUBMED " at beginning of column
-            if(!("PT:" %in% names(t))) {
+            cnames = names(t)
+            if(!("PT:" %in% cnames)) {
                t[["PT:"]] = rep("Cochrane Review", nrow(t))                   # If PT is missing, it's a Cochrane Review cite file
             }
+            t[["PM:"]] <- str_sub(t[["PM:"]], 8, -1)                          # Delete "PUBMED " at beginning of column
+            p <- str_locate(t[["PG:"]], coll("-"))                            # Split page numbers into SP and EP
+            t$SP <- ifelse(is.na(p[,1]), p[,1], str_sub(t[["PG:"]], 1, p[,1]-1))
+            t$EP <- ifelse(is.na(p[,1]), p[,1], str_sub(t[["PG:"]], p[,2]+1, -1))
             TYcode = "PT:"
             TIcode = "TI:"
             AUcode = "AU:"
@@ -837,7 +859,9 @@ setProgress(.5)
             Ycode  = "YR:"
             Vcode  = "VL:"
             Ncode  = "NO:"
-            Pcode  = "PG:"
+            SPcode  = "SP"  # No colon; created new columns above
+            EPcode  = "EP"
+            SNcode  = "SN"  # No ISSN field in Cochrane Export
             ABcode = "AB:"
             PMcode = "PM:"
             PCcode = "pmcid"
@@ -858,9 +882,11 @@ setProgress(.6)
          author =   str_sub(ifelse(rep(AUcode %in% tNames, nrows), t[[AUcode]], rep("",nrows)), 1, 65535),
          journal =  str_sub(ifelse(rep(Jcode  %in% tNames, nrows), t[[Jcode]],  rep("",nrows)), 1, 65535),
          Y =        str_sub(ifelse(rep(Ycode  %in% tNames, nrows), t[[Ycode]],  rep("",nrows)), 1, 4),
-         V =        str_sub(ifelse(rep(Vcode  %in% tNames, nrows), t[[Vcode]],  rep("",nrows)), 1, 50),
-         N =        str_sub(ifelse(rep(Ncode  %in% tNames, nrows), t[[Ncode]],  rep("",nrows)), 1, 50),
-         P =        str_sub(ifelse(rep(Pcode  %in% tNames, nrows), t[[Pcode]],  rep("",nrows)), 1, 50),
+         V =        str_sub(ifelse(rep(Vcode  %in% tNames, nrows), t[[Vcode]],  rep("",nrows)), 1, 10),
+         N =        str_sub(ifelse(rep(Ncode  %in% tNames, nrows), t[[Ncode]],  rep("",nrows)), 1, 10),
+         startP =   str_sub(ifelse(rep(SPcode %in% tNames, nrows), t[[SPcode]], rep("",nrows)), 1, 10),
+         endP =     str_sub(ifelse(rep(EPcode %in% tNames, nrows), t[[EPcode]], rep("",nrows)), 1, 10),
+         issn =     str_sub(ifelse(rep(SNcode %in% tNames, nrows), t[[SNcode]], rep("",nrows)), 1, 20),
          abstract = str_sub(ifelse(rep(ABcode %in% tNames, nrows), t[[ABcode]], rep("",nrows)), 1, 65535),
          pmid =     str_sub(ifelse(rep(PMcode %in% tNames, nrows), t[[PMcode]], rep("",nrows)), 1, 15),
          pmcid =    str_sub(ifelse(rep(PCcode %in% tNames, nrows), t[[PCcode]], rep("",nrows)), 1, 15),
@@ -872,12 +898,12 @@ setProgress(.6)
          if(c == "author") {                                             #    lines with the same code within a cite.
             r2[[c]] = str_replace_all(r2[[c]], coll("@'`#$%"), "; ")     #    Here we replace it with "; " for author
          } else {
-            if(c == "doi") {                                             # In doi, we only want the first one
-               tf.vec = naf(str_detect(r2[[c]], coll("@'`#$%")))
-               r2[[c]][tf.vec] = str_sub(r2[[c]][tf.vec], 1, str_locate(r2[[c]][tf.vec], coll("@'`#$%"))[,1]-1)
-            } else {
+            # if(c == "doi") {                                             # In doi, we only want the first one
+            #    tf.vec = naf(str_detect(r2[[c]], coll("@'`#$%")))
+            #    r2[[c]][tf.vec] = str_sub(r2[[c]][tf.vec], 1, str_locate(r2[[c]][tf.vec], coll("@'`#$%"))[,1]-1)
+            # } else {
                r2[[c]] = str_replace_all(r2[[c]], coll("@'`#$%"), " ")   #    Otherwise just a space.
-            }}
+         }
       }
 setProgress(.8)
       S$SRCH2$citeCount[2] <<- nrow(r2)
@@ -888,6 +914,12 @@ setProgress(.8)
 setProgress(.9)
       citeTable(r2, S$db, S$SRCH$id)                # save the data in the cite table for this search
 setProgress(1)
+      if(all(r2$abstract=="")) {
+         msg = paste0(msg, "<li>This file doesn't contain any article abstracts. We highly recommend that you return ",
+                      "to this database and download the data again, but this time ask for all available fields (we ",
+                      "use some odd ones to detect duplicate citations), especially the abstract. Without an abstract ",
+                      "for most of your citations, your review process will be immensely more difficult.</li>")
+      }
       return(msg)
    }) # end of progress
 }
@@ -988,137 +1020,6 @@ observe({                                                              # observe
       )
    }
 })
-
-
-
-# S$PF$trigger=0
-# This is an invalidateLater() cascade for processing a completed Search
-# rv$processFile = rv$processFile + 1      # start file processing
-# observe({
-#    rv$processFile    # trigger for this observer
-#    switch(S$PF$trigger,
-#       "1" = {
-#       },
-#       "2" = {
-#          switch(S$SRCH2$CFactual[2],
-#             "RIS" = {
-#
-#             },
-#             "NBIB" = {
-#
-#             },
-#             "BIB" = {
-#
-#             },
-#             "CIW" = {
-#
-#             },
-#             "CC" = {
-#
-#             },
-#             "PMID" = {
-#
-#             }
-#          )
-#
-#          S$PF$trigger <<-3
-#          invalidateLater(500, session)
-#       },
-#       "3" = {
-#          S$PF$trigger <<-4
-#          invalidateLater(500, session)
-#       },
-#       "4" = {
-#
-#          S$PF$trigger <<-5
-#          invalidateLater(500, session)
-#       },
-#       "5" = {
-#
-#          S$PF$trigger <<-6
-#          invalidateLater(500, session)
-#       },
-#       "6" = {
-#
-#          S$PF$trigger <<-1
-#       }
-#    )
-# })
-
-# PubMed search
-# Save terms in S$SRCH2$terms[2]; trigger rv$PMsearch
-# observe({                                                              # observe rather than observeEvent because of
-#    if(rv$PMsearch>0) {                                                 #    embedded invalidateLater()
-#       start.time <- Sys.time()
-#       on.exit(print(Sys.time() - start.time))
-#       pauseFor <- PubMed.Delay - (seconds(now()-S$PM$lastTime)*1000)   # PubMed.Delay comes from the credentials file...
-#       if(pauseFor > 0) {                                               #    If required delay minus time elapsed is more than 0
-#          invalidateLater(pauseFor)                                     #    pause that long
-#          return()                                                      #    done for now
-#       } else {                                                         # Otherwise, do the search
-#          S$PM$lastTime <<- now()                                       # Note time of search execution
-#          max = paste0('&RetMax=', S$uploadMaxCites)
-#          terms <- stripHTML(S$SRCH2$terms[2])                          # Remove <p></p> and any other HTML from terms
-#          if(terms=="") {
-#             S$modal_title <<- "PubMed Error"
-#             S$modal_text <<- HTML0("<p>Please enter something to search for in Terms.</p>")
-#             isolate(rv$modal_warning <- rv$modal_warning + 1)
-#             return()
-#          }
-#          if(is.na(S$SRCH2$beginDate[2])) { S$SRCH2$beginDate[2] <<- "1000-01-01" }       # default begin date
-#          if(is.na(S$SRCH2$endDate[2])) { S$SRCH2$endDate[2] <<- str_sub(now(), 1, 10) }  # default end date
-#          if(str_detect(terms, coll("[PDAT]"))) {                       # coll means NOT REGEX
-#             terms = paste0('&term=', terms)                            # Don't add PDAT if terms already has it
-#          } else {
-#             if(terms!="") { terms <- paste0(" AND ", terms) }          # Add AND (dates AND terms) unless terms is blank
-#             terms = paste0('&term=("', S$SRCH2$beginDate[2], '"[PDAT]:"', S$SRCH2$endDate[2] , '"[PDAT])', terms)
-#          }
-#          Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?api_key="
-#          url <- paste0(Esearch, PubMed.Key, max,                       # PubMed.Key is in credentials; will work with a blank
-#                        str_replace_all(terms, " ", "+"))               # fix url; also replace " " with "+"
-# print(url)
-#          xml <- RCurl::getURL(url)                                     # get xml
-#          raw <- xml2::read_xml(xml)                                    # read xml
-#          error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
-#          if(is.na(error)) {                                            # An NA error message means no error!
-#             S$SRCH2$citeCount[2] <<- as.numeric(xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count")))
-#             S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation"))
-#             pmids = xml_text(xml2::xml_find_all(raw, "/eSearchResult/IdList/Id"))   # This is a character vector
-#             if(S$SRCH2$citeCount[2]==0) {                              # Check for at least 1 hit
-#                S$modal_title <<- "PubMed Error"
-#                S$modal_text <<- HTML0("<p>Nothing found.</p>")
-#                isolate(rv$modal_warning <- rv$modal_warning + 1)
-#                return()
-#             }
-#             if(S$SRCH2$citeCount[2]>S$uploadMaxCites) {                # Check for too many hits
-#                S$modal_title <<- "PubMed Error"
-#                S$modal_text <<- HTML0("<p>Your search has over ", format(S$uploadMaxCites, big.mark=","), " citations, ",
-#                                  "which is too many to process. You need to modify your terms or dates and search ",
-#                                  "PubMed again. If you really want to review over ", format(S$uploadMaxCites, big.mark=","),
-#                                  " citations, create multiple searches, splitting them up by publication date ",
-#                                  "into smaller chunks.</p>")
-#                isolate(rv$modal_warning <- rv$modal_warning + 1)
-#                return()
-#             }
-#             S$SRCH2$CFactual[2] <<- "PMID"
-#             S$SRCH2$fileName[2] <<- "Live PubMed Search"
-#             S$SRCH2$fileSize[2] <<- 0
-#             S$SRCH2$fileType[2] <<- "xml"
-#             S$SRCH2$fileTime[2] <<- sTime()
-#             saveCites(pmids)
-#             isolate(rv$limn <- rv$limn + 1)                           # Need to use limn to save Name and Comments
-# #            isolate(rv$render <- rv$render + 1)
-#          } else {
-#             S$modal_title <<- "PubMed Error"
-#             S$modal_text <<- HTML0("<p>PubMed returned the following error: <b>", error, "</b></p>")
-#             S$modal_size <<- "l"
-#             isolate(rv$modal_warning <- rv$modal_warning + 1)
-#          }
-#       }
-#    }
-# })
-#
-
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
