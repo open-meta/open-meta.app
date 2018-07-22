@@ -22,11 +22,16 @@ rv$render = 0         # Trigger to render page after dealing with input initiali
 S$PF$trigger = 1      # Which section we're processing now (used with invalidateLater())
 S$uploadMaxCites <- as.numeric(settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxCites")))$value)
 
-S$PM = list()         # PubMed Search
+S$PM = list()         # Variables needed for PubMed Search
 S$PM$lastTime = now()
 S$PM$search <- FALSE
 S$PM$cascade <- "a"
 S$PM$url <-""
+S$PM$Chunksize = 350  # How many we get per fetch
+S$PM$Chunks = 1       # Number of fetches; multiple fetches allow a better progress bar and experience, although
+S$PM$Chunk = 1
+S$PM$Medline = ""     #    it might be slightly slower because of the pause between requests
+S$PM$progress
 rv$PMsearch <- 0
 
 S$SRCH$saveFlag <- FALSE
@@ -994,22 +999,26 @@ setProgress(1)
 
 # PubMed search
 # Save terms in S$SRCH2$terms[2]; trigger rv$PMsearch
-observe({                                                              # observe rather than observeEvent because of
-   if(rv$PMsearch>0) {                                                 #    embedded invalidateLater()
+observe({                                                           # observe rather than observeEvent because of
+   if(rv$PMsearch>0) {                                              #    embedded invalidateLater()s
       switch(S$PM$cascade,
          "a" = {
-            S$progress <<- shiny::Progress$new()                              # Create a Progress object
-            S$progress$set(message = "Slowly searching PubMed...", value = 0) # Set message
+            S$PM$progress <<- shiny::Progress$new()                 # Create a Progress object
+            S$PM$progress$set(message = "Searching PubMed...", value = 0) # Set message
+            S$SRCH2$CFactual[2] <<- "MEDLINE or .nbib"
+            S$SRCH2$fileName[2] <<- "Live PubMed Search"
+            S$SRCH2$fileType[2] <<- "text"
+            S$SRCH2$fileTime[2] <<- sTime()
             pauseFor <- PubMed.Delay - (seconds(now()-S$PM$lastTime)*1000)    # PubMed.Delay comes from the credentials file...
-            if(pauseFor > 0) {                                         # If required delay minus time elapsed is more than 0
-               invalidateLater(pauseFor)                               #    pause that long
-               return()                                                #    done for now
-            } else {                                                   # Otherwise, do the search
-               S$PM$lastTime <<- now()                                 # Note time of search execution
-               S$progress$inc(.1)
+            if(pauseFor > 0) {                                      # If required delay minus time elapsed is more than 0
+               invalidateLater(pauseFor)                            #    pause that long
+               return()                                             #    done for now
+            } else {                                                # Otherwise, do the search
+               S$PM$progress$set(.2)
+               S$PM$lastTime <<- now()                              # Note time of search execution
                max = paste0('&RetMax=', S$uploadMaxCites)
-               terms <- stripHTML(S$SRCH2$terms[2])                    # Remove <p></p> and any other HTML from terms
-               if(terms=="") {                                         # Make sure we have somethi8ng to search for
+               terms <- stripHTML(S$SRCH2$terms[2])                 # Remove <p></p> and any other HTML from terms
+               if(terms=="") {                                      # Make sure we have somethi8ng to search for
                   S$modal_title <<- "PubMed Error"
                   S$modal_text <<- HTML0("<p>Please enter something to search for in Terms.</p>")
                   isolate(rv$modal_warning <- rv$modal_warning + 1)
@@ -1018,21 +1027,20 @@ observe({                                                              # observe
                if(is.na(S$SRCH2$beginDate[2])) { S$SRCH2$beginDate[2] <<- "1000-01-01" }       # default begin date
                if(is.na(S$SRCH2$endDate[2])) { S$SRCH2$endDate[2] <<- str_sub(now(), 1, 10) }  # default end date
                if(str_detect(terms, coll("[PDAT]")) || str_detect(terms, coll("[uid]"))) {     # coll means NOT REGEX
-                  terms = paste0('&term=', terms)                      # Don't add PDAT if terms already has it
-               } else {                                                #    or if this is a PMID ([uid]) search
-                  ifelse(terms=="", "", paste0(" AND ", terms))        # Add AND (dates AND terms) unless terms is blank
+                  terms = paste0('&term=', terms)                   # Don't add PDAT if terms already has it
+               } else {                                             #    or if this is a PMID ([uid]) search
+                  ifelse(terms=="", "", paste0(" AND ", terms))     # Add AND (dates AND terms) unless terms is blank
                   terms = paste0('&term=("', S$SRCH2$beginDate[2], '"[PDAT]:"', S$SRCH2$endDate[2] , '"[PDAT])', terms)
                }
                key = ifelse(PubMed.Key=="", "", paste0('&api_key=', PubMed.Key))  # PubMed.Key is in credentials; but
                Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?usehistory=y" # it's not required
+               S$PM$progress$set(.4)
                url <- paste0(Esearch, key, max, str_replace_all(terms, " ", "+")) # fix url; also replace " " with "+"
-               S$progress$inc(.1)
-               xml <- RCurl::getURL(url)                               # get xml
-               S$progress$inc(.1)
-               raw <- xml2::read_xml(xml)                              # read xml
-               S$progress$inc(.1)
+               xml <- RCurl::getURL(url)                            # get xml
+               raw <- xml2::read_xml(xml)                           # read xml
                error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
-               if(!is.na(error)) {                                     # Not NA means there was an error!
+               S$PM$progress$set(.6)
+               if(!is.na(error)) {                                  # Not NA means there was an error!
                   S$modal_title <<- "PubMed Error"
                   S$modal_text <<- HTML0("<p>PubMed returned the following error: <b>", error, "</b></p>")
                   S$modal_size <<- "l"
@@ -1040,13 +1048,13 @@ observe({                                                              # observe
                   return()
                }
                S$SRCH2$citeCount[2] <<- as.numeric(xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count")))
-               if(S$SRCH2$citeCount[2]==0) {                           # Check for at least 1 hit
+               if(S$SRCH2$citeCount[2]==0) {                        # Check for at least 1 hit
                   S$modal_title <<- "PubMed Error"
                   S$modal_text <<- HTML0("<p>Nothing found.</p>")
                   isolate(rv$modal_warning <- rv$modal_warning + 1)
                   return()
                }
-               if(S$SRCH2$citeCount[2]>S$uploadMaxCites) {             # Check for too many hits
+               if(S$SRCH2$citeCount[2]>S$uploadMaxCites) {          # Check for too many hits
                   S$modal_title <<- "PubMed Error"
                   S$modal_text <<- HTML0("<p>Your search has over ", format(S$uploadMaxCites, big.mark=","), " citations, ",
                                     "which is too many to process. You need to modify your terms or dates and search ",
@@ -1056,36 +1064,54 @@ observe({                                                              # observe
                   isolate(rv$modal_warning <- rv$modal_warning + 1)
                   return()
                }
+               S$PM$progress$set(.8)
+               S$PM$Chunk <<- 1
+               S$PM$Chunks <<- S$SRCH2$citeCount[2] %/% S$PM$Chunksize                 #    number of complete chunks
                S$SRCH2$query[2] <<- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryTranslation")) # save returned Query
                QKey <- xml2::xml_text(xml_find_first(raw, "/eSearchResult/QueryKey"))  # Prep URL for fetch from
                WebEnv <- xml2::xml_text(xml_find_first(raw, "/eSearchResult/WebEnv"))  #   PubMed history
                webenv = paste0('&WebEnv=', WebEnv, '&query_key=', QKey)
                EFetch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&rettype=MEDLINE&retmode=text"
-               S$PM$url <<- paste0(EFetch, max, key, webenv)                           # Save URL for next part of cascade
-               S$PM$cascade <<- "b"                                                    #    which is part "b"
-               pauseFor <- PubMed.Delay - (seconds(now()-S$PM$lastTime)*1000)          # Delay like before, but
-               pauseFor <- max(c(50, pauseFor))                        # Don't let pauseFor be negative!
-               invalidateLater(pauseFor)                               # Need this to space requests to the Entrez api
-               return()                                                #    done for now; see you at "b" in a minute here
+               S$PM$url <<- paste0(EFetch, key, webenv)             # Save URL for next part of cascade
+               S$PM$cascade <<- "b"                                 #    which is part "b"
+               S$PM$progress$close()                                # Close "Searching PubMed..." progress bar
+               S$PM$progress <<- shiny::Progress$new()              # Create "Retreiving PubMed Data..." Progress object
+               S$PM$progress$set(message = "Retreiving PubMed Data...", value = 0) # Set message
+               invalidateLater(10)                                  # Move on to part B
+               return()
             }
          },
          "b" = {
-            S$PM$lastTime <<- now()                                    # Note time of search execution
-            S$progress$inc(.2)
-            medline <- RCurl::getURL(S$PM$url)                         # Use URL constructed above to get cite data
-            S$progress$inc(.2)
-            S$SRCH2$CFactual[2] <<- "MEDLINE or .nbib"                 #    a single string in Medline format
-            S$SRCH2$fileName[2] <<- "Live PubMed Search"
-            S$SRCH2$fileSize[2] <<- nchar(medline)
-            S$SRCH2$fileType[2] <<- "text"
-            S$SRCH2$fileTime[2] <<- sTime()
-            saveCites(stri_split_lines1(medline))                      # Splits the single string into lines
-            S$PM$cascade <<- "a"                                       # Go to next Switch
-            isolate(rv$limn <- rv$limn + 1)                            # Need to use limn to save Name and Comments
-            S$progress$close()                                         # Close progress bar
+            S$PM$progress$set(min(c(S$PM$Chunk/S$PM$Chunks, .97)))   # not more than .9
+            pauseFor <- PubMed.Delay - (seconds(now()-S$PM$lastTime)*1000)
+            if(pauseFor > 0) {                                      # As above
+               invalidateLater(pauseFor)
+               return()
+            } else {
+               S$PM$lastTime <<- now()                              # Note time of search execution
+               S$PM$url2 <- paste0(S$PM$url, '&retstart=', (S$PM$Chunksize*(S$PM$Chunk-1))+1, '&retMax=', S$PM$Chunksize)
+               S$PM$Medline <<- paste0(S$PM$Medline, RCurl::getURL(S$PM$url2))   # Use URL constructed above to get cite data
+               S$PM$Chunk <<- S$PM$Chunk+1
+               if(S$PM$Chunk>S$PM$Chunks) {
+                  S$PM$cascade <<- "c"                              # Move on to part "c"
+               }
+               invalidateLater(10)                                  # Loop through part "b"
+               return()
+            }
+         },
+         "c" = {
+               S$SRCH2$fileSize[2] <<- nchar(S$PM$Medline)
+               S$PM$progress$set(.9)
+               saveCites(stri_split_lines1(S$PM$Medline))           # Splits the single string into lines
+               S$PM$progress$set(1)
+               isolate(rv$limn <- rv$limn + 1)                      # Need to use limn to save Name and Comments
          },
          stop("S$PM$cascade is invalid.")
       )
+      S$PM$cascade <<- "a"                                          # Ready for next time
+      S$PM$url <<- ""
+      S$PM$Medline <<- ""                                           # Especially this one
+      S$PM$progress$close()                                         # Close progress bar
    }
 })
 
