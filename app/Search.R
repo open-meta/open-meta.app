@@ -1025,6 +1025,7 @@ observe({                                                        # observe rathe
             } else {                                             #    or if this is a PMID ([uid]) search
                ifelse(terms=="", "", paste0(" AND ", terms))     # Add AND (dates AND terms) unless terms is blank
                terms = paste0('&term=("', S$SRCH2$beginDate[2], '"[PDAT]:"', S$SRCH2$endDate[2] , '"[PDAT])', terms)
+               terms = str_replace_all(terms, "-", "/")          # Change date delimiter
             }
             key = ifelse(PubMed.Key=="", "", paste0('&api_key=', PubMed.Key))  # PubMed.Key is in credentials; but
             Esearch <- "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?usehistory=y" # it's not required
@@ -1191,19 +1192,6 @@ observeEvent(input$js.omclick, {
             rv$limn = rv$limn + 1
          }
       },
-      "check" = {
-         S$modal_title <<- "Upcoming Feature"
-         S$modal_text <<- HTML("<p>The ability to check whether this Search's details are complete and ready to process is coming soon.</p>")
-         S$modal_size <<- "l"
-         rv$modal_warning <- rv$modal_warning + 1
-         # check whether search is ready to process; need this code more than once, write a function
-         # if(input$database=="All Other" && input$otherDB=="") {
-         #    msg = paste0(msg, "<li>Database name can't be blank.</li>")
-         # }
-         # if(is.na(input$searchDates[2])) {
-         #    msg = paste0(msg, "<li>End date can't be blank.</li>")
-         # }
-      },
       "processCheck" = {                            # This button is part of new/edit Search
          if(S$P$Modify) {
             S$modal_title <<- "No Undo!!!"
@@ -1212,7 +1200,7 @@ S$modal_text <<- HTML0("<p>Once you process a search successfully you can't chan
 "as the citations in your project for duplicates. The unduplicated citations will be added to your project, ready ",
 "for Review. This may take a few minutes and <b>cannot be undone!</b> Are you sure you want to proceed?</p>")
             S$modal_size <<- "l"
-            S$modal_footer <<- tagList(modalButton("Cancel"), btn(uid="OK2process_1", q="on", "Process"))
+            S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "Process"))
             rv$modal_warning <- rv$modal_warning + 1
          }
       },
