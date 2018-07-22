@@ -90,7 +90,7 @@ observeEvent(input$js.editorText, {
    t = input$js.editorText[2]          # The edited text
    switch(id,
       "terms" = {
-         S$SRCH2$terms[2] <<- t
+         S$SRCH2$terms[2] <<- stripHTML(t)
          if(S$PM$search) {                  # We're about to search PubMed
             S$PM$search <<- FALSE
             S$SRCH2$beginDate[2]  <<- stripHTML(as.character(input$searchDates[1]))  # Need these for the search
@@ -243,7 +243,7 @@ if(S$P$Msg=="") {
                # Adjust which buttons will show in table
                if(nrow(Rx)>0) {                     # Skip this if nothing was returned.
                   if(!S$P$Modify) {                    # Without permission to modify all you can do is View
-                     Rx = Rx[-c(7,8,10)]               #    delete all button columns but View
+                     Rx = Rx[-c(8:10)]                 #    delete all button columns but View
                   } else {                                                  # User can modify Search
                      Rx[[7]] <- ifelse(Rx[["status"]]==0, Rx[[9]], Rx[[7]]) # Incomplete: Edit-Delete
                      Rx[[8]] <- ifelse(Rx[["status"]]==0, Rx[[10]],         # Complete: View-Update (default)
@@ -305,10 +305,10 @@ if(S$P$Msg=="") {
                         if(S$SRCH2$CFchosen[2]=="Live") {
                            tagList(
                               HTML("Terms"),
-                              bs4("quill", id="terms", S$SRCH2$terms[2]),
+                              bs4("quill", id="terms", paste0("<p>", S$SRCH2$terms[2], "</p>")),   # terms[2] has been through stripHTML()
                               bs4("d", bs4("btn", class="mb-3", id="searchpubmed", q=c("p", "s", "b"), "Search PubMed")),
                               if(S$SRCH2$query[2]!="") {
-                                 HTML("PubMed translated your Publication Dates and Terms into this Query",
+                                 HTML("PubMed translated these Publication Dates and Terms into the following Query",
                                       "<p><i>", S$SRCH2$query[2], "</i></p>")
                               }
                            )
@@ -329,9 +329,29 @@ if(S$P$Msg=="") {
                               )
                            )
                         },
-                        HTML('<div class="form-group w-50">',
-                        '<label class for="citeTotal">Number of citations in this search</label>',
-                        '<input id="citeTotal" type="text" class="form-control w-50" value="" readonly="readonly"></div>'),
+                        #citeCount
+                        bs4("r", align="hc",
+                           bs4("c3",
+                              HTML("Citations<br>",
+                              "<input id='citeCount', type='text' class='form-control w-100' value='",
+                              format(S$SRCH2$citeCount[2], big.mark=","), "' readonly='readonly'>")
+                           ),
+                           bs4("c3",
+                              HTML("<a id='pmid-doi-info_1' style='color:yellow; cursor:pointer;'>Abstracts</a><br>",
+                              "<input id='absCount', type='text' class='form-control w-100' value='",
+                              S$SRCH2$absCount[2], "' readonly='readonly'>")
+                           ),
+                           bs4("c3",
+                              HTML("<a id='pmid-doi-info_2' style='color:yellow; cursor:pointer;'>PMIDs</a><br>",
+                              "<input id='pmidCount', type='text' class='form-control w-100' value='",
+                              S$SRCH2$pmidCount[2], "' readonly='readonly'>")
+                           ),
+                           bs4("c3",
+                              HTML("<a id='pmid-doi-info_3' style='color:yellow; cursor:pointer;'>DOIs</a><br>",
+                              "<input id='doiCount', type='text' class='form-control w-100' value='",
+                              S$SRCH2$doiCount[2], "' readonly='readonly'>")
+                           )
+                        ),
                         HTML("<div class='mt-3'>Comments</div>"),
                         bs4("quill", id="comment", S$SRCH2$comment[2]),
                         HTML('<div class="text-right mt-3">'),
@@ -347,33 +367,38 @@ if(S$P$Msg=="") {
                if(S$hideMenus) {          # Menus are hidden: at this point that means the user clicked View
                   restOfPage =tagList(
                      bs4("r", align="hc",
-                        bs4("c10", tagList(
+                        bs4("c10",
                            h4(S$SRCH$pageTitle),
                            # Database and File Format
-                           HTML("<p>Database</p>",
-                                "<input type='text', value='",
-                                ifelse(S$SRCH2$database[2]!="All Other", S$SRCH2$database[2], S$SRCH2$otherDB[2]),
-                                "', class='form-control figure w-50', readonly='readonly'><br>",
-                                "<p>File Format</p><input type='text', value='",
-                                 S$SRCH2$CFchosen[2],
-                                "', class='form-control figure w-50', readonly='readonly'><br>"),
+                           bs4("r", align="hc",
+                              bs4("c6",
+                                 HTML("Database<br>",
+                                      "<input type='text', value='",
+                                      ifelse(S$SRCH2$database[2]!="All Other", S$SRCH2$database[2], S$SRCH2$otherDB[2]),
+                                      "', class='form-control figure w-100', readonly='readonly'><br>")
+                              ),
+                              bs4("c6",
+                                  HTML("File Format<br>",
+                                  "<input type='text', value='", S$SRCH2$CFchosen[2],
+                                  "', class='form-control figure w-100', readonly='readonly'><br>")
+                              )
+                           ),
                            # Search Name
-                           HTML("<p>Search Name</p>",
+                           HTML("Search Name<br>",
                                 "<input type='text', value='", S$SRCH2$searchName[2],
                                 "'class='form-control w-100', readonly='readonly'><br>"),
                            # Pub date range
-                           HTML("<p>Publication date range of this search</p>",
-                                "<input type='text', value='",
-                                S$SRCH2$beginDate[2],
+                           HTML("Publication date range of this search<br>",
+                                "<input type='text', value='", S$SRCH2$beginDate[2],
                                 "'class='d-inline form-control w-25', readonly='readonly'",
-                                ">&nbsp;to&nbsp;<input type='text', value='",
-                                S$SRCH2$endDate[2], "'class='d-inline form-control w-25', readonly='readonly'>"),
+                                ">&nbsp;to&nbsp;<input type='text', value='", S$SRCH2$endDate[2],
+                                "'class='d-inline form-control w-25', readonly='readonly'>"),
                            # PubMed Terms & Query
                            if(S$SRCH2$CFchosen[2]=="Live") {
                               tagList(
                                  HTML("<br><hr><p>Terms</p><p><i>", S$SRCH2$terms[2], "</i></p>"),
                                  if(S$SRCH2$query[2]!="") {
-                                    HTML("<hr><p>PubMed translated your Publication Dates and Terms into this Query</p>", "<p><i>",
+                                    HTML("<hr><p>PubMed translated these Publication Dates and Terms into the following Query</p>", "<p><i>",
                                          S$SRCH2$query[2], "</i></p><hr>")
                                  }
                               )
@@ -382,23 +407,40 @@ if(S$P$Msg=="") {
                               tagList(
                                  HTML("<br><hr><p>Query</p>"),
                                  HTML("<p><i>", S$SRCH2$query[2], "</i></p><hr>",
-                                 "<p>Citation file</p>",
+                                 "Citation file<br>",
                                  "<input type='text', value='",
                                  S$SRCH2$fileName[2],
                                  "'class='form-control w-100', readonly='readonly'><br>")
                               )
                            },
                            #citeCount
-                           HTML("<p>Number of citations in this search</p>",
-                           "<input type='text' class='form-control w-50' value='",
-                           format(S$SRCH2$citeCount[2], big.mark=","),
-                           "' readonly='readonly'>"),
+                           bs4("r", align="hc",
+                              bs4("c3",
+                                 HTML("Citations<br>",
+                                 "<input type='text' class='form-control w-100' value='",
+                                 format(S$SRCH2$citeCount[2], big.mark=","), "' readonly='readonly'>")
+                              ),
+                              bs4("c3",
+                                 HTML("<a id='pmid-doi-info_4' style='color:yellow; cursor:pointer;'>Abstracts</a><br>",
+                                 "<input type='text' class='form-control w-100' value='",
+                                 S$SRCH2$absCount[2], "' readonly='readonly'>")
+                              ),
+                              bs4("c3",
+                                 HTML("<a id='pmid-doi-info_5' style='color:yellow; cursor:pointer;'>PMIDs</a><br>",
+                                 "<input type='text' class='form-control w-100' value='",
+                                 S$SRCH2$pmidCount[2], "' readonly='readonly'>")
+                              ),
+                              bs4("c3",
+                                 HTML("<a id='pmid-doi-info_6' style='color:yellow; cursor:pointer;'>DOIs</a><br>",
+                                 "<input type='text' class='form-control w-100' value='",
+                                 S$SRCH2$doiCount[2], "' readonly='readonly'>")
+                              )
+                           ),
                            # Cancel Button
                            HTML('<div class="text-right mt-3">'),
                            bs4("btn", id="cancel", n=1, q="b", "Cancel"),
                            HTML('</div>')
                      )))
-                  )
                   rv$hitCounter = rv$hitCounter + 1 # To display filename and number of hits on Edit load
                } else {                   # Menus not hidden, at this point that means user clicked New Search w/o adequate permissions
                   if(S$P$O) {
@@ -461,12 +503,17 @@ observeEvent(c(input$searchName, input$otherDB), {
 #    Also updates the filename readonly input to accomodate search editing
 observeEvent(rv$hitCounter, {
    if(!is.null(input$database) && !is.null(S$SRCH2$citeCount[2]) && S$SRCH2$citeCount[2]>0) {
-      hc = format(S$SRCH2$citeCount[2], big.mark=",")  # Add commas
+      updateTextInput(session, inputId="citeCount", value=format(S$SRCH2$citeCount[2], big.mark=","))  # Add commas
+      updateTextInput(session, inputId="absCount", value=S$SRCH2$absCount[2])
+      updateTextInput(session, inputId="pmidCount", value=S$SRCH2$pmidCount[2])
+      updateTextInput(session, inputId="doiCount", value=S$SRCH2$doiCount[2])
    } else {
-      hc = ""                                          # Blank if result is 0
+      updateTextInput(session, inputId="citeCount", value="")
+      updateTextInput(session, inputId="absCount", value="")
+      updateTextInput(session, inputId="pmidCount", value="")
+      updateTextInput(session, inputId="doiCount", value="")
    }
-   updateTextInput(session, inputId="citeTotal", value=hc)
-   updateTextInput(session, inputId="citeFile", value=S$SRCH2$fileName[2])
+    updateTextInput(session, inputId="citeFile", value=S$SRCH2$fileName[2])     # Update file name in any case
 })
 
 # This observer runs when a file upload has completed.
@@ -666,7 +713,6 @@ setProgress(.4)
 setProgress(.5)
             if(S$SRCH2$citeCount[2] > nrow(t)) {                             # Adjust citeCount for any losses.
                msg <- paste0("<li>", S$SRCH2$citeCount[2] - nrow(t), " of the entries in this file weren't valid and were dropped.</li>")
-               S$SRCH2$citeCount[2] <<- nrow(t)
             }
             for(c in 1:ncol(t)) {                                            # for each column of dataframe, remove all...
                while(length(i <- which(str_sub(t[[c]],1,1) == "{")) > 0) { t[i,c] <- str_sub(t[i,c],2,-1) }    # leading and
@@ -677,14 +723,30 @@ setProgress(.5)
             t$author = str_replace_all(t$author, " and ", "; ")              # change " and " in author field to "; "
             t$year = str_sub(t$year, 1, 4)                                   # Trim year to first four characters
             t = as.tibble(t)                                                 # tibble it
+            cnames = names(t)                                                # RefManageR does str_to_lower on the names
             TYcode = "bibtype"
             TIcode = "title"
             AUcode = "author"
             Jcode  = "journaltitle"
+            if("journal" %in% cnames) { Jcode  = "journal" }
             Ycode  = "year"
             Vcode  = "volume"
             Ncode  = "number"
-            Pcode  = "pages"
+            SPcode = "SP"
+            EPcode = "EP"
+            # Split page numbers into SP and EP
+               p <- str_locate(t$pages, coll("--"))                # different databases use different separators
+               if(all(is.na(p[,1]))) {
+                  p <- str_locate(t$pages, coll(" - "))
+               }
+               if(all(is.na(p[,1]))) {
+                  p <- str_locate(t$pages, coll("-"))
+               }
+               t$SP <- ifelse(is.na(p[,1]), t$pages, str_sub(t$pages, 1, p[,1]-1))
+               t$EP <- ifelse(is.na(p[,2]), as.character(NA), str_sub(t$pages, p[,2]+1, -1))
+            SNcode = "issn"
+               p <- which(naf(nchar(t$issn)==8))                              # add "-" to 8-char ISSNs
+               t$issn[p] <- paste0(str_sub(t$issn[p], 1, 4), "-", str_sub(t$issn[p], 5, 8))  #   numbers to speed this up.
             ABcode = "abstract"
             PMcode = "pmid"
             PCcode = "pmcid"
@@ -730,6 +792,7 @@ setProgress(.5)
             if("JA" %in% cnames) { t$JO <- ifelse(is.na(t$JO), t$JA, t$JO) }
             if("J1" %in% cnames) { t$JO <- ifelse(is.na(t$JO), t$J1, t$JO) }
             if("JF" %in% cnames) { t$JO <- ifelse(is.na(t$JO), t$JF, t$JO) }  # Full name is last choice (harder to match)
+            if("T2" %in% cnames) { t$JO <- ifelse(is.na(t$JO), t$T2, t$JO) }  # JSTOR puts journal here
 
             Ycode = "PY"                                                   # Year - can be PY, Y1, Y2, or missing
             if(!("PY" %in% cnames)) t$PY <- rep(as.character(NA), nrow(t))
@@ -819,11 +882,9 @@ setProgress(.5)
 # r <- tibble(stri_read_lines(f))
             t = cites2table(r, splitAt=2, SIDmark="PT")
             cnames = names(t)
-            TYcode = "DT"
+            TYcode = "PT"
             TIcode = "TI"
-            AUcode = "AF"
-            if(!("AF" %in% cnames)) t$AF <- rep(as.character(NA), nrow(t))    # If author-full is missing, use
-            if("AU" %in% cnames) { t$AF <- ifelse(is.na(t$AF), t$AU, t$AF) }  #   author-initial
+            AUcode = "AU"
             Jcode  = "SO"
             Ycode  = "PY"
             Vcode  = "VL"
@@ -906,7 +967,14 @@ setProgress(.6)
          }
       }
 setProgress(.8)
-      S$SRCH2$citeCount[2] <<- nrow(r2)
+      n = nrow(r2)
+      nabs = sum(naf(r2$abstract!=""))
+      npmid = sum(naf(r2$pmid!=""))
+      ndoi = sum(naf(r2$doi!=""))
+      S$SRCH2$citeCount[2] <<- n
+      S$SRCH2$absCount[2]  <<- paste0(format(nabs,  big.mark=","), " (", format(nabs/n*100, digits=1, nsmall=1), "%)")
+      S$SRCH2$pmidCount[2] <<- paste0(format(npmid, big.mark=","), " (", format(npmid/n*100, digits=1, nsmall=1), "%)")
+      S$SRCH2$doiCount[2]  <<- paste0(format(ndoi,  big.mark=","), " (", format(ndoi/n*100, digits=1, nsmall=1), "%)")
       if(S$SRCH$id==0) {                            # if id = 0 we need to save the table to get an id for cite table
          S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
          S$SRCH$id <<- S$SRCH2$searchID[1]
@@ -1125,7 +1193,7 @@ S$modal_text <<- HTML0("<p>Once you process a search successfully you can't chan
 "as the citations in your project for duplicates. The unduplicated citations will be added to your project, ready ",
 "for Review. This may take a few minutes and <b>cannot be undone!</b> Are you sure you want to proceed?</p>")
             S$modal_size <<- "l"
-            S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "Process"))
+            S$modal_footer <<- tagList(modalButton("Cancel"), btn(uid="OK2process_1", q="on", "Process"))
             rv$modal_warning <- rv$modal_warning + 1
          }
       },
@@ -1284,6 +1352,33 @@ Abstract = {Foodborne illnesses remain....}, </pre>")
          )
          S$modal_title <<- "Format Details"
          S$modal_size <<- "l"
+         rv$modal_warning <- rv$modal_warning + 1
+      },
+      "pmid-doi-info" = {
+         S$modal_title <<- "Counts explained"
+S$modal_text <<- HTML0("<p>In addition to the number of citations found in your search, we show  counts and ",
+                       "percentages for abstracts, PMIDs (PubMed IDs), and DOIs (Document Object Identifiers).<ul>",
+                       "<li><b>Abstracts.</b> During your initial review to determine which articles meet the inclusion ",
+                       "criteria for your project, you will examine article titles and abstracts. If your citation file ",
+                       "includes abstracts, the Open-Meta app will make your review very easy. Without abstracts, on the ",
+                       "other hand, you will have to go elsewhere to look them up, which will make your review extremely ",
+                       "difficult. If your abstract count is zero, you should return to the database you used and ",
+                       "download the citations again, this time making sure the download includes abstracts. Over ",
+                       "90% of your citations should have abstracts; it's difficult to hit 100% because some ",
+                       "items, like letters to the editor, don't have them.</li>",
+                       "<li><b>PMIDs.</b>The Open-Meta app uses PubMed IDs to locate duplicate citations ",
+                       "and to find full-text versions of your citations during data extraction. Only citations listed ",
+                       "in the US Library of Medicine's <a href='https://www.ncbi.nlm.nih.gov/pubmed/'' target='_blank'>",
+                       "PubMed database</a> have PubMed IDs, however, so if your project isn't about ",
+                       "health, few of your citations will have PMIDs. (Also, RIS and BibTeX citation files don't have ",
+                       "consistent codes for PMIDs; if you think your file has them but they don't show up here, let ",
+                       "us know so we can fix things.)</li>",
+                       "<li><b>DOIs.</b> The Open-Meta app uses Document Object Identifiers to locate duplicate ",
+                       "citations and to find full-text versions of your citations during data extraction. Older citations ",
+                       "are less likely to have DOIs than newer citations.</li>",
+                       "</ul></p>")
+         S$modal_size <<- "l"
+         S$modal_footer <<- tagList(modalButton("Cancel"))
          rv$modal_warning <- rv$modal_warning + 1
       },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
