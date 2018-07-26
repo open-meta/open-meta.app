@@ -21,8 +21,10 @@ initProject = function(projectID, projectName, pool) {
 
    r = dbExecute(dbLink, paste0("CREATE DATABASE `", S$db, "`;"))  # Create the project db
    r = dbExecute(dbLink, createTable(S$db, "settings")) # Create its tables
-   r = dbExecute(dbLink, createTable(S$db, "protocol")) # Create its tables
-   r = dbExecute(dbLink, createTable(S$db, "search"))   # Create its tables
+   r = dbExecute(dbLink, createTable(S$db, "protocol"))
+   r = dbExecute(dbLink, createTable(S$db, "search"))
+   r = dbExecute(dbLink, createTable(S$db, "catalog"))
+   r = dbExecute(dbLink, createTable(S$db, "review"))
 
 ### Membership table is done by caller on both new installs and new projects
 

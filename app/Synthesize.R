@@ -19,12 +19,12 @@ if(S$P$Msg=="") {
       if(rv$limn && S$P$Msg=="") {
          if(S$P$Modify) {                               # Modification allowed?
             return(tagList(
-               bs4("md", id="sub", n=1:5, active=rv$menuActive, text=c("Settings", "Forest Plot", "Bias Plots", "Subgroup Analysis", "Meta-Regression")),
+               bs4("md", id="sub", n=1:7, active=rv$menuActive, text=c("Settings", "PRISMA diagram", "Trial Sequential Analysis", "Forest Plot", "Bias Plots", "Subgroup Analysis", "Meta-Regression")),
                bs4("r", bs4("ca", "More to come..."))
             ))
          } else {                                       # Otherwise view only
             return(tagList(
-               bs4("md", id="sub", n=1:5, active=rv$menuActive, text=c("Settings", "Forest Plot", "Bias Plots", "Subgroup Analysis", "Meta-Regression")),
+               bs4("md", id="sub", n=1:7, active=rv$menuActive, text=c("Settings", "PRISMA diagram", "Trial Sequential Analysis", "Forest Plot", "Bias Plots", "Subgroup Analysis", "Meta-Regression")),
                bs4("r", bs4("ca", "More to come..."))
             ))
          }

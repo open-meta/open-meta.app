@@ -178,50 +178,74 @@ search=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
 
 # cite - this is a special table format for temporarily savings cites; NO SQL.CORE fields
 F1  = tibble(Name="citeID",     Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
-F2  = tibble(Name="type",       Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F3  = tibble(Name="title",      Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F4  = tibble(Name="author",     Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F5  = tibble(Name="journal",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F6  = tibble(Name="Y",          Type="VARCHAR",   Size="4",   NoSign="",  NoNull="T", Default="s",       Key="")
-F7  = tibble(Name="V",          Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
-F8  = tibble(Name="N",          Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
-F9  = tibble(Name="startP",     Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
-F10 = tibble(Name="endP",       Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
-F11 = tibble(Name="issn",       Type="VARCHAR",   Size="20",  NoSign="",  NoNull="T", Default="s",       Key="")
-F12 = tibble(Name="abstract",   Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F13 = tibble(Name="pmid",       Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
-F14 = tibble(Name="pmcid",      Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
-F15 = tibble(Name="doi",        Type="VARCHAR",   Size="200", NoSign="",  NoNull="T", Default="s",       Key="")
-F16 = tibble(Name="issnvnp",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F17 = tibble(Name="stdTitle",   Type="VARCHAR",   Size="250", NoSign="",  NoNull="T", Default="s",       Key="")
-F18 = tibble(Name="stdAuthor",  Type="VARCHAR",   Size="250", NoSign="",  NoNull="T", Default="s",       Key="")
-F19 = tibble(Name="stdAbstract",Type="VARCHAR",   Size="250", NoSign="",  NoNull="T", Default="s",       Key="")
-cite=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19)
+F2  = tibble(Name="searchID",   Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F3  = tibble(Name="type",       Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F4  = tibble(Name="title",      Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F5  = tibble(Name="author",     Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F6  = tibble(Name="journal",    Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F7  = tibble(Name="Y",          Type="VARCHAR",   Size="4",   NoSign="",  NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="V",          Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F9  = tibble(Name="N",          Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F10 = tibble(Name="startP",     Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F11 = tibble(Name="endP",       Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F12 = tibble(Name="issn",       Type="VARCHAR",   Size="20",  NoSign="",  NoNull="T", Default="s",       Key="")
+F13 = tibble(Name="abstract",   Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F14 = tibble(Name="pmid",       Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
+F15 = tibble(Name="pmcid",      Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
+F16 = tibble(Name="doi",        Type="VARCHAR",   Size="200", NoSign="",  NoNull="T", Default="s",       Key="")
+F17 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F18 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+cite=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18) #,F19)
 
-# prj$hits
-# buildR <- function(nrecs=1) {                              # standard tibble for hits table
-# #   "" = rep("", nrecs)
-#    Rids = Riddle(nrecs)
-#    return(tibble(Rid = Rids, Sid="", L="", pmid="", pmidOK=FALSE, dupOf="", ptype="", journal="", Y="", V="", N="", P="",
-#             title="", authors="", doi="", pmcid = "", comments="", abstract="", nrev=0, rev="1"))
-# }
-
+# catalog - this is the working list of all citations
+F1  = tibble(Name="catalogID",  Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+F2  = tibble(Name="searchID",   Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F3  = tibble(Name="citeID",     Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F4  = tibble(Name="hasDup",     Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F5  = tibble(Name="dupOf",      Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F6  = tibble(Name="dupDM",      Type="VARCHAR",   Size="20",  NoSign="",  NoNull="T", Default="s",       Key="")  # DM: detection method
+F7  = tibble(Name="type",       Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F8  = tibble(Name="title",      Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F9  = tibble(Name="author",     Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F10 = tibble(Name="journal",    Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F11 = tibble(Name="Y",          Type="VARCHAR",   Size="4",   NoSign="",  NoNull="T", Default="s",       Key="")
+F12 = tibble(Name="V",          Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F13 = tibble(Name="N",          Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F14 = tibble(Name="startP",     Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F15 = tibble(Name="endP",       Type="VARCHAR",   Size="10",  NoSign="",  NoNull="T", Default="s",       Key="")
+F16 = tibble(Name="issn",       Type="VARCHAR",   Size="20",  NoSign="",  NoNull="T", Default="s",       Key="")
+F17 = tibble(Name="abstract",   Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F18 = tibble(Name="pmid",       Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
+F19 = tibble(Name="pmcid",      Type="VARCHAR",   Size="15",  NoSign="",  NoNull="T", Default="s",       Key="")
+F20 = tibble(Name="doi",        Type="VARCHAR",   Size="200", NoSign="",  NoNull="T", Default="s",       Key="")
+F21 = tibble(Name="issnvnp",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F22 = tibble(Name="stdTitle",   Type="VARCHAR",   Size="250", NoSign="",  NoNull="T", Default="s",       Key="")
+F23 = tibble(Name="stdAuthor",  Type="VARCHAR",   Size="250", NoSign="",  NoNull="T", Default="s",       Key="")
+F24 = tibble(Name="stdAbstract",Type="VARCHAR",   Size="250", NoSign="",  NoNull="T", Default="s",       Key="")
+F25 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
+F26 = tibble(Name="reviewCount",Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F27 = tibble(Name="reviewBest", Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F28 = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F29 = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F30 = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F31 = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F32 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F33 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+catalog=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
+                                         F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,
+                                         F30,F31,F32,F33)
 #review
-F1  = tibble(Name="RID",        Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
-F2  = tibble(Name="BID",        Type="MEDIUMINT", Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
-F2  = tibble(Name="searchName", Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="UNIQUE")
-F3  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F4  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F5  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F6  = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-review=rbind(F1,F2,F3,F4,F5,F6)
-
-# prj$reviews = tibble(Rid=gl$reviewRid,
-#               time=now(),
-#               decision=input$stage_1_review,
-#               comment=input$review_comment,
-#               reviewer=reviewer,
-#               rowNum = thisRow + 1)
+F1  = tibble(Name="reviewID",   Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+F2  = tibble(Name="catalogID",  Type="MEDIUMINT", Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
+F3  = tibble(Name="decision",   Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F4  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F5  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F6  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F7  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F9  = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F10 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+review=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10)
 
 #trial
 F1  = tibble(Name="TID",        Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
@@ -252,18 +276,16 @@ cull=rbind(F1,F2,F3,F4,F5,F6)
 
 
 
-
-
-
-
 ### Combine into a list and save
 table.definition.list = list(
    page=page, user=user, project=project, membership=membership, protoHelp=protoHelp, protocol=protocol,
-   settings=settings, search=search, cite=cite
+   settings=settings, search=search, cite=cite, catalog=catalog, review=review
 )
 saveRDS(table.definition.list, file="app/table.definition.list.RDS")
 ##################################################################################
 
-rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24,F25,F26,F27,F28,F29) #,F30,F31)
-rm(arm, cite, cull, page, project, review, search, trial, user, membership, protocol, protoHelp,
+rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
+                              F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,
+                              F30,F31,F31,F32,F33)
+rm(arm, cite, cull, page, project, catalog, review, search, trial, user, membership, protocol, protoHelp,
    settings)

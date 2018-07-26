@@ -37,6 +37,7 @@ rv$PMsearch <- 0
 S$SRCH$saveFlag <- FALSE
 S$SRCH$processFlag <- FALSE
 S$msg = ""
+S$sacredFields <- c("verNum", "verUser", "verTime", "clash", "clashFacts", "deleted")   # sql.core needs these to save a record
 
 # Only needed on this page:
 searchGet = function(db=S$db, SELECT="", WHERE=tibble(c("searchID", ">", "0"))) {
@@ -935,14 +936,18 @@ setProgress(.5)
          }
       )  # end of switch()
 setProgress(.6)
-      # clear some memory
-      r = NULL
+      r = NULL                                      # clear some memory
+      if(S$SRCH$id==0) {                            # if id = 0 we need to save the table to get a searchID
+         S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+         S$SRCH$id <<- S$SRCH2$searchID[1]
+      }
       # This makes the tibble we'll save in the database
       #   If a field value is missing from t, it creates a column of blanks; also, it makes sure a field isn't
       #      longer than its database field definition.
       tNames <- names(t)
       nrows <- nrow(t)
       r2 = tibble(
+         searchID = S$SRCH$id,
          type =     str_sub(ifelse(rep(TYcode %in% tNames, nrows), t[[TYcode]], rep("",nrows)), 1, 65535),
          title =    str_sub(ifelse(rep(TIcode %in% tNames, nrows), t[[TIcode]], rep("",nrows)), 1, 65535),
          author =   str_sub(ifelse(rep(AUcode %in% tNames, nrows), t[[AUcode]], rep("",nrows)), 1, 65535),
@@ -956,7 +961,9 @@ setProgress(.6)
          abstract = str_sub(ifelse(rep(ABcode %in% tNames, nrows), t[[ABcode]], rep("",nrows)), 1, 65535),
          pmid =     str_sub(ifelse(rep(PMcode %in% tNames, nrows), t[[PMcode]], rep("",nrows)), 1, 15),
          pmcid =    str_sub(ifelse(rep(PCcode %in% tNames, nrows), t[[PCcode]], rep("",nrows)), 1, 15),
-         doi =      str_sub(ifelse(rep(DOcode %in% tNames, nrows), t[[DOcode]], rep("",nrows)), 1, 200)
+         doi =      str_sub(ifelse(rep(DOcode %in% tNames, nrows), t[[DOcode]], rep("",nrows)), 1, 200),
+         comment =    "",
+         clashFacts = ""
       )
       # Note, NAs are changed to "" by citeTable() in sql-core.R
       #    and values are trimmed in cite2table() above
@@ -980,10 +987,6 @@ setProgress(.8)
       S$SRCH2$absCount[2]  <<- paste0(format(nabs,  big.mark=","), " (", format(nabs/n*100, digits=1, nsmall=1), "%)")
       S$SRCH2$pmidCount[2] <<- paste0(format(npmid, big.mark=","), " (", format(npmid/n*100, digits=1, nsmall=1), "%)")
       S$SRCH2$doiCount[2]  <<- paste0(format(ndoi,  big.mark=","), " (", format(ndoi/n*100, digits=1, nsmall=1), "%)")
-      if(S$SRCH$id==0) {                            # if id = 0 we need to save the table to get an id for cite table
-         S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
-         S$SRCH$id <<- S$SRCH2$searchID[1]
-      }
 setProgress(.9)
       citeTable(r2, S$db, S$SRCH$id)                # save the data in the cite table for this search
 setProgress(1)
@@ -1013,6 +1016,7 @@ observe({                                                        # observe rathe
             max = paste0('&RetMax=', S$uploadMaxCites)
             terms <- stripHTML(S$SRCH2$terms[2])                 # Remove <p></p> and any other HTML from terms
             if(terms=="") {                                      # Make sure we have somethi8ng to search for
+               S$PM$progress$close()                             # Close progress bar
                S$modal_title <<- "PubMed Error"
                S$modal_text <<- HTML0("<p>Please enter something to search for in Terms.</p>")
                isolate(rv$modal_warning <- rv$modal_warning + 1)
@@ -1037,6 +1041,7 @@ observe({                                                        # observe rathe
             error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
             S$PM$progress$set(.6)
             if(!is.na(error)) {                                  # Not NA means there was an error!
+               S$PM$progress$close()                             # Close progress bar
                S$modal_title <<- "PubMed Error"
                S$modal_text <<- HTML0("<p>PubMed returned the following error: <b>", error, "</b></p>")
                S$modal_size <<- "l"
@@ -1045,12 +1050,14 @@ observe({                                                        # observe rathe
             }
             S$SRCH2$citeCount[2] <<- as.numeric(xml2::xml_text(xml_find_first(raw, "/eSearchResult/Count")))
             if(S$SRCH2$citeCount[2]==0) {                        # Check for at least 1 hit
+               S$PM$progress$close()                             # Close progress bar
                S$modal_title <<- "PubMed Error"
                S$modal_text <<- HTML0("<p>Nothing found.</p>")
                isolate(rv$modal_warning <- rv$modal_warning + 1)
                return()
             }
             if(S$SRCH2$citeCount[2]>S$uploadMaxCites) {          # Check for too many hits
+               S$PM$progress$close()                             # Close progress bar
                S$modal_title <<- "PubMed Error"
                S$modal_text <<- HTML0("<p>Your search has over ", format(S$uploadMaxCites, big.mark=","), " citations, ",
                                  "which is too many to process. You need to modify your terms or dates and search ",
@@ -1385,7 +1392,6 @@ S$modal_text <<- HTML0("<p>In addition to the number of citations found in your 
                        "are less likely to have DOIs than newer citations.</li>",
                        "</ul></p>")
          S$modal_size <<- "l"
-         S$modal_footer <<- tagList(modalButton("Cancel"))
          rv$modal_warning <- rv$modal_warning + 1
       },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
@@ -1401,11 +1407,73 @@ S$modal_text <<- HTML0("<p>In addition to the number of citations found in your 
 # Add records in cite table to main Hits file
 #    Find and mark duplicates
 processSearch = function() {
+   start.time <- Sys.time()
+   on.exit({
+      cat("### File processing ###\n")
+      print(Sys.time() - start.time)
+   })
    if(S$P$Modify) {
-      S$SRCH2$status[2] <<- 1
+      S$SRCH2$status[2] <<- 1                         # mark search as completed
       S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+# copy cite table records into catalog table
+      dbLink <- poolCheckout(shiny.pool)
+      colNames = paste(dbQuoteIdentifier(dbLink, table.definition.list[["cite"]][["Name"]]), collapse=",")
+      sourceTable = dbt(S$db, paste0("cite", S$SRCH$id), dbLink)
+      targetTable = dbt(S$db, "catalog", dbLink)
+      dbr = dbExecute(dbLink, paste0("INSERT INTO ", targetTable, " (", colNames, ") SELECT ", colNames, " FROM ", sourceTable, ";"))
+      r = tibble(verNum=rep(1, S$SRCH2$citeCount[2]), # update verNum, verUser, and verTime
+                 verUser=rep(S$U$userName, S$SRCH2$citeCount[2]),
+                 verTime=rep(sTime(), S$SRCH2$citeCount[2]))
+      SET = QsetQ(r, dbLink)
+      WHERE = wherez(tibble(c("searchID", "=", S$SRCH$id)), dbLink)
+      dbr = dbExecute(dbLink, paste0("UPDATE ", targetTable, " SET ", SET, " WHERE ", WHERE,";"))
+      poolReturn(dbLink)
+# duplicate processing using PMIDs
+      r = recGet(S$db, "catalog", c("catalogID", "pmid"), tibble(c("dupOf", "=", 0 ),c("pmid", "!=", ""))) # r has all non-Dup rows of table
+      pmid.vec = character(0)                         # check PMIDs for duplicates
+      for(nextDup in which(duplicated(r$pmid))) {     # nextDup is the row number of the next NON-BLANK duplicate
+         pmid = r$pmid[nextDup]                       # pmid is the PMID of the next duplicate
+         if(pmid %in% pmid.vec) { next }              # if this pmid is duplicated more than once, skip after first time
+         dupIDs = r$catalogID[r$pmid==pmid]           # dupIDs is a vector of all catalogIDs having the current pmid
+         indexID = dupIDs[1]                          # indexID is the first ID in dupIDs
+         dupIDs = dupIDs[-1]                          # remove indexID from the vector of catalogIDs
+         x = recGet(S$db, "catalog", c("catalogID", "hasDup", S$sacredFields), tibble(c("catalogID", "=", indexID)))
+         x[2,]=x[1,]                                  # Not using "**" here for speed
+         x$hasDup[2] = 1                              # record that indexID has one or more duplicates in hasDups
+         x = recSave(x, db=S$db)
+         for(nextID in dupIDs) {                      # for remaining catalogIDs
+            x = recGet(S$db, "catalog", c("catalogID", "dupOf", "dupDM", S$sacredFields), tibble(c("catalogID", "=", nextID)))
+            x[2,]=x[1,]
+            x$dupOf[2] = indexID                      # record the indexID in dupOf
+            x$dupDM[2] = "Duplicate PMID"
+            x = recSave(x, db=S$db)
+         }
+         pmid.vec = c(pmid.vec, pmid)                 # add this pmid to the vector of the PMIDs we've worked on
+      }
+# duplicate processing using DOIs
+print(Sys.time() - start.time)
+      r = recGet(S$db, "catalog", c("catalogID", "doi"), tibble(c("dupOf", "=", 0 ), c("doi", "!=", ""))) # r has all non-Dup rows of table
+      doi.vec = character(0)                          # REPEAT for DOIs
+      for(nextDup in which(duplicated(r$doi))) {      # nextDup is the row number of the next NON-BLANK duplicate
+         doi = r$doi[nextDup]                         # doi is the DOI of the next duplicate
+         if(doi %in% doi.vec) { next }                # if this doi is duplicated more than once, skip after first time
+         dupIDs = r$catalogID[r$doi==doi]             # dupIDs is a vector of all catalogIDs having the current doi
+         indexID = dupIDs[1]                          # indexID is the first ID in dupIDs
+         dupIDs = dupIDs[-1]                          # remove indexID from the vector of catalogIDs
+         x = recGet(S$db, "catalog", c("catalogID", "hasDup", S$sacredFields), tibble(c("catalogID", "=", indexID)))
+         x[2,]=x[1,]                                  # Not using "**" here for speed
+         x$hasDup[2] = 1                              # record that indexID has one or more duplicates in hasDups
+         x = recSave(x, db=S$db)
+         for(nextID in dupIDs) {                      # for remaining catalogIDs
+            x = recGet(S$db, "catalog", c("catalogID", "dupOf", "dupDM", S$sacredFields), tibble(c("catalogID", "=", nextID)))
+            x[2,]=x[1,]
+            x$dupOf[2] = indexID                      # record the indexID in dupOf
+            x$dupDM[2] = "Duplicate DOI"
+            x = recSave(x, db=S$db)
+         }
+         doi.vec = c(doi.vec, doi)                    # add this doi to the vector of the dois we've worked on
+      }
+print(Sys.time() - start.time)
    }
 }
-
-
 

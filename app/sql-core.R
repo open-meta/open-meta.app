@@ -146,9 +146,9 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
    }
 # Do some error checking
    if(debugON) {
-      validFields = table.definition.list[[table]]$Name               # Valid fields for this table
+      validFields = table.definition.list[[table]]$Name            # Valid fields for this table
       if(SELECT[1]!="*") {
-         selectErrors = !(SELECT %in% validFields)                    # Any invalid fields in SELECT?
+         selectErrors = !(SELECT %in% validFields)                 # Any invalid fields in SELECT?
       } else {
          selectErrors = FALSE
       }
@@ -240,7 +240,7 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
    setFields = colnames(SET)                                               # Names of columns to be saved
    table = str_sub(setFields[1], 1, nchar(setFields[1])-2)                 # Name of the table
  # Do some error checking before save
-   sacredFields = c("verNum", "verUser", "verTime", "clash", "clashFacts") # Never-drop columns
+   sacredFields = c("verNum", "verUser", "verTime", "clash", "clashFacts", "deleted") # Never-drop columns
    if(debugON) {
       validFields = table.definition.list[[table]]$Name                    # Names of valid fields for this table
       if(str_sub(setFields[1], nchar(setFields[1])-1, -1)!="ID") {
@@ -402,6 +402,7 @@ citeTable = function(r, db, id) {
    on.exit(poolReturn(dbLink), add = TRUE)                              # return dbLink when done, even if there's an error
    tableDB = dbt(db, paste0("cite",id), dbLink)                         # db.table name
    rValues = paste(                                                     # change NA to "" and prevent SQL injection
+       dbQuoteString(dbLink, r$searchID),
        dbQuoteString(dbLink, ifelse(is.na(r$type), "", r$type)),
        dbQuoteString(dbLink, ifelse(is.na(r$title), "", r$title)),
        dbQuoteString(dbLink, ifelse(is.na(r$author), "", r$author)),
@@ -416,6 +417,8 @@ citeTable = function(r, db, id) {
        dbQuoteString(dbLink, ifelse(is.na(r$pmid), "", r$pmid)),
        dbQuoteString(dbLink, ifelse(is.na(r$pmcid), "", r$pmcid)),
        dbQuoteString(dbLink, ifelse(is.na(r$doi), "", r$doi)),
+       dbQuoteString(dbLink, r$comment),
+       dbQuoteString(dbLink, r$clashFacts),
        sep=',', collapse='),(')
    dbr = dbExecute(dbLink, paste0("DROP TABLE IF EXISTS ", tableDB, ";")) # Drop any existing cite table for this search
    dbr = dbExecute(dbLink, createTable(db, "cite", citeNum=id))           # Create a new cite table
