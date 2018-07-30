@@ -327,7 +327,7 @@ bs4Chart = function(attribs, children) {
    if(is.null(attribs$title1)) { attribs$title1 <- ""}                               # Muted title at bottom
    if(is.null(attribs$title2)) { attribs$title2 <- ""}                               # h4 title at bottom
    if(is.null(attribs$zeroText)) { attribs$zeroText <- ""}                           # text above gray ghost graphs
-   if(is.null(attribs$bgc)) { attribs$bgc <- rep("#6c757d", length(attribs$data))}   # segment colors (default is gray)
+   if(is.null(attribs$colors)) { attribs$colors <- rep("#6c757d", length(attribs$data))}  # segment colors (default is gray)
    # Default likely fine                                                             #  see toolkit-inverse.css line 50 for colors
    if(is.null(attribs$legend)) { attribs$legend <- "false"}                          # display legend? (lower case!!!)
    if(is.null(attribs$bdc)) { attribs$bdc <- rep("#252830", length(attribs$data))}   # border color (default is background color)
@@ -336,8 +336,8 @@ bs4Chart = function(attribs, children) {
    if(is.null(attribs$cpc)) { attribs$cpc <- 73}                                     # doughnut cut out percentage
    if(is.null(attribs$fc)) { attribs$fc <- "#f8f9fa"}                                # font color for legends
 
-   if(!all(c(length(attribs$labels), length(attribs$bgc), length(attribs$bdc)) %in% length(attribs$data))) {
-      stop("In bs4Chart(), data, labels, bgc, and bdc attribs need to be the same length.")
+   if(!all(c(length(attribs$labels), length(attribs$colors), length(attribs$bdc)) %in% length(attribs$data))) {
+      stop("In bs4Chart(), data, labels, colors, and bdc attribs need to be the same length.")
    }
 
    return(HTML0('
@@ -353,7 +353,7 @@ bs4Chart = function(attribs, children) {
                labels: [', paste0("\"", paste0(attribs$labels, collapse='", "'), "\""), '],
                datasets: [{
                   data: [', paste0(attribs$data, collapse=","), '],
-                  backgroundColor: [', paste0("\"", paste0(attribs$bgc, collapse='", "'), "\""), '],
+                  backgroundColor: [', paste0("\"", paste0(attribs$colors, collapse='", "'), "\""), '],
                   borderColor: [', paste0("\"", paste0(attribs$bdc, collapse='", "'), "\""), '],
                   borderWidth:', attribs$bw, '
                }]

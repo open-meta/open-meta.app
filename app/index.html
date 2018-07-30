@@ -4,6 +4,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <meta name="description" content="">
   <meta name="keywords" content="">
   <meta name="author" content="">
@@ -14,11 +15,10 @@
   <link rel="apple-touch-icon" sizes="152x152" href="http://assets.open-meta.org/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="http://assets.open-meta.org/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="http://assets.open-meta.org/favicon-16x16.png">
-
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,400italic" rel="stylesheet">
   <link href="http://assets.open-meta.org/bootstrap/dash4/toolkit-inverse.min.css" rel="stylesheet">
   <link href="http://assets.open-meta.org/css/shiny.css" rel="stylesheet">
   <link href="http://assets.open-meta.org/css/quill.snow.css" rel="stylesheet">
-
   <style>
    html, .card {
     background-color: #252830;
@@ -56,6 +56,15 @@
    display: block;
    margin: .5rem auto .5rem auto;
    }
+   .page-link {
+   cursor:pointer;
+   }
+   .pagination {
+   margin-bottom:0;
+   }
+   .form-check-label {
+   padding-left:0;
+   }
   </style>
   <script src="http://assets.open-meta.org/js/quill.js"></script>
   <script src="http://assets.open-meta.org/js/json2-min.js"></script>
@@ -64,8 +73,8 @@
   <script src="http://assets.open-meta.org/js/shiny.min.js"></script>
   <script src="http://assets.open-meta.org/bootstrap/dash4/toolkit.min.js"></script>
   <script src="http://assets.open-meta.org/js/js.cookie.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
   <script src="http://assets.open-meta.org/js/open-meta.js"></script>
-
  </head>
  <body>
     {{ uiBody }}
