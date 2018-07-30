@@ -63,12 +63,13 @@ bs4 = function(flavor, ...) {                                            # the i
       "c12" = {attribs$class = paste("col-12", attribs$class)},
       "cd"  = {attribs$class = paste("card", attribs$class)},            # This set has to do with cards:
       "cdh" = {attribs$class = paste("card-header", attribs$class)},     # https://getbootstrap.com/docs/4.0/components/card/
-      "cdb" = {attribs$class = paste("card-body", attribs$class)},
-      "cdT" = {attribs$class = paste("card-title", attribs$class)},
-      "cdt" = {attribs$class = paste("card-text", attribs$class)},
+      "cdb" = {attribs$class = paste("card-body", attribs$class)},       # You could have an image in the card but not in the body
+      "cdT" = {attribs$class = paste("card-title", attribs$class)},      # Header is inside a color bar above the body
+      "cdt" = {attribs$class = paste("card-text", attribs$class)},       # Title-text go within body
       "btn" = {return(bs4Button(attribs, children))},                    # button (see code below)
       "cbx" = {return(bs4Checkbox(attribs, children))},                  # checkbox (see code below)
       "quill" =  {return(bs4Quill(attribs, children))},                  # Quill editor (see code below and https://quilljs.com/)
+      "chart" =  {return(bs4Chart(attribs, children))},                  # chart.js
       "dx"  = { },                                       # just like "d", but no shiny output with id; mostly needed by bs4Quill
       "mp"  = {return(HTML0('<ul class="nav nav-pills">', bs4Menus(attribs), '</ul>'))}, # menu as pills (or words with active=0)
       "mt"  = {return(HTML0('<ul class="nav nav-tabs">', bs4Menus(attribs), '</ul>'))},  # menu as tabs
@@ -313,4 +314,65 @@ bs4Checkbox = function(attribs, children) {
          '</div>',
       '</div>'
    ))
+}
+
+# This function uses Chart.js to draw javascript graphs. See: https://www.chartjs.org/docs/latest/
+bs4Chart = function(attribs, children) {
+   # Must haves
+   if(is.null(attribs$id))     {stop("No id attribute in bs4Chart()")}               # Each chart needs a unique id
+   if(is.null(attribs$labels)) {stop("No labels attribute in bs4Chart()")}           # String vector of labels
+   if(is.null(attribs$data))   {stop("No data attribute in bs4Chart()")}             # Numeric vector of data points
+   # Probably want to specify
+   if(is.null(attribs$c)) { attribs$c <- 6}                                          # Width of column the graph is embedded in
+   if(is.null(attribs$title1)) { attribs$title1 <- ""}                               # Muted title at bottom
+   if(is.null(attribs$title2)) { attribs$title2 <- ""}                               # h4 title at bottom
+   if(is.null(attribs$zeroText)) { attribs$zeroText <- ""}                           # text above gray ghost graphs
+   if(is.null(attribs$bgc)) { attribs$bgc <- rep("#6c757d", length(attribs$data))}   # segment colors (default is gray)
+   # Default likely fine                                                             #  see toolkit-inverse.css line 50 for colors
+   if(is.null(attribs$legend)) { attribs$legend <- "false"}                          # display legend? (lower case!!!)
+   if(is.null(attribs$bdc)) { attribs$bdc <- rep("#252830", length(attribs$data))}   # border color (default is background color)
+   if(is.null(attribs$bw)) { attribs$bw <- 4}                                        # border width
+   if(is.null(attribs$type)) { attribs$type <- "doughnut"}                           # graph type
+   if(is.null(attribs$cpc)) { attribs$cpc <- 73}                                     # doughnut cut out percentage
+   if(is.null(attribs$fc)) { attribs$fc <- "#f8f9fa"}                                # font color for legends
+
+   if(!all(c(length(attribs$labels), length(attribs$bgc), length(attribs$bdc)) %in% length(attribs$data))) {
+      stop("In bs4Chart(), data, labels, bgc, and bdc attribs need to be the same length.")
+   }
+
+   return(HTML0('
+<div class="col-', attribs$c, ' mb-3 text-center">',                     # Chart comes embedded in a column, this is its width
+   attribs$zeroText,                                                     # Optional text for graphs with no data (gray ghost graphs)
+  '<div class="w-3 mx-auto">',                                           # This centers the graph in the middle 75% of the column
+     '<canvas id="', attribs$id, '" width="100%" height="100%"></canvas>
+      <script>
+         var ctx = document.getElementById("', attribs$id, '").getContext("2d");
+         var ', attribs$id, ' = new Chart(ctx, {
+            type: "', attribs$type, '",
+            data: {
+               labels: [', paste0("\"", paste0(attribs$labels, collapse='", "'), "\""), '],
+               datasets: [{
+                  data: [', paste0(attribs$data, collapse=","), '],
+                  backgroundColor: [', paste0("\"", paste0(attribs$bgc, collapse='", "'), "\""), '],
+                  borderColor: [', paste0("\"", paste0(attribs$bdc, collapse='", "'), "\""), '],
+                  borderWidth:', attribs$bw, '
+               }]
+            },
+            options: {
+              cutoutPercentage: ', attribs$cpc, ',
+              rotation: 1.571,
+               legend: {
+                  display: ', attribs$legend, ',
+                  labels: {
+                     fontColor:"', attribs$fc, '"
+                  }
+               }
+            }
+         });
+      </script>
+   </div>
+   <strong class="text-muted">', attribs$title1, '</strong>
+   <h4>', attribs$title2, '</h4>
+</div>')
+)
 }
