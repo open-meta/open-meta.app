@@ -153,9 +153,9 @@ F9  = tibble(Name="query",      Type="TEXT",      Size="",    NoSign="",  NoNull
 F10 = tibble(Name="CFchosen",   Type="VARCHAR",   Size="30",  NoSign="",  NoNull="",  Default="s",       Key="")
 F11 = tibble(Name="CFactual",   Type="VARCHAR",   Size="30",  NoSign="",  NoNull="",  Default="s",       Key="")
 F12 = tibble(Name="citeCount",  Type="INT",       Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
-F13 = tibble(Name="absCount",   Type="VARCHAR",   Size="20",  NoSign="",  NoNull="",  Default="s",       Key="")
-F14 = tibble(Name="pmidCount",  Type="VARCHAR",   Size="20",  NoSign="",  NoNull="",  Default="s",       Key="")
-F15 = tibble(Name="doiCount",   Type="VARCHAR",   Size="20",  NoSign="",  NoNull="",  Default="s",       Key="")
+F13 = tibble(Name="absCount",   Type="INT",       Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
+F14 = tibble(Name="pmidCount",  Type="INT",       Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
+F15 = tibble(Name="doiCount",   Type="INT",       Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
 F16 = tibble(Name="createDate", Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
 F17 = tibble(Name="procDate",   Type="VARCHAR",   Size="23",  NoSign="",  NoNull="",  Default="s",       Key="")
 F18 = tibble(Name="updateDate", Type="VARCHAR",   Size="23",  NoSign="",  NoNull="",  Default="s",       Key="")
@@ -224,16 +224,17 @@ F23 = tibble(Name="stdAuthor",  Type="VARCHAR",   Size="250", NoSign="",  NoNull
 F24 = tibble(Name="stdAbstract",Type="VARCHAR",   Size="250", NoSign="",  NoNull="T", Default="s",       Key="")
 F25 = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="T", Default="x",       Key="")
 F26 = tibble(Name="reviewCount",Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F27 = tibble(Name="reviewBest", Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F28 = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F29 = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F30 = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F31 = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F32 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
-F33 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F27 = tibble(Name="reviewBest", Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="") # 0-No, 1-Fail, 2-Pass
+F28 = tibble(Name="extraction", Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="") # 0-No, 1-Fail, 2-Pass
+F29 = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F30 = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F31 = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F32 = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F33 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F34 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 catalog=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
                                          F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,
-                                         F30,F31,F32,F33)
+                                         F30,F31,F32,F33,F34)
 #review
 F1  = tibble(Name="reviewID",   Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
 F2  = tibble(Name="catalogID",  Type="MEDIUMINT", Size="",    NoSign="T", NoNull="",  Default="z",       Key="")
@@ -286,6 +287,6 @@ saveRDS(table.definition.list, file="app/table.definition.list.RDS")
 
 rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
                               F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,
-                              F30,F31,F31,F32,F33)
+                              F30,F31,F31,F32,F33,F34)
 rm(arm, cite, cull, page, project, catalog, review, search, trial, user, membership, protocol, protoHelp,
    settings)
