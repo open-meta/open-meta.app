@@ -37,9 +37,9 @@ rv$PMsearch <- 0
 S$SRCH$saveFlag <- FALSE
 S$SRCH$processFlag <- FALSE
 S$msg = ""
-S$sacredFields <- c("verNum", "verUser", "verTime", "clash", "clashFacts", "deleted")   # sql.core needs these to save a record
 
 # Only needed on this page:
+S$sacredFields <- c("verNum", "verUser", "verTime", "clash", "clashFacts", "deleted")   # sql.core needs these to save a partial record
 searchGet = function(db=S$db, SELECT="", WHERE=tibble(c("searchID", ">", "0"))) {
    return(recGet(db, "search", SELECT, WHERE))
 }
@@ -50,7 +50,7 @@ rv$menuActive = 1     # Start out on first sub-menu
 # Not sure how to keep this from running twice when changing the database as that also
 #    changes citeFormat. But need both triggers here or things don't work right.
 observeEvent(c(rv$menuActive, rv$limn, input$database, input$citeFormat), {
-   if(rv$menuActive==2) {                           # Bypass all this if we're not editing a Search
+   if(rv$menuActive==3) {                           # Bypass all this if we're not editing a Search
       if(S$SRCH$justArrived) {                      # first time through
          S$SRCH$justArrived <<- FALSE
          if(S$P$Modify && S$SRCH$id==0) {           # Get a new record to save this search in
@@ -214,7 +214,7 @@ observeEvent(input$js.editorText, {
             processSearch()               # This is elsewhere to simplify code for this observer
          }
          S$SRCH2 <<- recSave(S$SRCH2, db=S$db)  # Save the search
-         rv$menuActive = 1
+         rv$menuActive = 2
          S$hideMenus <<- FALSE            # Back to regular programming
          rv$limn = rv$limn + 1            # Need to re-limn here to get menus back, but skip for modal dialog
       }
@@ -227,7 +227,81 @@ observeEvent(input$js.editorText, {
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({rv$render; isolate({
       switch(as.character(rv$menuActive),
-         "1" = {                          # Search List
+         "1" = {                          # Dashboard
+            r = searchGet(SELECT=c("searchID", "searchName", "status", "citeCount", "absCount", "pmidCount", "doiCount"))
+            ybox = tagList(bs4("r", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(
+"<p>After you have entered one or more searches, you will see the name, number of citations, and status of each search,
+as well as circle graphs showing the percentage of citations in this search with abstracts, PubMed IDs (PMIDs), and
+document object identifiers (DOIs).</p>
+<ul>",
+"<li><b>Abstracts.</b> During your initial review to determine which articles meet the inclusion ",
+"criteria for your project, you will examine article titles and abstracts. If your citation file ",
+"includes abstracts, the Open-Meta app will make your review very easy. Without abstracts, on the ",
+"other hand, you will have to go elsewhere to look them up, which will make your review extremely ",
+"difficult. If your abstract count is zero, you should return to the database you used and ",
+"download the citations again, this time making sure the download includes abstracts. Over ",
+"90% of your citations should have abstracts; it's difficult to hit 100% because some ",
+"items, like letters to the editor, don't have them.</li>",
+
+"<li><b>PMIDs.</b>The Open-Meta app uses PubMed IDs to locate duplicate citations ",
+"and to find full-text versions of your citations during data extraction. Only citations listed ",
+"in the US Library of Medicine's <a href='https://www.ncbi.nlm.nih.gov/pubmed/'' target='_blank'>",
+"PubMed database</a> have PubMed IDs, however, so if your project isn't about ",
+"health, few of your citations will have PMIDs. (Also, RIS and BibTeX citation files don't have ",
+"consistent codes for PMIDs; if you think your file has them but they don't show up here, let ",
+"us know so we can fix things.)</li>",
+
+"<li><b>DOIs.</b> The Open-Meta app uses Document Object Identifiers to locate duplicate ",
+"citations and to find full-text versions of your citations during data extraction. Older citations ",
+"are less likely to have DOIs than newer citations.</li>",
+"</ul>
+
+<p>Hover over the circle graphs to see the actual number of article citations in each category.</p>
+")))))))
+            if(r$searchID[1]==0) {
+               restOfPage = {
+                  tagList(
+                     bs4("r",
+                        bs4("c12", HTML0("<h5>No searches found for this project</h5>")
+                        )
+                     ),
+                     ybox
+                  )
+               }
+            } else {
+               sdash = tagList()
+               for(i in 1:nrow(r)) {
+                  sdash[i] = tagList(
+                     bs4("r",
+                        bs4("c3", class='pt-5', HTML0("<h5>", r$searchName[i], "</h5>",
+                           "Citations: ", format(r$citeCount[i], big.mark = ","), "<br>",
+                           "Status: ",ifelse(r$status[i]==0, "Incomplete", ifelse(r$status[i]==1, "Completed", "Updated")))
+                        ),
+                        bs4("chart", c=3, id=paste0("cA_",i), labels=c("Abstract", "No Abstract"),
+                            data=c(as.numeric(r$absCount[i]),(as.numeric(r$citeCount[i])-as.numeric(r$absCount[i]))),
+                            legend="false",
+                            title1="% of citations with", title2="Abstracts",
+                            colors=c("#1997c6", "#252830")
+                        ),
+                        bs4("chart", c=3, id=paste0("cB_",i), labels=c("PMID", "No PMID"),
+                            data=c(as.numeric(r$pmidCount[i]),(as.numeric(r$citeCount[i])-as.numeric(r$pmidCount[i]))),
+                            legend="false",
+                            title1="% of citations with", title2="PMIDs",
+                            colors=c("#1997c6", "#252830")
+                        ),
+                        bs4("chart", c=3, id=paste0("cC_",i), labels=c("DOI", "No DOI"),
+                            data=c(as.numeric(r$doiCount[i]),(as.numeric(r$citeCount[i])-as.numeric(r$doiCount[i]))),
+                            legend="false",
+                            title1="% of citations with", title2="DOIs",
+                            colors=c("#1997c6", "#252830")
+                        )
+                     )
+                  )
+               }
+               restOfPage = tagList(sdash,ybox)
+            }
+         },
+         "2" = {                          # Search List
             restOfPage = tagList(
                DTOutput("showSearches")
             )
@@ -257,7 +331,6 @@ if(S$P$Msg=="") {
                      Rx = Rx[-c(9,10)]              # In either case, get rid of the final two button columns
                   }
                }
-               Rx$citeCount <- format(Rx$citeCount, big.mark=",")
                ###
                Rx <- Rx[,-1]              # Remove ID column
                Rx$status = ifelse(Rx$status==0, "Incomplete",
@@ -276,7 +349,7 @@ if(S$P$Msg=="") {
             server = FALSE
             )
          },
-         "2" = {                          # View or Edit or New Search: S$SRCH2 has info to display in all cases
+         "3" = {                          # View or Edit or New Search: S$SRCH2 has info to display in all cases
             if(S$P$Modify && S$SRCH2$status[2]==0) {             # Edit (or New)
                databaseFields = {
                   if(S$SRCH2$database[2]!="All Other") {      # Not "All Other"; no otherDB field
@@ -345,17 +418,17 @@ if(S$P$Msg=="") {
                            bs4("c3",
                               HTML("<a id='pmid-doi-info_1' style='color:yellow; cursor:pointer;'>Abstracts</a><br>",
                               "<input id='absCount', type='text' class='form-control w-100' value='",
-                              S$SRCH2$absCount[2], "' readonly='readonly'>")
+                              format(S$SRCH2$absCount[2], big.mark=","), "' readonly='readonly'>")
                            ),
                            bs4("c3",
                               HTML("<a id='pmid-doi-info_2' style='color:yellow; cursor:pointer;'>PMIDs</a><br>",
                               "<input id='pmidCount', type='text' class='form-control w-100' value='",
-                              S$SRCH2$pmidCount[2], "' readonly='readonly'>")
+                              format(S$SRCH2$pmidCount[2], big.mark=","), "' readonly='readonly'>")
                            ),
                            bs4("c3",
                               HTML("<a id='pmid-doi-info_3' style='color:yellow; cursor:pointer;'>DOIs</a><br>",
                               "<input id='doiCount', type='text' class='form-control w-100' value='",
-                              S$SRCH2$doiCount[2], "' readonly='readonly'>")
+                              format(S$SRCH2$doiCount[2], big.mark=","), "' readonly='readonly'>")
                            )
                         ),
                         HTML("<div class='mt-3'>Comments</div>"),
@@ -429,17 +502,17 @@ if(S$P$Msg=="") {
                               bs4("c3",
                                  HTML("<a id='pmid-doi-info_4' style='color:yellow; cursor:pointer;'>Abstracts</a><br>",
                                  "<input type='text' class='form-control w-100' value='",
-                                 S$SRCH2$absCount[2], "' readonly='readonly'>")
+                                 format(S$SRCH2$absCount[2], big.mark=","), "' readonly='readonly'>")
                               ),
                               bs4("c3",
                                  HTML("<a id='pmid-doi-info_5' style='color:yellow; cursor:pointer;'>PMIDs</a><br>",
                                  "<input type='text' class='form-control w-100' value='",
-                                 S$SRCH2$pmidCount[2], "' readonly='readonly'>")
+                                 format(S$SRCH2$pmidCount[2], big.mark=","), "' readonly='readonly'>")
                               ),
                               bs4("c3",
                                  HTML("<a id='pmid-doi-info_6' style='color:yellow; cursor:pointer;'>DOIs</a><br>",
                                  "<input type='text' class='form-control w-100' value='",
-                                 S$SRCH2$doiCount[2], "' readonly='readonly'>")
+                                 format(S$SRCH2$doiCount[2], big.mark=","), "' readonly='readonly'>")
                               )
                            ),
                            # Cancel Button
@@ -460,22 +533,13 @@ if(S$P$Msg=="") {
                   }
                }
             }
-         },
-         "3" = {                          # Search Analysis
-            if(S$P$O) {
-               restOfPage = bs4("r", bs4("ca", "Search Analysis to come..."))
-            } else {
-               restOfPage = bs4("r", bs4("ca", class="mt-3 text-center",
-                  h5("You must be a member of the project to see the search analysis.")
-               ))
-            }
          }
       )
    searchPageMenu = {
       if(S$hideMenus) {
          ""
       } else {
-         bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Search List", "New Search", "Search Analysis"))
+         bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Dashboard", "Search List", "New Search"))
       }
    }
    return(tagList(
@@ -510,9 +574,9 @@ observeEvent(c(input$searchName, input$otherDB), {
 observeEvent(rv$hitCounter, {
    if(!is.null(input$database) && !is.null(S$SRCH2$citeCount[2]) && S$SRCH2$citeCount[2]>0) {
       updateTextInput(session, inputId="citeCount", value=format(S$SRCH2$citeCount[2], big.mark=","))  # Add commas
-      updateTextInput(session, inputId="absCount", value=S$SRCH2$absCount[2])
-      updateTextInput(session, inputId="pmidCount", value=S$SRCH2$pmidCount[2])
-      updateTextInput(session, inputId="doiCount", value=S$SRCH2$doiCount[2])
+      updateTextInput(session, inputId="absCount",  value=format(S$SRCH2$absCount[2],  big.mark=","))
+      updateTextInput(session, inputId="pmidCount", value=format(S$SRCH2$pmidCount[2], big.mark=","))
+      updateTextInput(session, inputId="doiCount",  value=format(S$SRCH2$doiCount[2],  big.mark=","))
    } else {
       updateTextInput(session, inputId="citeCount", value="")
       updateTextInput(session, inputId="absCount", value="")
@@ -978,16 +1042,11 @@ setProgress(.6)
                r2[[c]] = str_replace_all(r2[[c]], coll("@'`#$%"), " ")   #    Otherwise just a space.
          }
       }
+      S$SRCH2$citeCount[2] <<- nrow(r2)
+      S$SRCH2$absCount[2]  <<- sum(naf(r2$abstract!=""))
+      S$SRCH2$pmidCount[2] <<- sum(naf(r2$pmid!=""))
+      S$SRCH2$doiCount[2]  <<- sum(naf(r2$doi!=""))
 setProgress(.8)
-      n = nrow(r2)
-      nabs = sum(naf(r2$abstract!=""))
-      npmid = sum(naf(r2$pmid!=""))
-      ndoi = sum(naf(r2$doi!=""))
-      S$SRCH2$citeCount[2] <<- n
-      S$SRCH2$absCount[2]  <<- paste0(format(nabs,  big.mark=","), " (", format(nabs/n*100, digits=1, nsmall=1), "%)")
-      S$SRCH2$pmidCount[2] <<- paste0(format(npmid, big.mark=","), " (", format(npmid/n*100, digits=1, nsmall=1), "%)")
-      S$SRCH2$doiCount[2]  <<- paste0(format(ndoi,  big.mark=","), " (", format(ndoi/n*100, digits=1, nsmall=1), "%)")
-setProgress(.9)
       citeTable(r2, S$db, S$SRCH$id)                # save the data in the cite table for this search
 setProgress(1)
       if(all(r2$abstract=="")) {
@@ -1127,16 +1186,12 @@ observeEvent(input$js.omclick, {
    switch(id,
       "sub" = {
          S$hideMenus <<- FALSE
-         if(n=="2") {                               # New Search
+         S$SRCH$justArrived <<- TRUE             # When starting a new search and to view/edit an old search
+         if(n=="3") {                               # New Search
             if(S$P$Modify) { S$hideMenus <<- TRUE } # Don't hide menus if a NOT PERMITTED error message is coming up
             S$SRCH$justArrived <<- TRUE             # When starting a new search and to view/edit an old search
             S$SRCH$id <<-0
             rv$limn = rv$limn + 1                   # Needed to hide menus
-         }
-         if(n=="3") {
-            S$modal_title <<- "Upcoming"
-            S$modal_text <<- HTML("Feature not yet available.")
-            rv$modal_warning <- rv$modal_warning + 1
          }
          rv$menuActive = n                          # rv$menuActive takes us to top
       },
@@ -1144,7 +1199,7 @@ observeEvent(input$js.omclick, {
          S$hideMenus <<- TRUE
          S$SRCH$justArrived <<- TRUE                # Gets the data to view
          S$SRCH$id <<- n
-         rv$menuActive = 2
+         rv$menuActive = 3
          rv$limn = rv$limn + 1                      # Needed to hide menus
       },
       "editSearch" = {                              # This button is on the list of searches for powerful users
@@ -1152,7 +1207,7 @@ observeEvent(input$js.omclick, {
             S$hideMenus <<- TRUE
             S$SRCH$justArrived <<- TRUE             # Gets the data to edit
             S$SRCH$id <<- n
-            rv$menuActive = 2
+            rv$menuActive = 3
             rv$limn = rv$limn + 1                   # Needed to hide menus
          }
       },
@@ -1195,7 +1250,7 @@ observeEvent(input$js.omclick, {
             S$hideMenus <<- TRUE                       # Code from viewSearch above
             S$SRCH$justArrived <<- TRUE
             S$SRCH$id <<- S$SRCH2$searchID[1]
-            rv$menuActive = 2
+            rv$menuActive = 3
             rv$limn = rv$limn + 1
          }
       },
@@ -1205,7 +1260,7 @@ observeEvent(input$js.omclick, {
 S$modal_text <<- HTML0("<p>Once you process a search successfully you can't change it, delete it, or delete its ",
 "citations. The citations found by this Search will be checked against the other citations in this search as well ",
 "as the citations in your project for duplicates. The unduplicated citations will be added to your project, ready ",
-"for Review. This may take a few minutes and <b>cannot be undone!</b> Are you sure you want to proceed?</p>")
+"for Review. This may take up to a minute and <b>cannot be undone!</b> Are you sure you want to proceed?</p>")
             S$modal_size <<- "l"
             S$modal_footer <<- tagList(modalButton("Cancel"), bs4("btn", uid="OK2process_1", q="on", "Process"))
             rv$modal_warning <- rv$modal_warning + 1
@@ -1234,7 +1289,7 @@ S$modal_text <<- HTML0("<p>Once you process a search successfully you can't chan
       },
       "cancel" = {
          S$hideMenus <<- FALSE                      # Back to regular programming
-         rv$menuActive = 1
+         rv$menuActive = 2
          rv$limn = rv$limn + 1
       },
       "details" = {
@@ -1369,29 +1424,12 @@ Abstract = {Foodborne illnesses remain....}, </pre>")
          rv$modal_warning <- rv$modal_warning + 1
       },
       "pmid-doi-info" = {
-         S$modal_title <<- "Counts explained"
-S$modal_text <<- HTML0("<p>In addition to the number of citations found in your search, we show  counts and ",
-                       "percentages for abstracts, PMIDs (PubMed IDs), and DOIs (Document Object Identifiers).<ul>",
-                       "<li><b>Abstracts.</b> During your initial review to determine which articles meet the inclusion ",
-                       "criteria for your project, you will examine article titles and abstracts. If your citation file ",
-                       "includes abstracts, the Open-Meta app will make your review very easy. Without abstracts, on the ",
-                       "other hand, you will have to go elsewhere to look them up, which will make your review extremely ",
-                       "difficult. If your abstract count is zero, you should return to the database you used and ",
-                       "download the citations again, this time making sure the download includes abstracts. Over ",
-                       "90% of your citations should have abstracts; it's difficult to hit 100% because some ",
-                       "items, like letters to the editor, don't have them.</li>",
-                       "<li><b>PMIDs.</b>The Open-Meta app uses PubMed IDs to locate duplicate citations ",
-                       "and to find full-text versions of your citations during data extraction. Only citations listed ",
-                       "in the US Library of Medicine's <a href='https://www.ncbi.nlm.nih.gov/pubmed/'' target='_blank'>",
-                       "PubMed database</a> have PubMed IDs, however, so if your project isn't about ",
-                       "health, few of your citations will have PMIDs. (Also, RIS and BibTeX citation files don't have ",
-                       "consistent codes for PMIDs; if you think your file has them but they don't show up here, let ",
-                       "us know so we can fix things.)</li>",
-                       "<li><b>DOIs.</b> The Open-Meta app uses Document Object Identifiers to locate duplicate ",
-                       "citations and to find full-text versions of your citations during data extraction. Older citations ",
-                       "are less likely to have DOIs than newer citations.</li>",
-                       "</ul></p>")
-         S$modal_size <<- "l"
+         S$modal_title <<- "Counts"
+S$modal_text <<- HTML0("<p>In addition to the number of citations found in your search, we show the counts for ",
+                       "abstracts, PMIDs (PubMed IDs), and DOIs (Document Object Identifiers). You can see ",
+                       "this information graphically in the Search Dashboard, as well as additional information ",
+                       "on why this information is important.</p>")
+         S$modal_size <<- "m"
          rv$modal_warning <- rv$modal_warning + 1
       },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
