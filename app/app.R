@@ -162,6 +162,23 @@ zzz = onStop(function() {poolClose(shiny.pool)})
 # shiny.pool exists at the app level, not the session level...
 ### End of SQL initialization
 
+   # chunk a long vector into a list
+chunker = function(vec, chunksize) {
+   if(length(vec)==0) { return(vec) }                             # happens when filters leave nothing
+   r = list()
+   chunks = length(vec)%/%chunksize                               #    number of complete chunks
+   lastchunk = length(vec)%%chunksize                             #    size of partial chunk
+   if(length(vec)>=chunksize) {                                   # skip this if there is just a partial chunk
+      for(i in 1:chunks) {                                        #   "
+         r[[i]] = vec[c(1+((i-1)*chunksize)):(i*chunksize)]       #   "
+      }                                                           #   "
+   }
+   if(lastchunk>0) {                                              # skip this if size of last chunk is zero
+      r[[chunks+1]] = vec[c(((chunks*chunksize)+1):length(vec))]  #   "
+   }                                                              #   "
+   return(r)
+}
+
 ## This is an alternate for htmltools::HTML that does paste0() instead of paste(), but it can't process tagLists()
 HTML0 = function(...) {
    htmlText = c(...)
