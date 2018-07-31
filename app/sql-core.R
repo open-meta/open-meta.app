@@ -153,7 +153,7 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
          selectErrors = FALSE
       }
       whereErrors = !(as.character(WHERE[1,]) %in% validFields)                     # Any invalid fields in WHERE?
-      opErrors = !(as.character(WHERE[2,]) %in% c("=", "!=", "<", ">", "<=", ">=", " IN ")) # Any invalid operators in WHERE?
+      opErrors = !(as.character(WHERE[2,]) %in% c("=", "!=", "<", ">", "<=", ">=", " IN ", "LIKE")) # Any invalid operators in WHERE?
       if(any(c(selectErrors, whereErrors, opErrors))) {
          msg = "In reCGet():\n"
          if(any(selectErrors)) {
