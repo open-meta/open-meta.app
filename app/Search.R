@@ -303,7 +303,8 @@ document object identifiers (DOIs).</p>
          },
          "2" = {                          # Search List
             restOfPage = tagList(
-               DTOutput("showSearches")
+               DTOutput("showSearches"),
+               uiOutput("yboxSearch")
             )
             # NOTE: If the user has permission to Modify searches, there will be two columns of buttons.
             #    The first column is Edit when Search's status=0, View otherwise.
@@ -348,6 +349,18 @@ document object identifiers (DOIs).</p>
             # renderDT() parameters go here:
             server = FALSE
             )
+            output$yboxSearch = renderUI(tagList(
+               bs4("r", class="mt-3", bs4("c1"), bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(
+"<p>If you are a member of this project with appropriate permissions, you can upload a citation file from a bibliographic
+database here by selecting <i>New Search</i>. You can also do a live search of PubMed. The search record allows you to
+document the database and query, including start and end dates. You can save a search to process
+later (and delete it if you decide to abandon that search).</p>
+<p>When you are satisifed with the search, you can click the <i>Process Search</i> button at the bottom of the search record
+to add its citations to your project. This step cannot be undone.</p>
+<p>To <i>Update</i> a search means to come back several months or more later and add the most recent citations to your
+project. The <i>Update</i> button creates a duplicate search record with the current date.</p>
+"))))))
+            ))
          },
          "3" = {                          # View or Edit or New Search: S$SRCH2 has info to display in all cases
             if(S$P$Modify && S$SRCH2$status[2]==0) {             # Edit (or New)
@@ -1451,8 +1464,9 @@ processSearch = function() {
       print(Sys.time() - start.time)
    })
    if(S$P$Modify) {
-      S$SRCH2$status[2] <<- 1                         # mark search as completed
-      S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+      S$PM$progress <<- shiny::Progress$new()              # Create a Progress object
+      S$PM$progress$set(message = "Processing citations...", value = 0) # Set message
+      S$PM$progress$set(.1)
 # copy cite table records into catalog table
       dbLink <- poolCheckout(shiny.pool)
       colNames = paste(dbQuoteIdentifier(dbLink, table.definition.list[["cite"]][["Name"]]), collapse=",")
@@ -1466,6 +1480,7 @@ processSearch = function() {
       WHERE = wherez(tibble(c("searchID", "=", S$SRCH$id)), dbLink)
       dbr = dbExecute(dbLink, paste0("UPDATE ", targetTable, " SET ", SET, " WHERE ", WHERE,";"))
       poolReturn(dbLink)
+      S$PM$progress$set(.3)
 # duplicate processing using PMIDs
       r = recGet(S$db, "catalog", c("catalogID", "pmid"), tibble(c("dupOf", "=", 0 ),c("pmid", "!=", ""))) # r has all non-Dup rows of table
       pmid.vec = character(0)                         # check PMIDs for duplicates
@@ -1488,10 +1503,11 @@ processSearch = function() {
          }
          pmid.vec = c(pmid.vec, pmid)                 # add this pmid to the vector of the PMIDs we've worked on
       }
+      S$PM$progress$set(.5)
 # duplicate processing using DOIs
-print(Sys.time() - start.time)
       r = recGet(S$db, "catalog", c("catalogID", "doi"), tibble(c("dupOf", "=", 0 ), c("doi", "!=", ""))) # r has all non-Dup rows of table
       doi.vec = character(0)                          # REPEAT for DOIs
+      S$PM$progress$set(.7)
       for(nextDup in which(duplicated(r$doi))) {      # nextDup is the row number of the next NON-BLANK duplicate
          doi = r$doi[nextDup]                         # doi is the DOI of the next duplicate
          if(doi %in% doi.vec) { next }                # if this doi is duplicated more than once, skip after first time
@@ -1511,7 +1527,9 @@ print(Sys.time() - start.time)
          }
          doi.vec = c(doi.vec, doi)                    # add this doi to the vector of the dois we've worked on
       }
-print(Sys.time() - start.time)
+      S$SRCH2$status[2] <<- 1                         # mark search as completed
+      S$SRCH2 <<- recSave(S$SRCH2, db=S$db)
+      S$PM$progress$close()
    }
 }
 
