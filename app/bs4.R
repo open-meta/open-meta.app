@@ -70,6 +70,7 @@ bs4 = function(flavor, ...) {                                            # the i
       "cbx" = {return(bs4Checkbox(attribs, children))},                  # checkbox (see code below)
       "quill" =  {return(bs4Quill(attribs, children))},                  # Quill editor (see code below and https://quilljs.com/)
       "chart" =  {return(bs4Chart(attribs, children))},                  # chart.js
+      "pgn" =  {return(bs4Pagination(attribs, children))},               # pagination
       "dx"  = { },                                       # just like "d", but no shiny output with id; mostly needed by bs4Quill
       "mp"  = {return(HTML0('<ul class="nav nav-pills">', bs4Menus(attribs), '</ul>'))}, # menu as pills (or words with active=0)
       "mt"  = {return(HTML0('<ul class="nav nav-tabs">', bs4Menus(attribs), '</ul>'))},  # menu as tabs
@@ -376,3 +377,32 @@ bs4Chart = function(attribs, children) {
 </div>')
 )
 }
+
+bs4Pagination = function(attribs, children) {
+   # Must haves
+   if(is.null(attribs$np)) {stop("No active page attribute (ap=) in bs4Pagination()")}
+   if(is.null(attribs$ap)) {stop("No number of pages attribute (np=) in bs4Pagination()")}
+   # Could haves
+   if(is.null(attribs$id)) {attribs$id="pgn"}  # Needed only if there's more than one pagination section on a page
+
+   if(attribs$np<2) {return("")} # If there's only one page, no need for a widget
+
+   pgnStart <- HTML0('<nav aria-label="Citation list pagination"><ul class="pagination">',
+                     '<li class="page-item"><a id=', paste0(attribs$id, "_1"), ' class="page-link">First Page</a></li>')
+   pgnEnd <-   HTML0('<li class="page-item"><a id=', paste0(attribs$id, "_", attribs$np), ' class="page-link">Last Page</a></li>',
+                     '</ul></nav>')
+
+   pLeft <- max(1, attribs$ap-2)               # pLeft is the first page in the widget , can't be less than 1
+   pLeft <- min(pLeft , max(1, attribs$np-4))  #   but it can't push the right end over the number of pages, either
+
+   pgnMiddle <- ""
+   for(p in (pLeft:min(pLeft+4, attribs$np))) {
+      pgnMiddle <- paste0(pgnMiddle,
+                          ifelse(p==attribs$ap, '<li class="page-item active"><a id="', '<li class="page-item"><a id="'),
+                          paste0(attribs$id, "_", p), '" class="page-link">', p, '</a></li>')
+   }
+   return(
+      bs4("r", bs4("c12", class="mb-2", HTML(pgnStart, pgnMiddle, pgnEnd)))
+   )
+}
+
