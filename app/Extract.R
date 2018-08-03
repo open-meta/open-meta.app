@@ -19,12 +19,12 @@ if(S$P$Msg=="") {
       if(rv$limn && S$P$Msg=="") {
          if(S$P$Modify) {                               # Modification allowed?
             return(tagList(
-               bs4("md", id="sub", n=1:6, active=rv$menuActive, text=c("Dashboard", "New Trial", "Trial List", "New Outcome", "Outcome List", "New Arm")),
+               bs4("md", id="sub", n=1:4, active=rv$menuActive, text=c("Dashboard", "Trials", "Outcomes", "Arms")),
                bs4("r", bs4("ca", "More to come..."))
             ))
          } else {                                       # Otherwise view only
             return(tagList(
-               bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Dashboard", "Trial List", "Outcome List")),
+               bs4("md", id="sub", n=1:4, active=rv$menuActive, text=c("Dashboard", "Trials", "Outcomes", "Arms")),
                bs4("r", bs4("ca", "More to come..."))
             ))
          }
