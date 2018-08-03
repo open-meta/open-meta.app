@@ -71,6 +71,7 @@ bs4 = function(flavor, ...) {                                            # the i
       "quill" =  {return(bs4Quill(attribs, children))},                  # Quill editor (see code below and https://quilljs.com/)
       "chart" =  {return(bs4Chart(attribs, children))},                  # chart.js
       "pgn" =  {return(bs4Pagination(attribs, children))},               # pagination
+      "cmt" =  {return(bs4Comments(attribs, children))},                 # comment display widget
       "dx"  = { },                                       # just like "d", but no shiny output with id; mostly needed by bs4Quill
       "mp"  = {return(HTML0('<ul class="nav nav-pills">', bs4Menus(attribs), '</ul>'))}, # menu as pills (or words with active=0)
       "mt"  = {return(HTML0('<ul class="nav nav-tabs">', bs4Menus(attribs), '</ul>'))},  # menu as tabs
@@ -298,23 +299,44 @@ bs4Button = function(attribs, children) {
 # btn-toolbar
 # btn-toolbar-divider
 
+
 # Note: this code creates Shiny checkboxes; they return TRUE or FALSE to input$id
+# supports vectorized ids and names plus T/F attribs vectors for ck-checked (required) and dis-disabled and il-inline (optional)
 bs4Checkbox = function(attribs, children) {
-   disabled = ""
-   class = "form-group shiny-input-container mb-0"
-   if("il" %in% attribs$q) { class = "form-group shiny-input-container form-check-inline" }   # inline checkboxes
-   checked = ""
-   if("ck" %in% attribs$q) {checked = ' checked="checked"'}
-   disabled = ""
-   if("d" %in% attribs$q) {disabled = ' disabled="disabled"'}
-   return(HTML0(
-      '<div class="ml-4">',
-         '<div class="', class, '">',
-            '<input class="form-check-input" type="checkbox" id="', attribs$id, '"', checked, disabled, '>',
-            '<label class="form-check-label" for="', attribs$id, '">', unlist(children[[1]]), '</label>',
-         '</div>',
-      '</div>'
-   ))
+   cbxNames = children[[1]]
+   cbxL = length(cbxNames)
+   if(is.null(attribs$il)) {               # Allow missing or length 1 attribs$il  (inline)
+      attribs$il = rep(FALSE, cbxL)
+   } else {
+      if(length(attribs$il)==1) {
+         attribs$il = rep(attribs$il, cbxL)
+      }
+   }
+   if(is.null(attribs$dis)) {              # Allow missing or length 1 attribs$dis  (disabled)
+      attribs$dis = rep(FALSE, cbxL)
+   } else {
+      if(length(attribs$dis)==1) {
+         attribs$dis = rep(attribs$dis, cbxL)
+      }
+   }
+   if(!all(length(attribs$id), length(attribs$il), length(attribs$dis), length(attribs$ck) %in% cbxL)) {
+      stop("In bs4Checkbox(), attribs vectors have different lengths")
+   }
+# ck = a T/F vector where T means checked
+   checked = rep("", cbxL)
+   checked[attribs$ck] = ' checked="checked"'
+# il = a T/F vector where T means inline
+   class = rep("form-group shiny-input-container mb-0", cbxL)
+   class[attribs$il] = "shiny-input-container-inline form-check-inline"
+# dis = a T/F vector where T means disabled
+   disabled = rep("", cbxL)
+   disabled[attribs$dis] = ' disabled="disabled"'
+   return(HTML0(paste0(
+      '<div class="ml-4 ', class, '">',
+         '<input class="form-check-input" type="checkbox" id="', attribs$id, '"', checked, disabled, '>',
+         '<label class="form-check-label" for="', attribs$id, '">', cbxNames, '</label>',
+      '</div>', collapse=""
+   )))
 }
 
 # This function uses Chart.js to draw javascript graphs. See: https://www.chartjs.org/docs/latest/
@@ -406,3 +428,20 @@ bs4Pagination = function(attribs, children) {
    )
 }
 
+# This widget finds the comments for an item, displays them (perhaps in a scrollable window?), and
+#    adds functionality for posting a new comment (and editing old ones?)
+# NOTE: this widget has nothing to do with saving comments, which must be handled by the page
+bs4Comments = function(attribs, children) {
+
+# There are comment tables for the overall system and for each project.
+# Each comment has a an "item" and "itemID" field that associate that comment with a particular item, like a
+#   particular protocol, search, review, citation, etc.
+# This widget should get all comments for the current item and display them, adding the verUser and verTime.
+#   Perhaps members and non-members of a project should be identified.
+# It should also display a field for adding a new comment and perhaps editing an old one (via a modal?)
+# Imagining something simple like the comments in Stack Overflow.
+
+    return(
+      bs4("r", bs4("c12", HTML0("<p>Commenting still under construction.</p>")))
+   )
+}
