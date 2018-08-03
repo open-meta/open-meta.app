@@ -118,13 +118,71 @@ if(S$P$Msg=="") {
                   )       # end of S$view switch
                },
                "2" = {
-                  restOfPage = bs4("r", bs4("ca", "More to come...PC"))
+                  S$REV$failBoxes2 <<- recGet(S$db, "settings", "**", tibble(c("name", "=", "failBoxNames")))
+                  S$REV$forceFail2 <<- recGet(S$db, "settings", "**", tibble(c("name", "=", "forceFail")))
+                  S$REV$forcePass2 <<- recGet(S$db, "settings", "**", tibble(c("name", "=", "forcePass")))
+                  failBoxes <- fromJSON(S$REV$failBoxes2$value[2])
+                  usedR = rep(FALSE, 20)                             # Assume nothing is currently in use
+                  if(length(failBoxes)==0) {                         # this happens when they've all been blanked out
+                     failBoxes[1:20] = ""
+                  } else {                                           # Is this failBox already in use?
+                     for(i in 1:length(failBoxes)) {                 #   If so, make input readonly so it can't be changed
+                        z = recGet(S$db, "review", "reviewID", tibble(c("detail", "LIKE", paste0("%", failBoxes[i], "%"))))
+                        usedR[i] = z$reviewID[1] != 0                # Zero means not in use so !=zero means in use
+                     }                                               # Fill out list with blanks; [1:20] creates the NAs we're replacing
+                     failBoxes[1:20] <- ifelse(is.na(failBoxes[1:20]), "", failBoxes[1:20])
+                  }
+                  FFck = ifelse(S$REV$forceFail2$value[2]=="T", TRUE, FALSE)
+                  FPck = ifelse(S$REV$forcePass2$value[2]=="T", TRUE, FALSE)
+                  ids= paste0("r", 1:20)
+                  restOfPage <- tagList(
+                     bs4("r",
+                        bs4("c7",
+                           HTML0("<h5>Reason for failure checkboxes</h5>"),
+                           bs4("d", class="ml-5 my-3", bs4("btn", id="update_1", q="g", "Update All")),
+                           bs4("cbx", id="forceFail", ck=FFck, il=TRUE, "Fail Review: Force reviewer to check at least one <i>reason for failure</i> box."),
+                           bs4("cbx", id="forcePass", ck=FPck, il=TRUE, "Pass Review: Force reviewer to uncheck all <i>reason for failure</i> boxes."),
+                           bs4("d", class="py-2"),
+                           HTML0(paste0('<div class="form-group shiny-input-container"><input id="',
+                                        ids, '" type="text" class="form-control" value="', failBoxes, '"',
+                                        ifelse(usedR,' readonly="readonly"', ''), '/></div>', collapse=""))
+                        ),
+                        bs4("c5",
+                            bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(               # The yellow box
+"<p>When your reviewers decide whether a citation Passes or Fails to meet the criteria of your project, you can have
+them check one or more <i>reason for failure</i> boxes if you want. This page allows you to designate up to 20 of your
+own <i>reason for failure</i> choices and to specify whether you want to force your reviewers to use them or not.</p>
+<p>The box descriptions can only be changed <i>on reasons that haven't been used yet</i>! If you're just getting started and
+you want to completely redo the descriptions, but some can't be changed, do this:<ul>
+<li>First, uncheck the <code>Fail Review</code> box to the left.</li>
+<li>Next, go the Review tab and click on the Citation List menu. Check the box for <code>Stage 1 Fails</code> and click the
+<code>Filter</code> button.</li>
+<li>Go through all the fails one-by-one (whether you actually want to do this or not depends on how many citations have already
+been reviewed) and uncheck all the boxes on each citation, then click the <code>Fail</code> button. Repeat until all the boxes
+have been unchecked.</li>
+<li>Come back to this page and you will now be able to edit all the box descriptions. Also recheck the <code>Fail Review</code>
+box on the top of the list on the left.</li>
+<li>Go back to Review-Citation List. Again check the <code>Stage 1 Fails</code> box and the <code>Filter</code> button. Now
+re-review all those citations.</li>
+<li>Better yet, adjust this list to your liking before any reviews have been completed!</li>
+</ul></p>
+<p>However, keep in mind that accurately recording <i>all</i> of the reasons a citation Does Not Meet Project Criteria (DNMPC)
+is a LOT of extra work for reviewers. For speed, skip this and allow reviewers to fail a citation as soon as they find
+<i>anything</i> that does not meet the project's criteria. Recording the first failure found, rather than all failures,
+is useful to document why a particular citation failed project critera, but an aggregation of this data over all citations
+doesn't produce anything very meaningful.</p>
+<p>Recording all failures, on the other hand, produces meaningful aggregate data, but it takes forever. Is the value of this
+data to your project actually worth all the extra work for your reviewers?.</p>
+"))))
+                        )
+                     )
+                  )
                }
             )
             return(tagList(
                bs4("r", align="hc",
                   bs4("c10", tagList(
-                     bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Project Settings")),
+                     bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Stage 1 Review Settings")),
                      restOfPage
                   ))
                )
@@ -271,6 +329,30 @@ observeEvent(input$js.omclick, {
       "register" = { js$redirect("?profile") },
       "cancel" = {
          js$redirect(paste0("?Protocol&prj=", S$PRJ$projectID))
+      },
+      "update" = {
+         failBoxes = c(input$r1,input$r2,input$r3,input$r4,input$r5,input$r6,input$r7,input$r8,input$r9,input$r10,
+                       input$r11,input$r12,input$r13,input$r14,input$r15,input$r16,input$r17,input$r18,input$r19,input$r20)
+         blanks = which(failBoxes=="")
+         if(length(blanks)>0) { failBoxes = failBoxes[-blanks] }           # remove blanks from vector
+         dups = duplicated(failBoxes)                                      # dups is a T/F vector
+         if(any(dups)) {
+            S$modal_title <<- "Duplicated reasons"
+            S$modal_text <<- HTML0("<p>Each reason for failure must be unique. Your duplicates are:<ul>",
+                                   paste0("<li>", failBoxes[dups], "</li>", collapse=""),
+                                   "</ul></p>")
+            S$modal_size <<- "m"
+            rv$modal_warning <- rv$modal_warning + 1
+         } else {                                                          # OK to save
+            S$REV$failBoxes2$value[2] <<- toJSON(failBoxes)
+            S$REV$failBoxes2          <<- recSave(S$REV$failBoxes2, S$db)
+            S$REV$forceFail2$value[2] <<- ifelse(input$forceFail ,"T", "F")
+            S$REV$forceFail2          <<- recSave(S$REV$forceFail2, S$db)
+            S$REV$forcePass2$value[2] <<- ifelse(input$forcePass ,"T", "F")
+            S$REV$forcePass2          <<- recSave(S$REV$forcePass2, S$db)
+            rv$menuActive = 1
+            rv$limn = rv$limn + 1
+         }
       },
       "return" = {
          S$view <<- "memberList"
