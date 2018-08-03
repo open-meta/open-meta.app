@@ -155,7 +155,7 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
       whereErrors = !(as.character(WHERE[1,]) %in% validFields)                     # Any invalid fields in WHERE?
       opErrors = !(as.character(WHERE[2,]) %in% c("=", "!=", "<", ">", "<=", ">=", " IN ", "LIKE")) # Any invalid operators in WHERE?
       if(any(c(selectErrors, whereErrors, opErrors))) {
-         msg = "In reCGet():\n"
+         msg = "In recGet():\n"
          if(any(selectErrors)) {
             msg = paste0(msg, "   SELECT has unknown variables: ", paste0(SELECT[selectErrors], collapse=", "), "\n")
          }
