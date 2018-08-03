@@ -22,6 +22,7 @@ initProject = function(projectID, projectName, pool) {
    r = dbExecute(dbLink, paste0("CREATE DATABASE `", S$db, "`;"))  # Create the project db
    r = dbExecute(dbLink, createTable(S$db, "settings")) # Create its tables
    r = dbExecute(dbLink, createTable(S$db, "protocol"))
+   r = dbExecute(dbLink, createTable(S$db, "comment"))
    r = dbExecute(dbLink, createTable(S$db, "search"))
    r = dbExecute(dbLink, createTable(S$db, "catalog"))
    r = dbExecute(dbLink, createTable(S$db, "review"))
@@ -29,6 +30,21 @@ initProject = function(projectID, projectName, pool) {
 ### Membership table is done by caller on both new installs and new projects
 
 ### Complete settings table
+   r = newRec("settings")
+   r$name[2] = "failBoxNames"
+   r$value[2] = toJSON(c("No Fulltext", "Study DNMPC", "Participants DNMPC", "Intervention DNMPC",
+                         "Comparison DNMPC", "Outcomes DNMPC"))
+   r = recSaveR(r, db=S$db, pool=pool)
+
+   r = newRec("settings")
+   r$name[2] = "forceFail"
+   r$value[2] = "T"
+   r = recSaveR(r, db=S$db, pool=pool)
+
+   r = newRec("settings")
+   r$name[2] = "forcePass"
+   r$value[2] = "T"
+   r = recSaveR(r, db=S$db, pool=pool)
 
 ### Complete protocol table
    # Get protoHelp
