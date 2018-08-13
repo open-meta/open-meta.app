@@ -32,17 +32,20 @@ S$FIL$abstract = ""
 S$FIL$author = ""
 S$FIL$year = ""
 S$FIL$journal = ""
-S$FIL$review_0 = TRUE
-S$FIL$review_1 = TRUE
-S$FIL$review_2 = TRUE
+S$FIL$allRnot = "all" # or "my"
+S$FIL$notRev = TRUE
+S$FIL$s1Fail = FALSE
+S$FIL$s1Pass = FALSE
 
 # Init reactive variables
-rv$render = 0         # Trigger to render page after dealing with input initializatons
+rv$render = 0        # Trigger to render page after dealing with input initializatons
+rv$runFilter = 0     # Trigger filterintg
 rv$menuActive = 1    # Start out on first sub-menu
 #####
 
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({rv$render; isolate({
+   reviewWidgets = ""                              # In returned tagList, but not in all pages!
       switch(as.character(rv$menuActive),
          "1" = {                                   # 1 is the Dashboard
             cites = recGet(S$db, "catalog", c("catalogID", "dupOf", "reviewBest", "reviewCount"), tibble(c("catalogID", ">", 0)))
@@ -125,9 +128,9 @@ no data is available for that graph at this time (no searches have been processe
                } else {
                   cites$btn = paste0("<button id=cite_", cites$catalogID, " class='btn border-dark btn-primary'>View</button>")
                }
-               ids=paste0("review_", 0:2)
-               ck=c(S$FIL$review_0, S$FIL$review_1, S$FIL$review_2)
-               cbxNames = c("Not Reviewed", "Stage 1 Fail", "Stage 1 Pass")
+               ids=c("notRev", "s1Fail", "s1Pass")
+               ck=c(S$FIL$notRev, S$FIL$s1Fail, S$FIL$s1Pass)
+               cbxNames = c("Not Reviewed",  "Stage 1 Fail", "Stage 1 Pass")
                restOfPage <- tagList(
                   bs4("r",
                      bs4("c9",
@@ -142,11 +145,13 @@ no data is available for that graph at this time (no searches have been processe
                               ttextInput("journal", "Journal", value=S$FIL$journal, groupClass="w-100"))
                         )
                      ),
-                     bs4("c1"),
-                     bs4("c2",
+                     bs4("c3", class="pl-5",
                         HTML("Review status<br>"),
+                        bs4("d", class="pl-1", radioButtons("allRnot", "",
+                                                            c("All Reviews" = "all", "My Reviews" = "my"),
+                                                            selected=S$FIL$allRnot)),
                         bs4("cbx", id=ids, ck=ck, cbxNames),
-                        bs4("btn", id="filter_0", q="b", class="ml-4 mt-4", "Filter"))
+                        bs4("btn", uid="filter_0", q="b", class="ml-4 mt-4", "Filter"))
                   ),
                   if(S$PGN$filteredIDs[1]>0) {
                      tagList(
@@ -303,59 +308,7 @@ observeEvent(input$js.omclick, {
          rv$render = rv$render+1
       },
       "filter" = {
-         S$FIL$abstract <<- stripHTML(input$abstract)
-         S$FIL$author   <<- stripHTML(input$author)
-         S$FIL$year     <<- stripHTML(input$year)
-         S$FIL$journal  <<- stripHTML(input$journal)
-         S$FIL$review_0 <<- input$review_0
-         S$FIL$review_1 <<- input$review_1
-         S$FIL$review_2 <<- input$review_2
-         rs = sum(c(S$FIL$review_0, S$FIL$review_1, S$FIL$review_2))
-         if(rs==0) {
-            S$modal_title <<- "Nothing found"
-            S$modal_text <<- HTML0("<p>You must check one or more of the <i>Review status</i> checkboxes. Unchecking them ",
-                                   "all will return no results.</p>")
-            S$modal_size <<- "m"
-            rv$modal_warning <- rv$modal_warning + 1
-         } else {
-            WHERE = tibble(dupOf=c("dupOf", "=", 0))
-            if(rs==1) {
-               if(S$FIL$review_0) { WHERE$rBest = c("reviewBest", "=", 0) }
-               if(S$FIL$review_1) { WHERE$rBest = c("reviewBest", "=", 1) }
-               if(S$FIL$review_2) { WHERE$rBest = c("reviewBest", "=", 2) }
-            }
-            if(rs==2) {
-               if(S$FIL$review_0 && S$FIL$review_1) { WHERE$rBest = c("reviewBest", "!=", 2) }
-               if(S$FIL$review_0 && S$FIL$review_2) { WHERE$rBest = c("reviewBest", "!=", 1) }
-               if(S$FIL$review_1 && S$FIL$review_2) { WHERE$rBest = c("reviewBest", "!=", 0) }
-            }
-            if(S$FIL$author!="") { WHERE$author=c("author", "LIKE", paste0("%", S$FIL$author, "%"))}
-            if(S$FIL$year!="") { WHERE$year=c("Y", "LIKE", paste0("%", S$FIL$year, "%"))}
-            if(S$FIL$journal!="") { WHERE$journal=c("journal", "LIKE", paste0("%", S$FIL$journal, "%"))}
-            dbLink <- poolCheckout(shiny.pool)                                        # get a dbLink from the pool
-            wherePairs = wherez(WHERE, dbLink)
-            if(S$FIL$abstract!="") {                                                  # all this for an OR
-               qabs = dbQuoteString(dbLink, paste0("%", S$FIL$abstract, "%"))
-               wherePairs = paste0(wherePairs, " AND (`abstract` LIKE ", qabs, " OR `title` LIKE ", qabs, ")")
-            }
-            selects = dbQuoteIdentifier(dbLink, c("catalogID", "reviewBest"))
-            selects = paste0(selects, collapse=",")
-            QUERY = paste0("SELECT ", selects, " FROM ", dbt(S$db, "catalog", dbLink), " WHERE ", wherePairs, ";")
-            S$PGN$FR <<- dbGetQuery(dbLink, QUERY)                                    # perform raw SQL Query
-            poolReturn(dbLink)                                                        # return dbLink
-            if(nrow(S$PGN$FR)==0) {
-               S$modal_title <<- "Nothing found"
-               S$modal_text <<- HTML0("<p>No citations found by these filter settings.</p>")
-               S$modal_size <<- "s"
-               rv$modal_warning <- rv$modal_warning + 1
-            } else {
-               S$PGN$filteredIDs <<- S$PGN$FR$catalogID
-               S$PGN$chunkedIDs <<- chunker(S$PGN$filteredIDs, S$PGN$itemsPerPage)
-               S$PGN$pageCount <<- length(S$PGN$chunkedIDs)
-               S$PGN$activePage <<- 1
-            }
-            rv$render = rv$render+1
-         }
+         rv$runFilter = rv$runFilter+1
       },
       "cite" = {
          S$REV$id <<- as.integer(n)
@@ -463,3 +416,88 @@ getChex = function() {
    }
 }
 
+# filtering
+# observeEvent(c(input$abstract, input$author, input$year, input$journal, input$allRnot,
+#                input$notRev, input$s1Fail, input$s1Pass), {
+observeEvent(rv$runFilter, {
+   S$FIL$abstract <<- stripHTML(input$abstract)
+   S$FIL$author   <<- stripHTML(input$author)
+   S$FIL$year     <<- stripHTML(input$year)
+   S$FIL$journal  <<- stripHTML(input$journal)
+   S$FIL$allRnot  <<- ifelse(is.null(input$allRnot), "all", input$allRnot)
+   S$FIL$notRev   <<- ifelse(is.null(input$notRev), TRUE, input$notRev)
+   S$FIL$s1Fail   <<- ifelse(is.null(input$s1Fail), FALSE, input$s1Fail)
+   S$FIL$s1Pass   <<- ifelse(is.null(input$s1Pass), FALSE, input$s1Pass)
+   WHERE = tibble(dupOf=c("dupOf", "=", 0))                                  # Set up WHERE
+   if(S$FIL$author!="")  { WHERE$author=c("author", "LIKE", paste0("%", S$FIL$author, "%"))}
+   if(S$FIL$year!="")    { WHERE$year=c("Y", "LIKE", paste0("%", S$FIL$year, "%"))}
+   if(S$FIL$journal!="") { WHERE$journal=c("journal", "LIKE", paste0("%", S$FIL$journal, "%"))}
+   chex <- sum(c(S$FIL$notRev, S$FIL$s1Fail, S$FIL$s1Pass))
+   if(chex==0) {
+      S$FIL$notRev <<- TRUE       # If nothing is checked, nothing would be returned. Since there are no edge
+      S$FIL$s1Fail <<- TRUE       #   cases where this makes sense, the only possibility is that the user wanted
+      S$FIL$s1Pass <<- TRUE       #   everything, which is what we're changing the checkboxes to.
+      # S$modal_title <<- "Nothing found"
+      # S$modal_text <<- HTML0("<p>You must check one or more of the <i>Review status</i> checkboxes. Unchecking them ",
+      #                        "all will return no results.</p>")
+      # S$modal_size <<- "m"
+      # rv$modal_warning <- rv$modal_warning + 1
+   }
+   if(S$FIL$allRnot=="all") {                                             # Skip this for My Reviews
+      if(chex==1) {                                                       # If chex=0 or 3, there's nothing to filter
+         if(S$FIL$notRev) { WHERE$rBest = c("reviewBest", "=", 0) }
+         if(S$FIL$s1Fail) { WHERE$rBest = c("reviewBest", "=", 1) }
+         if(S$FIL$s1Pass) { WHERE$rBest = c("reviewBest", ">", 1) }       # could be 2-3-4
+      }
+      if(chex==2) {
+         if(S$FIL$notRev && S$FIL$s1Fail) { WHERE$rBest = c("reviewBest", "<=", 1) } # Everything but any kind of pass
+         if(S$FIL$notRev && S$FIL$s1Pass) { WHERE$rBest = c("reviewBest", "!=", 1) } # Everything but Stage 1 fails
+         if(S$FIL$s1Fail && S$FIL$s1Pass) { WHERE$rBest = c("reviewBest", ">", 0)  } # Everything but no review
+      }
+   }
+### Special SQL Request to OR title and abstact
+   dbLink <- poolCheckout(shiny.pool)                                     # get a dbLink from the pool
+   wherePairs = wherez(WHERE, dbLink)
+   if(S$FIL$abstract!="") {                                               # all this for an OR
+      qabs = dbQuoteString(dbLink, paste0("%", S$FIL$abstract, "%"))
+      wherePairs = paste0(wherePairs, " AND (`abstract` LIKE ", qabs, " OR `title` LIKE ", qabs, ")")
+   }
+   selects = dbQuoteIdentifier(dbLink, c("catalogID", "reviewBest"))
+   selects = paste0(selects, collapse=",")
+   QUERY = paste0("SELECT ", selects, " FROM ", dbt(S$db, "catalog", dbLink), " WHERE ", wherePairs, ";")
+   S$PGN$FR <<- dbGetQuery(dbLink, QUERY)                                 # perform raw SQL Query
+   poolReturn(dbLink)                                                     # return dbLink
+###
+   if(S$FIL$allRnot=="my") {                                              # Skip this for All Reviews
+      myReviews <- recGet(S$db, "review", c("catalogID", "decision"), tibble(c("verUser", "=", S$U$userName)))
+      myFailIDs <- as.integer(myReviews$catalogID[myReviews$decision==1])
+      myPassIDs <- as.integer(myReviews$catalogID[myReviews$decision>1])  # Can be 2-3-4
+      filteredIDs <- as.integer(S$PGN$FR$catalogID)
+      if(chex==1) {
+         if(S$FIL$notRev) { Keepers <- !(filteredIDs %in% c(myFailIDs, myPassIDs)) }
+         if(S$FIL$s1Fail) { Keepers <- filteredIDs %in% c(myFailIDs) }
+         if(S$FIL$s1Pass) { Keepers <- filteredIDs %in% c(myPassIDs) }
+      }
+      if(chex==2) {
+         if(S$FIL$notRev && S$FIL$s1Fail) { Keepers <- !(filteredIDs %in% c(myPassIDs)) }
+         if(S$FIL$notRev && S$FIL$s1Pass) { Keepers <- !(filteredIDs %in% c(myFailIDs)) }
+         if(S$FIL$s1Fail && S$FIL$s1Pass) { Keepers <- (filteredIDs %in% c(myFailIDs, myPassIDs)) }
+      }
+      if(chex==0 || chex==3) {
+         Keepers <- TRUE
+      }
+      S$PGN$FR <<- S$PGN$FR[Keepers,]
+   }
+   if(nrow(S$PGN$FR)==0) {
+      S$modal_title <<- "Nothing found"
+      S$modal_text <<- HTML0("<p>No citations found by these filter settings.</p>")
+      S$modal_size <<- "s"
+      rv$modal_warning <- rv$modal_warning + 1
+   } else {
+      S$PGN$filteredIDs <<- S$PGN$FR$catalogID
+      S$PGN$chunkedIDs <<- chunker(S$PGN$filteredIDs, S$PGN$itemsPerPage)
+      S$PGN$pageCount <<- length(S$PGN$chunkedIDs)
+      S$PGN$activePage <<- 1
+   }
+   rv$render = rv$render+1
+})
