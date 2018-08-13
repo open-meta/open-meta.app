@@ -319,7 +319,12 @@ bs4Checkbox = function(attribs, children) {
          attribs$dis = rep(attribs$dis, cbxL)
       }
    }
-   if(!all(length(attribs$id), length(attribs$il), length(attribs$dis), length(attribs$ck) %in% cbxL)) {
+# print(length(attribs$id))
+# print(length(attribs$ck))
+# print(length(attribs$il))
+# print(length(attribs$dis))
+# print(cbxL)
+   if(!all(length(attribs$id), length(attribs$ck), length(attribs$il), length(attribs$dis) %in% cbxL)) {
       stop("In bs4Checkbox(), attribs vectors have different lengths")
    }
 # ck = a T/F vector where T means checked
