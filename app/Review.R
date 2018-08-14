@@ -51,45 +51,46 @@ if(S$P$Msg=="") {
             cites = recGet(S$db, "catalog", c("catalogID", "dupOf", "reviewBest", "reviewCount"), tibble(c("catalogID", ">", 0)))
             if(cites$catalogID[1]>0) {                                                     # Prepare data for doughnut charts
                noText <- ""
-               aData <- c(sum(cites$reviewBest==0), sum(cites$reviewBest==1),sum(cites$reviewBest==2)) # Have cites, chart 1
-               aColors <- c("#1997c6","#9F86FF","#1BC98E")
-               cData <- c(sum(cites$dupOf==0), sum(cites$dupOf!=0))
-               cColors <- c("#1997c6","#9F86FF")
+               aData <- c(sum(cites$dupOf==0), sum(cites$dupOf!=0))
+               aColors <- c("#1997c6","#9F86FF")
+               cites = cites[cites$dupOf==0,]
+               bData <- c(sum(cites$reviewBest==0), sum(cites$reviewBest==1),sum(cites$reviewBest==2)) # Have cites, chart 1
+               bColors <- c("#1997c6","#9F86FF","#1BC98E")
                if(sum(cites$reviewCount>0)==0) {                                           # Have cites, but no reviews, chart 2
-                  bData <- c(1,1,1)
-                  bColors <- c("#6c757d","#6c757d","#6c757d")
+                  cData <- c(1,1,1)
+                  cColors <- c("#6c757d","#6c757d","#6c757d")
                } else {                                                                    # Have cites & reviews, chart 2
-                  bData <- c(sum(cites$reviewCount==1), sum(cites$reviewCount==2), sum(cites$reviewCount>2))
-                  bColors <- c("#1997c6","#9F86FF","#1BC98E")
+                  cData <- c(sum(cites$reviewCount==1), sum(cites$reviewCount==2), sum(cites$reviewCount>2))
+                  cColors <- c("#1997c6","#9F86FF","#1BC98E")
                }
             } else {                                                                       # No cites, no reviews, both charts
                noText <- "<h5>Nothing to review yet</h5>"
-               aData <- c(1,1,1)
-               aColors <- c("#6c757d","#6c757d","#6c757d")
                bData <- c(1,1,1)
                bColors <- c("#6c757d","#6c757d","#6c757d")
-               cData <- c(1,1)
-               cColors <- c("#6c757d","#6c757d")
+               cData <- c(1,1,1)
+               cColors <- c("#6c757d","#6c757d","#6c757d")
+               aData <- c(1,1)
+               aColors <- c("#6c757d","#6c757d")
             }
             restOfPage = tagList(
                bs4("r",
                   bs4("chart", c=4, id=paste0("cC"), labels=c("Unique", "Duplicates"),
-                      data=cData,
-                      legend="false", zeroText=noText,
-                      title1="All Citations", title2="Unique vs</br>Duplicates",
-                      colors=cColors
-                  ),
-                  bs4("chart", c=4, id=paste0("cA"), labels=c("Not Reviewed", "Failed", "Passed"),
                       data=aData,
                       legend="false", zeroText=noText,
-                      title1="Stage 1 Reviews", title2="Pass vs Fail vs<br>Not Reviewed",
+                      title1="All Citations", title2="Unique vs</br>Duplicates",
                       colors=aColors
                   ),
-                  bs4("chart", c=4, id=paste0("cB"), labels=c("1 review", "2 reviews", "3 or more"),
+                  bs4("chart", c=4, id=paste0("cA"), labels=c("Not Reviewed", "Failed", "Passed"),
                       data=bData,
                       legend="false", zeroText=noText,
-                      title1="Stage 1 Fails Only", title2="Number of<br>Reviews",
+                      title1="Stage 1 Reviews", title2="Pass vs Fail vs<br>Not Reviewed",
                       colors=bColors
+                  ),
+                  bs4("chart", c=4, id=paste0("cB"), labels=c("1 review", "2 reviews", "3 or more"),
+                      data=cData,
+                      legend="false", zeroText=noText,
+                      title1="Stage 1 Fails Only", title2="Number of<br>Reviews",
+                      colors=cColors
                   )
                ),
 bs4("r", bs4("c1"), bs4("c10", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(               # The yellow box
