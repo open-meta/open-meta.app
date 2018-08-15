@@ -5,6 +5,8 @@
 S$userOK <- S$U$sPowers >= S$PG$spReq
 
 S$editPage <- FALSE               # editPage flag determines what gets rendered
+S$sacredFields <- c("verNum", "verUser", "verTime", "clash", "clashFacts", "deleted")   # sql.core needs these to save a partial record
+
 # Note:
 # ...$user is the logged in user
 
@@ -41,6 +43,15 @@ output$uiMeat <- renderUI({rv$limn; isolate({
          ))
       }
       if(S$editPage) {                 # Edit the page
+         loadRCTbutton <- {
+            allReviews <- recGet(S$db, "review", c("catalogID"), tibble(c("catalogID", ">", 0)))
+            if(allReviews$catalogID[1]==0 && S$px$projectID[2]=="1" &&
+               S$px$projectName[2]=='Effect of daily vitamin D<sub>3</sub> supplementation on human health and performance') {
+               tagList(bs4("btn", id="loadRCTreviews", n=1, q="r", "Load RCT Reviews"))
+            } else {
+               tagList("")
+            }
+         }
          dCard <- deletedCard(S$px)
          cCard <- clashCard(S$px)
          return(tagList(
@@ -61,6 +72,7 @@ output$uiMeat <- renderUI({rv$limn; isolate({
                            S$px$verNum[2], ')<br/>'),
 
                      HTML('<div class="text-right mt-3">'),
+                        loadRCTbutton,
                         bs4("btn", id="Fdelete", n=S$px$projectID[2], q="r", "Delete Project"),
                         bs4("btn", id="cancel", n=S$ux$userID[2], q="b", "Cancel"),
                         bs4("btn", id="save", n=S$ux$userID[2], q="b", "Save"),
@@ -118,6 +130,7 @@ observeEvent(input$js.omclick, {
       "edit" = {
          S$editPage <<- TRUE
          S$px <<- projectGet("**", tibble(c("projectID", "=", n), c("deleted", ">=", "0")))
+         S$db <<- paste0("om$prj_", S$px$projectID[2])
          rv$limn = rv$limn + 1
       },
       "um1" = {
@@ -174,6 +187,35 @@ observeEvent(input$js.omclick, {
          S$editPage <<- FALSE
          rv$limn = rv$limn + 1
       },
+      "loadRCTreviews" = {
+         S$PM$progress <<- shiny::Progress$new()              # Create a Progress object
+         S$PM$progress$set(message = "Processing reviews...", value = 0) # Set message
+         Xrev <- readRDS("Xrev.RDS")
+         nRevs <- nrow(Xrev)
+         recs <- recGet(S$db, "catalog", c("catalogID", "title"), tibble(c("dupOf", "=", 0)))
+         review <- recGet(S$db, "review", "", "")
+         for(i in 1:nRevs) {
+            S$PM$progress$set(i/nRevs)
+            review$catalogID[2] <- recs$catalogID[recs$title==Xrev$title[i]]
+            review$decision[2]  <- as.integer(Xrev$decision[i])
+            review$detail[2]    <- Xrev$detail[i]
+            review$comment[2]   <- Xrev$comment[i]
+            cite = recGet(S$db, "catalog", c("catalogID", "reviewCount", "reviewBest", S$sacredFields), tibble(c("catalogID", "=", review$catalogID[2])))
+            cite[2,]=cite[1,]                                              # need two rows for recSave
+            cite$reviewCount[2] <- 1L
+            cite$reviewBest[2]  <- review$decision[2]
+            cite    <- recSave(cite, S$db)
+            review2 <- recSave(review, S$db)
+         }
+         r = recGet(S$db, "settings", "**", WHERE=tibble(c("name", "=", "failBoxNames")))
+         r$value[2] = toJSON(c("Not in English", "Not an RCT", "No valid participants",
+                               "NVI - not daily", "NVI - not D3", "NVI - other",
+                               "No valid comparision", "No valid outcome"))
+         r = recSaveR(r, db=S$db)
+         S$PM$progress$close()
+         S$editPage <<- FALSE
+         rv$limn = rv$limn + 1
+      },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
@@ -186,7 +228,7 @@ checkInput = function(n, v) { # name, value (can be a vector)
          projectName = {   # if the name hasn't changed, no error (else we'd get an error on name check!)
             if(str_to_lower(S$px$projectName[1])!=str_to_lower(S$px$projectName[2])) {
                if(v[i]=="") {
-                  vmsg = HTML0(vmsg, "<li>Page name can't be blank.</li>")
+                  vmsg = HTML0(vmsg, "<li>Project name can't be blank.</li>")
                }
                if(projectGet("projectID", tibble(c("projectName", "=", v[i])))$projectID > 0) { # check againt all existing projectNames
                   vmsg <- HTML0(vmsg, "<li>", v[i], " is taken.</li>")
