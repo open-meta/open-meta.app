@@ -30,7 +30,7 @@ library(magrittr)       # http://www.open-meta.org/all/r-packages-attached-vs-lo
 library(stringi)        #
 library(xml2)           #
 
-library(RCurl)          # Need to add this one to Lightsail
+library(RCurl)
 library(rvest)
 library(RefManageR)
 
