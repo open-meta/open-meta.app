@@ -1163,7 +1163,7 @@ observe({                                                        # observe rathe
                invalidateLater(max(c(100,pauseFor)))             #    and to honor PubMed delay
                return()
             } else {
-               S$PM$url2 <- paste0(S$PM$url, '&retstart=', (S$PM$Chunksize*S$PM$Chunk)+1, '&retMax=', S$PM$Chunksize)
+               S$PM$url2 <<- paste0(S$PM$url, '&retstart=', (S$PM$Chunksize*S$PM$Chunk), '&retMax=', S$PM$Chunksize)
                S$PM$Medline <<- paste0(S$PM$Medline, RCurl::getURL(S$PM$url2))   # Use URL constructed above to get cite data
                S$PM$lastTime <<- now()                           # Note end time of search execution
                S$PM$Chunk <<- S$PM$Chunk+1
@@ -1473,10 +1473,7 @@ processSearch = function() {
       sourceTable = dbt(S$db, paste0("cite", S$SRCH$id), dbLink)
       targetTable = dbt(S$db, "catalog", dbLink)
       dbr = dbExecute(dbLink, paste0("INSERT INTO ", targetTable, " (", colNames, ") SELECT ", colNames, " FROM ", sourceTable, ";"))
-      r = tibble(verNum=rep(1, S$SRCH2$citeCount[2]), # update verNum, verUser, and verTime
-                 verUser=rep(S$U$userName, S$SRCH2$citeCount[2]),
-                 verTime=rep(sTime(), S$SRCH2$citeCount[2]))
-      SET = QsetQ(r, dbLink)
+      SET = paste0("`verNum`=", 1L, ", `verUser`='", S$U$userName, "', `verTime`='", sTime(), "'")
       WHERE = wherez(tibble(c("searchID", "=", S$SRCH$id)), dbLink)
       dbr = dbExecute(dbLink, paste0("UPDATE ", targetTable, " SET ", SET, " WHERE ", WHERE,";"))
       poolReturn(dbLink)
