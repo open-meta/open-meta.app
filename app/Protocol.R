@@ -13,8 +13,8 @@ source("chokidar.R", local=TRUE)
 #   * S$P$Modify  - whether the user has permission to modify things on this page
 
 if(S$P$Msg=="") {
-   # Get protoHelp
-   pH = recGet("om$prime", "protoHelp", "*", WHERE=tibble(c("protoHelpID", ">", "0")))
+   # Get protohelp
+   pH = recGet("om$prime", "protohelp", "*", WHERE=tibble(c("protohelpID", ">", "0")))
    proto = recGet(paste0("om$prj_", S$PRJ$projectID), "protocol", "*", WHERE=tibble(c("protocolID", ">", "0")))
 
    # set up a reactive triggers for each section

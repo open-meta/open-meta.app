@@ -7,6 +7,12 @@
 
 DB.Initialization = function(burnItAllDown=FALSE) {
    # caller must set up dbLink
+   start.time <- Sys.time()
+   on.exit({
+      cat("### DB Initialization ###\n")
+      print(Sys.time() - start.time)
+   })
+
 
    # TEST CODE - deletes users and database so the rest of the code is tested
    if(burnItAllDown) {
@@ -47,6 +53,27 @@ DB.Initialization = function(burnItAllDown=FALSE) {
    # update SQL.Users after changes
    SQL.Users <- dbGetQuery(dbLink, "SELECT `user` FROM `mysql`.`user`;")
 
+   # New school init...
+   filename <- "../om2_dbs.sql"
+   if(file.exists(filename)) {
+      sql <- stri_read_lines(filename, encoding="utf8")
+      sqlLength <- length(sql)
+      cmd <- ""
+      for(i in 1:sqlLength) {
+         if(sql[i]!="" && str_sub(sql[i],1,3)!="-- ") {
+            cmd <- paste0(cmd, sql[i])
+            if(str_sub(cmd,-1,-1)==";") {
+               r <- dbExecute(dbLink, cmd)
+               cmd <- ""
+            }
+         }
+      }
+      return("Initialization of database is complete...")
+   }
+
+### The following code is still used for new installs when there's not a om2-dbs.sql file!!
+   # Old school init....
+
    # does om$prime database exist?
    SQL.DBs <- dbGetQuery(dbLink, "SHOW DATABASES")
    if(!"om$prime" %in% SQL.DBs$Database) {
@@ -55,7 +82,7 @@ DB.Initialization = function(burnItAllDown=FALSE) {
       r = dbExecute(dbLink, createTable("om$prime", "user"))
       r = dbExecute(dbLink, createTable("om$prime", "project"))
       r = dbExecute(dbLink, createTable("om$prime", "membership"))
-      r = dbExecute(dbLink, createTable("om$prime", "protoHelp"))
+      r = dbExecute(dbLink, createTable("om$prime", "protohelp"))
       r = dbExecute(dbLink, createTable("om$prime", "settings"))
       # inititialise user table
       u = userGet(pool=root.pool)
@@ -229,14 +256,14 @@ DB.Initialization = function(burnItAllDown=FALSE) {
    }
 
 saveP = function(order, title, helpText) {
-   SET = newRec("protoHelp")
+   SET = newRec("protohelp")
    SET$order[2] = order
    SET$title[2] = title
    SET$helpText[2] = helpText
    return(recSaveR(SET, pool=root.pool))
 }
 
-      # inititialise protoHelp table
+      # inititialise protohelp table
    ## A is Overall instructions
 order="A"
 title="Overall instructions for writing your project's protocol"

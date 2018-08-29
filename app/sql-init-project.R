@@ -26,6 +26,10 @@ initProject = function(projectID, projectName, pool) {
    r = dbExecute(dbLink, createTable(S$db, "search"))
    r = dbExecute(dbLink, createTable(S$db, "catalog"))
    r = dbExecute(dbLink, createTable(S$db, "review"))
+   r = dbExecute(dbLink, createTable(S$db, "outcome"))
+   r = dbExecute(dbLink, createTable(S$db, "trial"))
+   r = dbExecute(dbLink, createTable(S$db, "arm"))
+   r = dbExecute(dbLink, createTable(S$db, "group"))
 
 ### Membership table is done by caller on both new installs and new projects
 
@@ -47,8 +51,8 @@ initProject = function(projectID, projectName, pool) {
    r = recSaveR(r, db=S$db, pool=pool)
 
 ### Complete protocol table
-   # Get protoHelp
-   pH = recGet("om$prime", "protoHelp", "*", WHERE=tibble(c("protoHelpID", ">", "0")), pool=pool)
+   # Get protohelp
+   pH = recGet("om$prime", "protohelp", "*", WHERE=tibble(c("protohelpID", ">", "0")), pool=pool)
       # Get new protocol tibble
    proto = newRec("protocol")
       # Update protocol table one row at a time with next order; text is blank

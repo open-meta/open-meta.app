@@ -98,8 +98,8 @@ F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull
 F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 membership=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
 
-# protoHelp
-F1  = tibble(Name="protoHelpID",Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+# protohelp
+F1  = tibble(Name="protohelpID",Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
 F2  = tibble(Name="order",      Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="UNIQUE")
 F3  = tibble(Name="title",      Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="UNIQUE")
 F4  = tibble(Name="helpText",   Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
@@ -110,14 +110,14 @@ F8  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull
 F9  = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
 F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-protoHelp=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
+protohelp=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
 
 ### om$nnn tables
 
 # comment
 F1  = tibble(Name="commentID",  Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
-F2  = tibble(Name="item",       Type="VARCHAR",   Size="50",  NoSign="",  NoNull="T", Default="s",       Key="")
-F3  = tibble(Name="itemID",     Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F2  = tibble(Name="item",       Type="VARCHAR",   Size="50",  NoSign="",  NoNull="T", Default="s",       Key="") # (table of item)
+F3  = tibble(Name="itemID",     Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="") # (tableID of item)
 F4  = tibble(Name="text",       Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
 F5  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 F6  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
@@ -261,46 +261,73 @@ F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull
 F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 review=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
 
+#outcome
+F1  = tibble(Name="outcomeID",  Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+F2  = tibble(Name="outcomeNUM", Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F3  = tibble(Name="name",       Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F4  = tibble(Name="value",      Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F5  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F6  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F7  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F9  = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+outcome=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
+
 #trial
-F1  = tibble(Name="TID",        Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
-F2  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F3  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F4  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F5  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F6  = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-trial=rbind(F1,F2,F3,F4,F5,F6)
+F1  = tibble(Name="trialID",    Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+F2  = tibble(Name="trialNUM",   Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F3  = tibble(Name="name",       Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F4  = tibble(Name="value",      Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F5  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F6  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F7  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F9  = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+trial=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
 
 #arm
-F1  = tibble(Name="AID",        Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
-F2  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F3  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F4  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F5  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F6  = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-arm=rbind(F1,F2,F3,F4,F5,F6)
+F1  = tibble(Name="armID",      Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+F2  = tibble(Name="armNUM",     Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F3  = tibble(Name="name",       Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F4  = tibble(Name="value",      Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F5  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F6  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F7  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F9  = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+arm=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
 
-#cull
-F1  = tibble(Name="CID",        Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
-F2  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
-F3  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-F4  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
-F5  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
-F6  = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
-cull=rbind(F1,F2,F3,F4,F5,F6)
-
-
+#group
+F1  = tibble(Name="groupID",    Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+F2  = tibble(Name="groupNUM",   Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F3  = tibble(Name="name",       Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F4  = tibble(Name="value",      Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F5  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F6  = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F7  = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F9  = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+group=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
 
 ### Combine into a list and save
 table.definition.list = list(
-   page=page, user=user, project=project, membership=membership, protoHelp=protoHelp,
+   page=page, user=user, project=project, membership=membership, protohelp=protohelp,
    comment=comment, protocol=protocol, settings=settings, search=search, cite=cite,
-   catalog=catalog, review=review
+   catalog=catalog, review=review, outcome=outcome, trial=trial, arm=arm, group=group
 )
 saveRDS(table.definition.list, file="app/table.definition.list.RDS")
 ##################################################################################
 
 rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
                               F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,
-                              F30,F31,F31,F32,F33,F34)
-rm(arm, cite, cull, page, project, catalog, review, search, trial, user, membership, protocol, protoHelp,
-   settings, comment)
+                              F30,F31,F32,F33)
+rm(cite, page, project, catalog, review, search, user, membership, protocol, protohelp,
+   settings, comment, outcome, trial, arm, group)
