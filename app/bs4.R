@@ -67,6 +67,7 @@ bs4 = function(flavor, ...) {                                            # the i
       "cdT" = {attribs$class = paste("card-title", attribs$class)},      # Header is inside a color bar above the body
       "cdt" = {attribs$class = paste("card-text", attribs$class)},       # Title-text go within body
       "btn" = {return(bs4Button(attribs, children))},                    # button (see code below)
+      "tin" = {return(bs4TextInput(attribs, children))},                 # basic text input
       "cbx" = {return(bs4Checkbox(attribs, children))},                  # checkbox (see code below)
       "quill" =  {return(bs4Quill(attribs, children))},                  # Quill editor (see code below and https://quilljs.com/)
       "chart" =  {return(bs4Chart(attribs, children))},                  # chart.js
@@ -449,4 +450,8 @@ bs4Comments = function(attribs, children) {
     return(
       bs4("r", bs4("c12", HTML0("<p>Commenting still under construction.</p>")))
    )
+}
+
+bs4TextInput = function(attribs, children) {
+   return(paste0(children, "<br><input type='text' class='form-control', id='", attribs$id,"'>"))
 }
