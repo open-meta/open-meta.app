@@ -54,24 +54,23 @@ DB.Initialization = function(burnItAllDown=FALSE) {
    SQL.Users <- dbGetQuery(dbLink, "SELECT `user` FROM `mysql`.`user`;")
 
    # New school init...
-   filename <- "../om2_dbs.sql"
-   if(file.exists(filename)) {
-      sql <- stri_read_lines(filename, encoding="utf8")
-      sqlLength <- length(sql)
-      cmd <- ""
-      for(i in 1:sqlLength) {
-         if(sql[i]!="" && str_sub(sql[i],1,3)!="-- ") {
-            cmd <- paste0(cmd, sql[i])
-            if(str_sub(cmd,-1,-1)==";") {
-               r <- dbExecute(dbLink, cmd)
-               cmd <- ""
+   filename <- "../om2_dbs.sql"                            # .sql dump file created with mysqldump or HeidiSQL
+   if(file.exists(filename)) {                             # see: http://www.open-meta.org/technology/how-to-source-a-mysqldump-file-with-syntax-statements/
+      sql <- stri_read_lines(filename, encoding="utf8")    # read file into sql character vector
+      cmd <- ""                                            # initialize command
+      for(line in sql) {                                   # loop through sql vector, one line at a time
+         if(line!="" && str_sub(line,1,3)!="-- ") {        # skip blank and comment lines
+            cmd <- paste0(cmd, line)                       # add current line to command
+            if(str_sub(cmd,-1,-1)==";") {                  # if command ends with ";", execute it
+               r <- dbExecute(dbLink, cmd)                 #    else add more lines to cmd
+               cmd <- ""                                   # start over with next command
             }
          }
       }
       return("Initialization of database is complete...")
    }
 
-### The following code is still used for new installs when there's not a om2-dbs.sql file!!
+### The following code is still used for new installs when there's not an sql dump file!!
    # Old school init....
 
    # does om$prime database exist?
