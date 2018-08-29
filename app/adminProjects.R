@@ -210,7 +210,7 @@ observeEvent(input$js.omclick, {
          r = recGet(S$db, "settings", "**", WHERE=tibble(c("name", "=", "failBoxNames")))
          r$value[2] = toJSON(c("Not in English", "Not an RCT", "No valid participants",
                                "NVI - not daily", "NVI - not D3", "NVI - other",
-                               "No valid comparision", "No valid outcome"))
+                               "No valid comparison", "No valid outcome"))
          r = recSaveR(r, db=S$db)
          S$PM$progress$close()
          S$editPage <<- FALSE

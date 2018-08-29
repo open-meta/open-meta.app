@@ -350,7 +350,7 @@ document object identifiers (DOIs).</p>
             server = FALSE
             )
             output$yboxSearch = renderUI(tagList(
-               bs4("r", class="mt-3", bs4("c1"), bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(
+               bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(
 "<p>If you are a member of this project with appropriate permissions, you can upload a citation file from a bibliographic
 database here by selecting <i>New Search</i>. You can also do a live search of PubMed. The search record allows you to
 document the database and query, including start and end dates. You can save a search to process

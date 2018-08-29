@@ -45,7 +45,7 @@ rv$menuActive = 1    # Start out on first sub-menu
 
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({rv$render; isolate({
-   reviewWidgets = ""                              # In returned tagList, but not in all pages!
+      reviewWidgets = ""                           # In returned tagList, but not in all pages!
       switch(as.character(rv$menuActive),
          "1" = {                                   # 1 is the Dashboard
             cites = recGet(S$db, "catalog", c("catalogID", "dupOf", "reviewBest", "reviewCount"), tibble(c("catalogID", ">", 0)))
@@ -270,7 +270,6 @@ HTML(paste0("<div class='row justify-content-center'><div class='col-11'>",
                                                 '" target="_blank">DOI</a>; ')),
                                       paste0('<a href="https://scholar.google.com/scholar?q=',
                                              urlEncodePath(S$REV$cite2$title[2]),
-#                                             urlEncodePath(str_replace_all(S$REV$cite2$title[2], " ", "+")),
                                              '" target="_blank">Google Scholar</a><br>'))),
                      bs4("c12", bs4("hr")),
                      bs4("c12", HTML0(S$REV$cite2$abstract[2]))

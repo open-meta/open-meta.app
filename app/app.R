@@ -597,7 +597,7 @@ server <- function(input, output, session) {
                cat(paste0("...user is ", S$U$userName, "\n"))
             }
          } else {                                     # This happens when we BurnItAllDown
-            cat(paste0("\nWARNING: browser session id ", input$js.sessionID, " not in users table.\n\n"))
+#            cat(paste0("\nWARNING: browser session id ", input$js.sessionID, " not in users table.\n\n"))
             S$U <<- emptySU()                         # Use a blank S$U
          }
       }
