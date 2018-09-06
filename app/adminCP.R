@@ -28,6 +28,10 @@ output$uiMeat <- renderUI({rv$limn; isolate({
       if(S$U$sPowers >= S$PG$spReq) {   # hide meat from weaklings
          # uploadMaxMB = settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxMB")))
          uploadMaxCites = settingsGet(c("value","comment"), tibble(c("name", "=", "uploadMaxCites")))
+         shinyinfo = ""
+         if(str_sub(getwd(),2,2)!=":") { # skip when on Windows
+            shinyinfo = HTML0("<pre>", str_trim(paste0(system('shiny-server --version', intern = TRUE), collapse="\n")), "</pre>")
+         }
          return(tagList(
             bs4("r", align="hc", bs4("c8",
 #               ttextInput("uploadMaxMB", "Maximum File Upload Size", uploadMaxMB$value),
@@ -39,7 +43,9 @@ output$uiMeat <- renderUI({rv$limn; isolate({
             bs4("r", align="hc", bs4("c8",
                bs4("btn", id="restart", n=1, q="r", "Restart App"),
                bs4("hr")
-            ))
+            )),
+            shinyinfo,
+            HTML0("<pre>", str_trim(paste0(capture.output(sessionInfo(), file=NULL), collapse="\n")), "</pre>")
          ))
       }
    }
