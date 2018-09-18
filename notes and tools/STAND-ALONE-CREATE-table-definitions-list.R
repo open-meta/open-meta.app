@@ -317,11 +317,17 @@ F10 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull
 F11 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 group=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11)
 
+#ids
+F1  = tibble(Name="idsID",     Type="VARCHAR",   Size="70",  NoSign="F", NoNull="T", Default="s",       Key="PRIMARY KEY")
+F2  = tibble(Name="table",     Type="VARCHAR",   Size="15",  NoSign="F", NoNull="T", Default="s",       Key="")
+F3  = tibble(Name="idAsName",  Type="VARCHAR",   Size="15",  NoSign="F", NoNull="T", Default="s",       Key="")
+ids=rbind(F1,F2,F3)
+
 ### Combine into a list and save
 table.definition.list = list(
    page=page, user=user, project=project, membership=membership, protohelp=protohelp,
    comment=comment, protocol=protocol, settings=settings, search=search, cite=cite,
-   catalog=catalog, review=review, outcome=outcome, trial=trial, arm=arm, group=group
+   catalog=catalog, review=review, outcome=outcome, trial=trial, arm=arm, group=group, ids=ids
 )
 saveRDS(table.definition.list, file="app/table.definition.list.RDS")
 ##################################################################################
@@ -330,4 +336,4 @@ rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
                               F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,
                               F30,F31,F32,F33)
 rm(cite, page, project, catalog, review, search, user, membership, protocol, protohelp,
-   settings, comment, outcome, trial, arm, group)
+   settings, comment, outcome, trial, arm, group, ids)
