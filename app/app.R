@@ -128,7 +128,6 @@ naf = function(x) {          # convert NAs in a logical vector to FALSE
 
 source("sql-core.R", local=TRUE)
 
-if(debugON) { print("Getting SQL.DBs...") }
 root.pool <- dbPool(                                  # log in as root to see if there are databases
    drv = RMariaDB::MariaDB(),
    host = "localhost",
