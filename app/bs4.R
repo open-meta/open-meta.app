@@ -68,7 +68,9 @@ bs4 = function(flavor, ...) {                                            # the i
       "cdt" = {attribs$class = paste("card-text", attribs$class)},       # Title-text go within body
       "btn" = {return(bs4Button(attribs, children))},                    # button (see code below)
       "tin" = {return(bs4TextInput(attribs, children))},                 # basic text input
-      "cbx" = {return(bs4Checkbox(attribs, children))},                  # checkbox (see code below)
+      "sin" = {return(bs4SelectInput(attribs, children))},               # basic text input
+      "cbx" = {return(bs4Checkbox(attribs, children))},                  # T/F checkbox (see code below)
+      "crg" = {return(bs4CRGroups(attribs, children))},                  # Value checkbox or radio button group (see code below)
       "quill" =  {return(bs4Quill(attribs, children))},                  # Quill editor (see code below and https://quilljs.com/)
       "chart" =  {return(bs4Chart(attribs, children))},                  # chart.js
       "pgn" =  {return(bs4Pagination(attribs, children))},               # pagination
@@ -189,6 +191,7 @@ bs4Menus = function(attribs) {
          id = paste0(attribs$id, "_", attribs$n[i])
          action = paste0('id="', id, '"')
       }
+#      menuLines = paste0(menuLines, '<li class="nav-item ', attribs$class, '"><a ',
       menuLines = paste0(menuLines, '<li class="nav-item"><a ',
                     action,
                     ' class="nav-link',
@@ -218,6 +221,7 @@ bs4Quill = function(attribs, children) {
       attribs$min="1"
       attribs$max="65"    # in vertical height units; 100 is size of browser window
    }
+   placeholder=""
    if(attribs$h=="auto") {
       style = paste0("height:auto; min-height:", attribs$min, "rem; max-height:", attribs$max, "vh;")
       placeholder = "placeholder: 'Edit window grows with text...',"
@@ -225,24 +229,37 @@ bs4Quill = function(attribs, children) {
       style = paste0('height:', attribs$h, 'rem;')
       placeholder = ""
    }
+   if(is.null(attribs$label)) {
+      labeltag = ""
+   } else {
+      labeltag = paste0('<label class="mb-2" for="', id=attribs$id, '">', attribs$label , '</label>' )
+      placeholder = ifelse(is.null(attribs$placeholder) || attribs$placeholder=="",
+                           placeholder, paste0("placeholder: '", attribs$placeholder, "',\n"))
+   }
+   if(is.null(attribs$value)) {
+      text2edit = HTML(unlist(children))
+   } else {
+      text2edit = attribs$value
+   }
    return(tagList(
-      bs4("dx", id=attribs$id, style=style, class="ql-container mb-3", HTML(unlist(children))),
+      HTML0(labeltag),
+      bs4("dx", id=attribs$id, style=style, class="ql-container mb-3", text2edit),
       HTML0(
-         "<script>
-            var ", attribs$id, " = new Quill('#", attribs$id, "', {
-               modules: {
-                  toolbar: [
-                     ['bold', 'italic', 'underline', { 'script': 'sub'}, { 'script': 'super' }, 'code'],
-                     [{ 'list': 'bullet' }, { 'list': 'ordered'}, { 'indent': '-1'}, { 'indent': '+1' }],
-                     ['link', 'blockquote', 'code-block'],
-                     ['clean']
-                  ]
-               },",
-               placeholder,
-               "theme: 'snow',
-               formats: ['bold', 'italic', 'underline', 'script', 'blockquote', 'indent', 'list', 'link', 'code', 'code-block', 'header']
-            });
-         </script>"
+      "<script>
+         var ", attribs$id, " = new Quill('#", attribs$id, "', {
+            modules: {
+               toolbar: [
+                  ['bold', 'italic', 'underline', { 'script': 'sub'}, { 'script': 'super' }, 'code'],
+                  [{ 'list': 'bullet' }, { 'list': 'ordered'}, { 'indent': '-1'}, { 'indent': '+1' }],
+                  ['link', 'blockquote', 'code-block'],
+                  ['clean']
+               ]
+            },",
+            placeholder,
+            "theme: 'snow',
+            formats: ['bold', 'italic', 'underline', 'script', 'blockquote', 'indent', 'list', 'link', 'code', 'code-block', 'header']
+         });
+      </script>"
       )
    ))
 }
@@ -258,6 +275,11 @@ bs4Quill = function(attribs, children) {
 bs4Button = function(attribs, children) {
    if(is.null(attribs$uid)) {                                                     # unique id
       attribs$uid = paste0(attribs$id, "_", attribs$n)                            # makes unique ID (required!!!)
+   }
+   if(is.null(attribs$style)) {
+      style=""
+   } else {
+      style = paste0(' style="',attribs$style,'"')
    }
    attribs$class = paste("btn border-dark", attribs$class)
    if("xs" %in% attribs$q) {attribs$class = paste(attribs$class, "btn-xs")}
@@ -281,7 +303,10 @@ bs4Button = function(attribs, children) {
    if("or" %in% attribs$q) {attribs$class = paste(attribs$class, "btn-outline-danger")}
    if("od" %in% attribs$q) {attribs$class = paste(attribs$class, "btn-outline-dark")}
    if("k"  %in% attribs$q) {attribs$class = paste(attribs$class, "btn-link")}
-   return(HTML0('<button id="', attribs$uid, '" class="', attribs$class, '">', unlist(children[[1]]), '</button>'))
+   if("X"  %in% attribs$q) {attribs$class = paste(attribs$class, "disabled")}     # see http://www.open-meta.org/technology/shiny-button-observer-update-ignoring-clicks-on-disabled-buttons/
+   return(HTML0('<button id="', attribs$uid,
+                '" class="', attribs$class,
+                '"', style, '>', unlist(children[[1]]), '</button>'))
 }
 
 # Button Groups: this smacks the buttons together; vertical might be useful with icons?
@@ -306,11 +331,11 @@ bs4Button = function(attribs, children) {
 bs4Checkbox = function(attribs, children) {
    cbxNames = children[[1]]
    cbxL = length(cbxNames)
-   if(is.null(attribs$il)) {               # Allow missing or length 1 attribs$il  (inline)
-      attribs$il = rep(FALSE, cbxL)
+   if(is.null(attribs$inline)) {               # Allow missing or length 1 attribs$inline
+      attribs$inline = rep(FALSE, cbxL)
    } else {
-      if(length(attribs$il)==1) {
-         attribs$il = rep(attribs$il, cbxL)
+      if(length(attribs$inline)==1) {
+         attribs$inline = rep(attribs$inline, cbxL)
       }
    }
    if(is.null(attribs$dis)) {              # Allow missing or length 1 attribs$dis  (disabled)
@@ -322,18 +347,18 @@ bs4Checkbox = function(attribs, children) {
    }
 # print(length(attribs$id))
 # print(length(attribs$ck))
-# print(length(attribs$il))
+# print(length(attribs$inline))
 # print(length(attribs$dis))
 # print(cbxL)
-   if(!all(length(attribs$id), length(attribs$ck), length(attribs$il), length(attribs$dis) %in% cbxL)) {
+   if(!all(length(attribs$id), length(attribs$ck), length(attribs$inline), length(attribs$dis) %in% cbxL)) {
       stop("In bs4Checkbox(), attribs vectors have different lengths")
    }
 # ck = a T/F vector where T means checked
    checked = rep("", cbxL)
    checked[attribs$ck] = ' checked="checked"'
-# il = a T/F vector where T means inline
+# attribs$inline = a T/F vector where T means inline
    class = rep("form-group shiny-input-container mb-0", cbxL)
-   class[attribs$il] = "shiny-input-container-inline form-check-inline"
+   class[attribs$inline] = "shiny-input-container-inline form-check-inline"
 # dis = a T/F vector where T means disabled
    disabled = rep("", cbxL)
    disabled[attribs$dis] = ' disabled="disabled"'
@@ -453,5 +478,61 @@ bs4Comments = function(attribs, children) {
 }
 
 bs4TextInput = function(attribs, children) {
-   return(paste0(children, "<br><input type='text' class='form-control', id='", attribs$id,"'>"))
+   return(HTML0('<label for="', attribs$id, '">', unlist(children), '</label><br>',
+                '<input type="text" class="form-control ', attribs$class ,'" id="', attribs$id, '">'))
 }
+
+# attribs$options should be a character vector of option names
+# attribs$value should the name of the selected option
+# size is how many lines of the selector should be displayed, but anything other than 1 is really ugly
+bs4SelectInput = function(attribs, children) {
+   selected = rep("", length(attribs$options))
+   selected[attribs$options %in% attribs$value] = "selected"
+   options=""
+   for(i in 1:length(attribs$options)) {
+      options <- paste0(options, '<option value="', attribs$options[i], '" ', attribs$value[i],'>', attribs$options[i], '</option>')
+   }
+   return(HTML0(unlist(children), '<br><select id="', attribs$id, '" class="form-control ', attribs$class ,'">', options, '</select>'))
+}
+
+# This function creates either checkbox (attribs$type="c") or radio button (attribs$type="r") GROUPS.
+# The id applies to the whole group and input$id returns a value vector of the selected options(s).
+# In addition to attribs$type and attribs$id, requires attribs$options (a vector of box/btn names).
+#   Optional attribs are *value* (a vector of selected box/btn options; defaults to ""),
+#      *label* (a GROUP label, defaults to ""), and *inline* (defaults to FALSE).
+bs4CRGroups = function(attribs, children) {
+   if(debugON) {
+      if(length(children)>0) {warning("In bs4CRGroups, unnamed text is ignored.")}
+      if(is.null(attribs$type)) {stop("In bs4CRGroups, attribs$type is missing.")}
+      if(is.null(attribs$id)) {stop("In bs4CRGroups, attribs$id is missing.")}
+      if(is.null(attribs$options)) {stop("In bs4CRGroups, attribs$options is missing.")}
+      if(is.null(attribs$value)) { attribs$value=""}      # the selected options
+      if(is.null(attribs$label)) { attribs$label="" }     # label for the group
+   }
+   cRr <- ifelse(attribs$type=="c", "checkbox", "radio")
+   if(is.null(attribs$inline) || !attribs$inline) { il=FALSE }   # allow missing attribs$inline
+   s = attribs$options %in% attribs$value    # makes a T/F vector the length of attribs$options
+   items = ""
+   for(i in 1:length(attribs$options)) {
+      items = paste0(items, '
+      <div class="', cRr, ' inline'[attribs$inline], '">
+         <label>
+            <input type="', cRr, '" name="', attribs$id, '" value="', attribs$options[i], '"', ' checked="checked"'[s[i]], '/>
+            <span>', attribs$options[i], '</span>
+         </label>
+      </div>
+      ')
+   }
+   return(
+      HTML0('
+<div id="', attribs$id, '" class="form-group shiny-input-', cRr, 'group shiny-input-container', '-inline form-check-inline'[attribs$inline],'">
+   <label class="mb-2" for="', attribs$id, '">', attribs$label, '</label>
+   <div class="shiny-options-group">',
+items, '
+   </div>
+</div><div class="clearfix"></div>
+'
+      )
+   )
+}
+
