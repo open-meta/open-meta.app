@@ -30,6 +30,7 @@ initProject = function(projectID, projectName, pool) {
    r = dbExecute(dbLink, createTable(S$db, "trial"))
    r = dbExecute(dbLink, createTable(S$db, "arm"))
    r = dbExecute(dbLink, createTable(S$db, "group"))
+   r = dbExecute(dbLink, createTable(S$db, "ids"))
 
 ### Membership table is done by caller on both new installs and new projects
 
