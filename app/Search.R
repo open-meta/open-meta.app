@@ -444,7 +444,7 @@ project. The <i>Update</i> button creates a duplicate search record with the cur
                               format(S$SRCH2$doiCount[2], big.mark=","), "' readonly='readonly'>")
                            )
                         ),
-                        HTML("<div class='mt-3'>Comments</div>"),
+                        HTML("<div>Comments</div>"),
                         bs4("quill", id="comment", S$SRCH2$comment[2]),
                         HTML('<div class="text-right mt-3">'),
                         bs4("btn", id="cancel", n=1, q="b", "Cancel"),
