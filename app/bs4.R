@@ -243,7 +243,7 @@ bs4Quill = function(attribs, children) {
    }
    return(tagList(
       HTML0(labeltag),
-      bs4("dx", id=attribs$id, style=style, class="ql-container mb-3", text2edit),
+      bs4("dx", id=attribs$id, style=style, class="ql-container mb-3", ariaDescribedby=paste0("aria", attribs$id), text2edit),
       HTML0(
       "<script>
          var ", attribs$id, " = new Quill('#", attribs$id, "', {
