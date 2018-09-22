@@ -169,16 +169,23 @@ no data is available for that graph at this time (no searches have been processe
                         bs4("c12", bs4("hr0", class="pb-4")),
                         bs4("r",
                            bs4("c12",
-HTML(paste0("<div class='row justify-content-center'><div class='col-11'>",
-    "<b>Review Status:</b> ", ifelse(cites$reviewBest==0, "Not reviewed",
-      ifelse(cites$reviewBest==1, "Stage 1 Fail", "Stage 1 Pass")),
-    " <b>Number of reviews:</b> ", cites$reviewCount, "<br>",
-    "<span style='font-size: 1.25rem; color:#fff;'>", cites$title, "</span><br>",
-    "<b>By: </b>", cites$author, "<br>",
-    "<b>Year:</b> ", cites$Y, " <b>Journal:</b> ", cites$journal,  "<br>",
-    "</div>",
-    "<div class='col-1'>", cites$btn,
-    "</div>", bs4("c12", bs4("hr")), "</div>", collapse = ""))
+# This does the entire table with one vectorized paste0(). "cites" is a tibble and its columns are vectors.
+#    The "collapse" at the end creates one long string.
+# In this particular example, there's one row with a col-11 containing all the data, using <br> to start new
+#    lines, and col-1 for the button. Note that cites$btn isn't stored in MySQL, but is added to "cites" above.
+HTML(paste0(
+'<div class="row justify-content-center">
+   <div class="col-11">
+      <b>Review Status:</b> ',
+         ifelse(cites$reviewBest==0, 'Not reviewed', ifelse(cites$reviewBest==1, 'Stage 1 Fail', 'Stage 1 Pass')), '
+         <b>Number of reviews:</b> ', cites$reviewCount, '<br>
+      <span style="font-size: 1.25rem; color:#fff;">', cites$title, '</span><br>
+      <b>By: </b>', cites$author, '<br>
+      <b>Year:</b> ', cites$Y, ' <b>Journal:</b> ', cites$journal,  '<br>
+   </div>
+   <div class="col-1">', cites$btn, '</div>',
+   bs4('c12', bs4('hr')), '
+</div>', collapse = ''))     # End of paste0()
                         )),
                         bs4("pgn", np=S$PGN$pageCount, ap=S$PGN$activePage)
                      )
@@ -503,7 +510,7 @@ observeEvent(rv$runFilter, {
          S$modal_size <<- "s"
          rv$modal_warning <- rv$modal_warning + 1
       } else {
-         S$PGN$filteredIDs <<- S$PGN$FR$catalogID
+         S$PGN$filteredIDs <<- as.integer(S$PGN$FR$catalogID)
          S$PGN$chunkedIDs <<- chunker(S$PGN$filteredIDs, S$PGN$itemsPerPage)
          S$PGN$pageCount <<- length(S$PGN$chunkedIDs)
          S$PGN$activePage <<- 1
