@@ -39,21 +39,13 @@ imWidth <- imGetBlankFORMrow("radio")
    imWidth$inline = TRUE
    imWidth$width <- "50%"
 
-imOther1 <- imGetBlankFORMrow("checkbox")            # no disable (of entire widget)
-   imOther1$id <- "other"                            #   used by quill, radio, and checkbox
-   imOther1$label <- "Other options"                 #   Note: HTML allows individual radio/checkbox options to
-   imOther1$options <- "sameline"                    #      be disabled, but we don't support that
-   imOther1$inline = TRUE
-   imOther1$sameline <- TRUE
-   imOther1$width <- "50%"
-
-imOther2 <- imGetBlankFORMrow("checkbox")            # options include disabled
-   imOther2$id <- "other"                            #    used by text, numeric, and select
-   imOther2$label <- "Other options"
-   imOther2$options <- "sameline; disabled"
-   imOther2$inline = TRUE
-   imOther2$sameline <- TRUE
-   imOther2$width <- "50%"
+imOther <- imGetBlankFORMrow("checkbox")            # options include disabled
+   imOther$id <- "other"                            #    used by text, numeric, and select
+   imOther$label <- "Other options"
+   imOther$options <- "sameline; disabled"
+   imOther$inline = TRUE
+   imOther$sameline <- TRUE
+   imOther$width <- "50%"
 
 
 ### Simple Text input
@@ -83,7 +75,7 @@ w=w+1
 w=w+1
    r[w,] <- imWidth
 w=w+1
-   r[w,] <- imOther2
+   r[w,] <- imOther
 imBlankforms[["text"]] <- r          # userType is "Simple Text"
 
 ### Text Editor input
@@ -107,7 +99,7 @@ w=w+1
 w=w+1
    r[w,] <- imWidth
 w=w+1
-   r[w,] <- imOther1
+   r[w,] <- imOther
 imBlankforms[["quill"]] <- r         # userType is "Text editor"
 
 ### Numeric input
@@ -155,7 +147,7 @@ w=w+1
 w=w+1
    r[w,] <- imWidth
 w=w+1
-   r[w,] <- imOther2
+   r[w,] <- imOther
 imBlankforms[["number"]] <- r         # userType is "Numeric"
 
 ### Select input
@@ -182,7 +174,7 @@ w=w+1
 w=w+1
    r[w,] <- imWidth
 w=w+1
-   r[w,] <- imOther2
+   r[w,] <- imOther
 imBlankforms[["select"]] <- r         # userType is "Select (dropdown)"
 
 ### Radio button input
@@ -217,7 +209,7 @@ w=w+1
 w=w+1
    r[w,] <- imWidth
 w=w+1
-   r[w,] <- imOther1
+   r[w,] <- imOther
 imBlankforms[["radio"]] <- r         # userType is "Radio buttons"
 
 ### Checkboxes input
@@ -251,7 +243,7 @@ w=w+1
 w=w+1
    r[w,] <- imWidth
 w=w+1
-   r[w,] <- imOther1
+   r[w,] <- imOther
 imBlankforms[["checkbox"]] <- r         # userType is "Checkboxes"
 
 ### TF_Chex input

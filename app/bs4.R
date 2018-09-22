@@ -241,6 +241,11 @@ bs4Quill = function(attribs, children) {
    } else {
       text2edit = attribs$value
    }
+   if(is.null(attribs$disabled) || !attribs$disabled) {
+      disabled = ""
+   } else {
+      disabled = paste0(attribs$id, ".enable(false);")
+   }
    return(tagList(
       HTML0(labeltag),
       bs4("dx", id=attribs$id, style=style, class="ql-container mb-3", ariaDescribedby=paste0("aria", attribs$id), text2edit),
@@ -259,7 +264,8 @@ bs4Quill = function(attribs, children) {
             "theme: 'snow',
             formats: ['bold', 'italic', 'underline', 'script', 'blockquote', 'indent', 'list', 'link', 'code', 'code-block', 'header']
          });
-      </script>"
+", disabled,
+      "</script>"
       )
    ))
 }

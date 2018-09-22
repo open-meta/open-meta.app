@@ -250,12 +250,15 @@ r <- paste0(r, label,
    }
 
 ### checkbox/radio
+   # Disable all checkboxes, but only uncheck radio buttons (for visual clarity)
    if(any(c("checkbox", "radio") %in% tr$type)) {
       if(options[1]!="") {             # if there are no options at all, the options vector will have a blank first option
          for(i in 1:length(options)) {
             optionsCode = paste0(optionsCode,
 '      <div class="form-check', ' form-check-inline'[tr$inline], '">
-         <input class="form-check-input" type="', tr$type, '" name="', tr$id ,'" id="', paste0(tr$id,i), '" value="', options[i], '"', ' checked="checked"'[options[i] %in% value], '/>
+         <input class="form-check-input" type="', tr$type, '" name="', tr$id ,'" id="', paste0(tr$id,i),
+            '" value="', options[i], '"', ' checked="checked"'[options[i] %in% value],
+            disabled[tr$type=="checkbox" || (tr$type=="radio" && !(options[i] %in% value))], '/>
          <label class="form-check-label" for="', paste0(tr$id,i) ,'">', options[i], '</label>
       </div>')
          }
@@ -273,7 +276,8 @@ optionsCode, '
 ### quill
    if("quill" %in% tr$type) {
       r <- paste0(r, label,
-               as.character(bs4("quill", id=tr$id, value=value, ariaD=ariaD, placeholder=tr$placeholder)))   # as.character to convert from tagList()
+               as.character(bs4("quill", id=tr$id, value=value, placeholder=tr$placeholder,
+                  ariaD=ariaD, disabled=tr$disabled)))   # as.character to convert from tagList()
    }
 
 ### helptext and return
