@@ -169,9 +169,9 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
       }
    }
 # Turn SELECT into selects
-   if(SELECT[1]!="*") {                                    # don't quote "*"
-      selects = dbQuoteIdentifier(dbLink, SELECT)            #   but quote everything else (SELECT is a vector)
-      selects = paste0(selects, collapse=",")              #   then collapse the vector into a single string
+   if(SELECT[1]!="*") {                                       # don't quote "*"
+      selects = dbQuoteIdentifier(dbLink, SELECT)             #   but quote everything else (SELECT is a vector)
+      selects = paste0(selects, collapse=",")                 #   then collapse the vector into a single string
    } else {
       selects = "*"
    }
