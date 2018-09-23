@@ -35,12 +35,13 @@ imGetBlankform <- function(type) {            # type refers to the type of input
 # Some initializations
 S$IN$inputType <- 1
 S$IN$FORMrowform <- imGetBlankform(S$IN$codeTypes[S$IN$inputType])
+rv$imGetFORMData <- 0
 
 # Runs when Project->Members & Settings->Customized Inputs->type is selected
 # Load S$IN$FORM with a FORM from the settings file if there is one;
 #    otherwise load a FORM with the right columns but no rows. Also sets two table-name-related globals.
 imGetFORM = function(myTable) {
-   S$IN$tableName <<- myTable                              # Need this to save an edited FORM later
+   S$IN$TABLE <<- myTable                                  # Need this to save an edited FORM later
    S$IN$settingsName <<- paste0("inputForm-", myTable)     # imSaveform2FORMrow() will need this too
    r <-recGet(S$db, "settings", "value", tibble(c("name", "=", S$IN$settingsName)))
    if(r$value!="") {                                       # did recGet return anything?
@@ -250,7 +251,7 @@ r <- paste0(r, label,
    }
 
 ### checkbox/radio
-   # Disable all checkboxes, but only uncheck radio buttons (for visual clarity)
+   # Disable all checkboxes, but only unchecked radio buttons (for visual clarity)
    if(any(c("checkbox", "radio") %in% tr$type)) {
       if(options[1]!="") {             # if there are no options at all, the options vector will have a blank first option
          for(i in 1:length(options)) {
@@ -396,7 +397,7 @@ imSaveform2FORMrow <- function() {
       id <- paste0("id", paste0(utf8ToInt(name), collapse=""))   # create valid id syntax for both R and JavaScript
       FORMrow[1, "id"] <- id                                     # put this id in FORMrow
       r = dbExecute(dbLink, paste0("INSERT INTO `", S$db, "`.`ids` VALUES ('",
-                                   id, "', '", S$IN$tableName, "', '", name, "');"))
+                                   id, "', '", S$IN$TABLE, "', '", name, "');"))
       ## if(r!=1), insert failed; however, imFormValidates() checked for uniqueness just milliseconds ago
    }
    form <- imGetBlankform(formtype)           # Get the form for this type of FORMrow; we need its ids
@@ -453,8 +454,77 @@ imSaveFORM = function() {
    r <- recSave(r, S$db)
 }
 
-imSaveFORMData <- function() {
-
-   ### Missing code here
-
+# Get the groupNUM, based on the recID
+#   Needs S$IN$flag$firstOne
+#         S$IN$TABLE
+#         S$IN$recID
+imID2NUM <- function() {
+   if(S$IN$flag$firstOne) {                                                             # first outcome, use 1
+      return(1)
+   } else {
+      SELECT = paste0(S$IN$TABLE,"NUM")
+      tableID = paste0(S$IN$TABLE,"ID")
+      if(S$IN$recID>0) {                                                                 # already exists, get it
+         R <- recGet(S$db, S$IN$TABLE, SELECT, WHERE=tibble(c(tableID, "=", S$IN$recID)))
+         return(as.numeric(R$outcomeNUM))
+      } else {
+         R <- recGet(S$db, S$IN$TABLE, SELECT, WHERE=tibble(c(tableID, ">", 0)))         # not first: get max of
+         return(max(as.numeric(R$outcomeNUM)) + 1)                                       #   outcomeNUMs and add 1
+      }
+   }
 }
+
+# Run imGetFORMData by incrementing rv$imGetFORMData
+# Saves values of inputs into $values column of S$IN$FORM
+S$IN$flag$imSAVE <- "start"
+observeEvent(c(input$js.editorText, rv$imGetFORMData), {
+   if(rv$imGetFORMData>0 && nrow(S$IN$FORM)>0 && S$P$Modify) {        # Don't actually run this until we get an increment
+      if(S$IN$flag$imSAVE=="start") {                                 #   and only if there are rows in FORM and the
+         S$IN$flag$imSAVE <<- "finish"                                # First deal with Quill inputs, if any
+         QTF <<- S$IN$FORM$type=="quill"                              # TF vector of rows with quill inputs
+         S$IN$Qs <<- which(QTF)                                       # Row numbers of quill inputs
+         S$IN$Qn <<- sum(QTF)                                         # Number of quill inputs
+         S$IN$Qindex <<- 1                                            # Index to quill inputs
+         if(S$IN$Qn>0) {
+            return(js$getEdit(S$IN$FORM$id[S$IN$Qs[S$IN$Qindex]]))    # This will start us over at top
+         }
+      }
+      if(S$IN$flag$imSAVE=="finish") {
+         if(S$IN$Qn>0) {                                              # Are we recovering Quill data?
+            S$IN$FORM$value[S$IN$FORM$id==input$js.editorText[1]] <<- # Yes, use the input id to save the
+               input$js.editorText[2]                                 #   edited text in $value; Quill
+         }                                                            #   itself does the HTML security strip
+         S$IN$Qindex <<- S$IN$Qindex + 1                              # Increment quill index
+         if(S$IN$Qindex <= S$IN$Qn) {                                 #    and contine until there are no more Quill ids
+            return(js$getEdit(S$IN$FORM$id[S$IN$Qs[S$IN$Qindex]]))    # This will start us over at top
+         }
+         ids = S$IN$FORM$id                                           # now get the regular inputs
+         if(S$IN$Qn>0) {
+            ids[-S$IN$Qs]                                             # Remove quill ids, if any
+         }
+         for(i in 1:length(ids)) {
+            if(is.null(input[[ids[i]]])) {                            # input[[id]] can be NULL for checkboxes
+               rawI <- ""                                             #   where nothing is checked
+            } else {
+               rawI <- str_trim(stripHTML(as.character(input[[ids[i]]]))) # trim and strip HTML from input$
+            }
+            S$IN$FORM$value[i] <<- ifelse(is.na(rawI), "", rawI)      # NA happens when a numeric input is empty
+         }
+      }
+      S$IN$flag$imSAVE <<- "start"                                    # Clean up for next run
+      NUM <- imID2NUM()                                               # We'll need this for each row, so save in variable
+      for(i in 1:nrow(S$IN$FORM)) {                                   # Save FORM values
+         R <-  recGet(S$db, S$IN$TABLE, SELECT="**",
+                  WHERE=tibble(c(paste0(S$IN$TABLE, "NUM"), "=", NUM), c("name", "=", S$IN$FORM$name[i])))
+         R$outcomeNUM[2] = NUM                                        # While edited recs will already have NUM
+         R$name[2] = S$IN$FORM$name[i]                                #    and Name, must do this for new rows!
+         R$value[2] = S$IN$FORM$value[i]
+         R <- recSave(R, S$db)
+      }
+      rv$limn = rv$limn+1                                             # Wait till here to re-render
+   }
+})
+
+
+
+

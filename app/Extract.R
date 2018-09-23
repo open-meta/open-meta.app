@@ -15,7 +15,8 @@ source("chokidar.R", local=TRUE)
 # load the inputMeta.R code (also used by other pages)
 source("inputMeta.R", local=TRUE)
 
-S$PGN$itemsPerPage <- 30       # Is this the only pagination thing we need???
+S$PGN$itemsPerPage <- 30       # Are these the only pagination things we need???
+S$PGN$activePage <- 1
 
 rv$menuActive = 1    # Start out on first sub-menu
 
@@ -34,18 +35,23 @@ if(S$P$Msg=="") {
                   uiOutput("showOutcomes"),
                   uiOutput("yboxOutcomes")))
             )
-            output$addOutcome <- renderUI(tagList(
-               bs4("btn", id="addInput", q="g", "Add an Outcome"),
-               bs4("hr")
-            ))
-            S$PGN$activePage <<- 1
+            output$addOutcome <- renderUI(
+               if(S$P$Modify) {                                                          # Only show Add button if
+                  tagList(                                                               #   user has permission to Add
+                     bs4("btn", id="addInput", q="g", "Add an Outcome"),
+                     bs4("hr")
+                  )
+               } else {
+                  ""
+               }
+            )
             output$showOutcomes  <- renderUI({
                noResultsMsg <- "No Outcomes have been added to this project yet."
-               TABLE = "outcome"
+               S$IN$TABLE <<- "outcome"
                WHERE = tibble(c("name", "=", "Outcome"))
-               R <- recGet(S$db, TABLE, paste0(TABLE,"ID"), WHERE)             # Get all record IDs
+               R <- recGet(S$db, S$IN$TABLE, paste0(S$IN$TABLE,"ID"), WHERE)             # Get all record IDs
                if(R[1,1]==0) {
-                  S$PGN$flag$firstOne <<- TRUE
+                  S$IN$flag$firstOne <<- TRUE
                   tagList(
                      bs4("r",
                     #    bs4("c12", bs4("hr0", class="pb-4")),
@@ -54,12 +60,15 @@ if(S$P$Msg=="") {
                      )
                   )
                } else {
-                  S$PGN$flag$firstOne <<- FALSE
+                  S$IN$flag$firstOne <<- FALSE
                   IDs <- as.integer(R$outcomeID)
                   chunkedIDs <- chunker(IDs, S$PGN$itemsPerPage)
                   pageCount <- length(chunkedIDs)
+                  if(S$PGN$activePage>pageCount) {                          # This can happen during filtering
+                     S$PGN$activePage <<- 1
+                  }
                   SELECT = c("value")
-                  R = recGet(S$db, TABLE, SELECT, tibble(c("outcomeID", " IN ",
+                  R = recGet(S$db, S$IN$TABLE, SELECT, tibble(c("outcomeID", " IN ",
                         paste0("(", paste0(chunkedIDs[[S$PGN$activePage]], collapse=","), ")"))))
                   if(S$P$Modify) {
                      btnid = "editOutcome"
@@ -110,24 +119,24 @@ HTML(paste0(
          "3" = {
             restOfPage = "Trials-Arms-Groups Here"
          },
-         "10" = {                       # edit Outcome
-            TABLE = "outcome"
-            S$PGN$FORM <<- imGetFORM(TABLE)
-            NUM <- ID2NUM(TABLE, S$PGN$outcomeID)
-            R <- recGet(S$db, TABLE, c("name", "value"), tibble(c(paste0(TABLE,"NUM"), "=", NUM)))
-            if(!S$P$Modify) {
-               S$PGN$FORM$disable <<- TRUE
+         "10" = {                                     # edit an item
+            S$IN$FORM <<- imGetFORM(S$IN$TABLE)           # S$IN$TABLE is set when preparing multi-item view
+            if(S$IN$recID>0) {                            # If this is an edit, get the FORM's current values
+               R <- recGet(S$db, S$IN$TABLE, c("name", "value"), tibble(c(paste0(S$IN$TABLE,"NUM"), "=", imID2NUM())))
+               for(i in 1:nrow(S$IN$FORM)) {              # Insert values from R into form$value
+                  S$IN$FORM$value[i] <<- R$value[R$name==S$IN$FORM$name[i]]    # In FORM, "name" is the short label
+               }                                                               # In R, it's the "name" of the "value"
             }
-            for(i in 1:nrow(S$PGN$FORM)) {
-               S$PGN$FORM$value[i] <<- R[R$name==S$PGN$FORM$name[i], "value"]
+            if(S$P$Modify) {
+               SaveBtn = HTML0(bs4("btn", id="save", n=1, q="b", "Save Details"))
+            } else {                                      # If user can't modify inputs, force View (disabled inputs)
+               S$IN$FORM$disable <<- TRUE                 #    and skip the Save button
             }
-            print(S$PGN$FORM$disable)
-            # If outcome exists, load form with current values
             restOfPage = tagList(
-               imForm2HTML(S$PGN$FORM),
+               imForm2HTML(S$IN$FORM),
                bs4("d", class="text-right mt-3",
                   bs4("btn", id="cancel", n=1, q="b", "Cancel"),
-                  ifelse(S$P$Modify, bs4("btn", id="save", n=1, q="b", "Save Outcome Details"), "")
+                  SaveBtn
                )
             )
          }
@@ -169,43 +178,36 @@ observeEvent(input$js.omclick, {
    switch(id,
       "sub" = {
          S$hideMenus <<- FALSE
+         S$PGN$activePage <- 1                    # When changing submenu, set scroller back to 1
          rv$menuActive = n
          rv$limn = rv$limn+1
       },
+      "pgn" = {
+         S$PGN$activePage <<- as.numeric(n)
+         rv$limn = rv$limn+1
+      },
       "addInput" = {
-    #     S$PGN$flag$editing <<- FALSE
-         S$PGN$outcomeID <<- 0
-         S$hideMenus <<- TRUE
+         S$IN$recID <<- 0
          rv$menuActive = 10
+         S$hideMenus <<- TRUE
          rv$limn = rv$limn+1
       },
       "editOutcome" = {
-     #    S$PGN$flag$editing <<- TRUE
-         S$PGN$outcomeID <<- n
-         S$hideMenus <<- TRUE
+         S$IN$recID <<- n
          rv$menuActive = 10
+         S$hideMenus <<- TRUE
          rv$limn = rv$limn+1
       },
       "viewOutcome" = {
-         S$PGN$outcomeID <<- n
-         S$hideMenus <<- FALSE
+         S$IN$recID <<- n
          rv$menuActive = 10
+         S$hideMenus <<- FALSE
          rv$limn = rv$limn+1
       },
       "save" = {
-         NUM <- ID2NUM(t="outcome", ID=S$PGN$outcomeID)
-         for(i in 1:nrow(S$PGN$FORM)) {
-            R <-  recGet(S$db, "outcome", SELECT="**", WHERE=tibble(
-               c("outcomeNUM", "=", NUM), c("name", "=", S$PGN$FORM$name[i])))
-            R$outcomeNUM[2] = NUM
-            R$name[2] = S$PGN$FORM$name[i]
-            R$value[2] = str_trim(stripHTML(as.character(input[[S$PGN$FORM$id[i]]])))
-            R <- recSave(R, S$db)
-            # What about quill?
-         }
+         rv$imGetFORMData <<- rv$imGetFORMData + 1
          S$hideMenus <<- FALSE
          rv$menuActive = 2
-         rv$limn = rv$limn+1
       },
       "cancel" = {
          S$hideMenus <<- FALSE
@@ -220,22 +222,3 @@ observeEvent(input$js.omclick, {
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
-
-ID2NUM <- function(t, ID) {
-   if(S$PGN$flag$firstOne) {        # first outcome, use 1
-      return(1)
-   } else {
-      TABLE = t
-      SELECT = paste0(t,"NUM")
-      tableID = paste0(t,"ID")
-      if(ID>0) {                     # already exists, get it
-         R <- recGet(S$db, TABLE, SELECT, WHERE=tibble(c(tableID, "=", ID)))
-         return(R$outcomeNUM)
-      } else {                       # not first: get max of outcomeNUMs and add 1
-         R <- recGet(S$db, TABLE, SELECT, WHERE=tibble(c(tableID, ">", 0)))
-         return(max(as.numeric(R$outcomeNUM)) + 1)
-      }
-   }
-
-}
-
