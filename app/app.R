@@ -511,7 +511,7 @@ server <- function(input, output, session) {
       session$sendCustomMessage("tipsOn", "")
    }
 
-   js$quill = function(id, placeholder) {                    # send section code so it can send it back with text
+   js$quill = function(id, placeholder) {        # send section code so it can send it back with text
       session$sendCustomMessage("quill", list(id=id, placeholder=placeholder))
    }
 

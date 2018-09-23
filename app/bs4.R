@@ -441,6 +441,10 @@ bs4Pagination = function(attribs, children) {
    # Must haves
    if(is.null(attribs$np)) {stop("No active page attribute (ap=) in bs4Pagination()")}
    if(is.null(attribs$ap)) {stop("No number of pages attribute (np=) in bs4Pagination()")}
+   if(attribs$ap>attribs$np) {
+      attribs$ap = 1
+      warning("In bs4Pagination, the active page is larger than number of pages; reset to 1.")
+   }
    # Could haves
    if(is.null(attribs$id)) {attribs$id="pgn"}  # Needed only if there's more than one pagination section on a page
 
