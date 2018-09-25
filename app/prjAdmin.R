@@ -271,7 +271,29 @@ value of this data to your project actually worth all the extra work for your re
 
 yellowbox <- function(t) {
    return(bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(               # The yellow box
-"<p>This is where you can add add ", t, " inputs.</p>")))))
+"<p>You can add your own custom inputs to collect additional information about your project's outcomes, trials,
+arms, and groups. When you arrive here, you will see the standard inputs we provide for these pages. Your customized
+inputs can collect any type of additional information you like. The information you collect with custom inputs is
+typically used for sub-group analysis and for meta-regression, but you can use it for anything you like.</p>
+<p>The page has two sections. The upper section either has a green button for adding an additional input or a
+form to collect information about your customized input (used both when adding a new input and editing one you've
+already created).</p>
+<p>The lower section displays either what your inputs currently look like or provides buttons for editing, moving,
+or deleting inputs you have added. These buttons will never appear, however, for the standard inputs, which you
+can't edit, move, or delete.</p>
+<p>When you add or edit an input, you first select what <i>Type of input</i> you want. When you change this setting,
+the rest of the form may change. You can select any of these six types of inputs:<ul>
+<li>a standard, simple text input for collecting one line of text</li>
+<li>a text editor, for collecting as much text as you like</li>
+<li>a numeric input, for collecting a single number</li>
+<li>a dropdown selector, to capture exactly one of several choices you've specified</li>
+<li>radio buttons, which also capture exactly one of several choices</li>
+<li>checkboxes, which can collect multiple choices from a group of choices you've specified</li>
+</ul><p>Note that when you set the <i>combined</i> width of multiple inputs to 100% or less, the inputs will appear in
+one row across the screen if you check the <i>sameline</i> checkbox on all but the first one. If you never check
+<i>sameline</i>, or if you check <i>sameline</i> but your inputs are all too wide to allow multiple inputs on the same
+line, your inputs will appear in a vertical column under the standard inputs.</p>
+")))))
 }
 
 
@@ -423,6 +445,7 @@ observeEvent(input$js.omclick, {
       },
       "addInput" = {                                                     # This is the big green Add button
          S$IN$flag$showAddInputButton <<- FALSE
+         S$hideMenus <<- TRUE
          S$IN$flag$editingForm <<- FALSE
          S$IN$FORMrow <<- imGetBlankFORMrow(S$IN$codeTypes[S$IN$inputType])
          S$IN$FORMrowform <<- imGetBlankform(S$IN$codeTypes[S$IN$inputType])
@@ -431,6 +454,7 @@ observeEvent(input$js.omclick, {
       },
       "editMe" = {                                                       # This is the green Edit button
          S$IN$flag$showAddInputButton <<- FALSE
+         S$hideMenus <<- TRUE
          S$IN$flag$editingForm <<- TRUE                                  # disable selector, among other things
          S$IN$FORMrow <<- S$IN$FORM[n,]
          S$IN$FORMrowform <<- imFORMrow2form(S$IN$FORMrow)                  # expand form row into a form
@@ -441,11 +465,22 @@ observeEvent(input$js.omclick, {
          if(imFormValidates()) {
             imSaveform2FORMrow()
             S$IN$flag$showAddInputButton <<- TRUE
+            S$hideMenus <<- FALSE
+            ###  Activate this section only to save *default* FORMs in om$prime; must be Admin account to do this
+            #       (FORMs are transferred from om$prime to S$db when new projects are created.)
+            if(S$U$userName=="Admin") {
+               saveDB <- S$db
+               S$db <<- "om$prime"
+               imSaveFORM()
+               S$db <<- saveDB
+            }
+            ###
             rv$limn = rv$limn + 1
          }
       },
       "cancelInput" = {                                                  # This button is on the output$modifyAnInput screen
          S$IN$flag$showAddInputButton <<- TRUE
+         S$hideMenus <<- FALSE
          rv$limn = rv$limn + 1
       },
       "deleteMe" = {
