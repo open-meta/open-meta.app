@@ -453,7 +453,7 @@ bs4Pagination = function(attribs, children) {
    pgnStart <- HTML0('<nav aria-label="Citation list pagination"><ul class="pagination">',
                      '<li class="page-item"><a id=', paste0(attribs$id, "_1"), ' class="page-link">First Page</a></li>')
    pgnEnd <-   HTML0('<li class="page-item"><a id=', paste0(attribs$id, "_", attribs$np), ' class="page-link">Last Page</a></li>',
-                     '</ul></nav>')
+                     '</ul></nav><div class="hr-divider pb-4"></div>')
 
    pLeft <- max(1, attribs$ap-2)               # pLeft is the first page in the widget , can't be less than 1
    pLeft <- min(pLeft , max(1, attribs$np-4))  #   but it can't push the right end over the number of pages, either
