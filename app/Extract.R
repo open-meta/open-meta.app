@@ -15,20 +15,26 @@ source("chokidar.R", local=TRUE)
 # load the inputMeta.R code (also used by other pages)
 source("inputMeta.R", local=TRUE)
 
-S$PGN$itemsPerPage <- 30       # Are these the only pagination things we need???
+# Pagination globals
+S$PGN$itemsPerPage <- 30
+#S$PGN$itemsPerPage <- 3       # For testing pagination
 S$PGN$activePage <- 1
+S$PGN$nPages <- 0
 
 rv$menuActive = 1    # Start out on first sub-menu
+rv$subMenu = 1
 
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({rv$limn; isolate({
       widgets = ""
       switch(as.character(rv$menuActive),
          "1" = {
+            subMenu <- ""
             restOfPage = "Dashboard Here"
-
          },
          "2" = {
+            subMenu <- as.character(bs4("mp", id="custom", n=1:5, active=rv$subMenu, text=c("Participants", "Interventions", "Comparisons", "Outcomes", "Time Spans")))
+
             restOfPage = tagList(
                bs4("r", bs4("c1"), bs4("c10",
                   uiOutput("addOutcome"),
@@ -46,31 +52,20 @@ if(S$P$Msg=="") {
                }
             )
             output$showOutcomes  <- renderUI({
-               noResultsMsg <- "No Outcomes have been added to this project yet."
                S$IN$TABLE <<- "outcome"
-               WHERE = tibble(c("name", "=", "Outcome"))
-               R <- recGet(S$db, S$IN$TABLE, paste0(S$IN$TABLE,"ID"), WHERE)             # Get all record IDs
+               S$IN$NAME <<- "Outcome"
+               R <- getDataChunk()
                if(R[1,1]==0) {
-                  S$IN$flag$firstOne <<- TRUE
+                  noResultsMsg <- "No Outcomes have been added to this project yet."
                   tagList(
                      bs4("r",
-                    #    bs4("c12", bs4("hr0", class="pb-4")),
                         bs4("c12", HTML0("<h5>", noResultsMsg, "</h5>")),
                         bs4("c12", bs4("hr0", class="pb-4"))
                      )
                   )
                } else {
-                  S$IN$flag$firstOne <<- FALSE
-                  IDs <- as.integer(R$outcomeID)
-                  chunkedIDs <- chunker(IDs, S$PGN$itemsPerPage)
-                  pageCount <- length(chunkedIDs)
-                  if(S$PGN$activePage>pageCount) {                          # This can happen during filtering
-                     S$PGN$activePage <<- 1
-                  }
-                  SELECT = c("value")
-                  R = recGet(S$db, S$IN$TABLE, SELECT, tibble(c("outcomeID", " IN ",
-                        paste0("(", paste0(chunkedIDs[[S$PGN$activePage]], collapse=","), ")"))))
-                  if(S$P$Modify) {
+                  # Set up buttons
+                  if(S$P$Modify) {                                         # Button vector construction from here...
                      btnid = "editOutcome"
                      btnq = "g"
                      btnlabel = "Edit"
@@ -80,14 +75,10 @@ if(S$P$Msg=="") {
                      btnlabel = "View"
                   }
                   pattern = rep("XxX", nrow(R))
-                  btn = bs4("btn", id=btnid, n="XxX", q=btnq, btnlabel)
-                  R[,"btn"] = str_replace_all(btn, pattern, as.character(chunkedIDs[[S$PGN$activePage]]))   # str_replace is vectorized
+                  btn = bs4("btn", id=btnid, n="XxX", q=btnq, btnlabel)    # ... to next line
+                  R[,"btn"] = str_replace_all(btn, pattern, as.character(S$IN$CHUNKS[[S$PGN$activePage]]))   # str_replace is vectorized
                   tagList(
-                     bs4("r",
-                        bs4("c12", bs4("hr0", class="pb-4")),
-                        bs4("pgn", np=pageCount, ap=S$PGN$activePage),
-                        bs4("c12", bs4("hr0", class="pb-4"))
-                     ),
+                     bs4("pgn", np=S$PGN$nPages, ap=S$PGN$activePage),
 # This does the entire table with one vectorized paste0(). R is a tibble and its columns are vectors.
 #    The "collapse" at the end creates one long string. R[3] is the value column and R[4] is the button column.
 # In this particular example, there's one row with a col-11 containing all the data, using <br> to start new
@@ -102,22 +93,23 @@ HTML(paste0(
    </div>
    ', bs4('c12', bs4('hr')), '
 </div>', collapse = '')),     # End of paste0()
-                     bs4("r",
-#                        bs4("c12", bs4("hr0", class="pb-4")),       # last row of table provides this <hr>
-                        bs4("pgn", np=pageCount, ap=S$PGN$activePage),
-                        bs4("c12", bs4("hr0", class="pb-4"))
-                     )
+                     bs4("pgn", np=S$PGN$nPages, ap=S$PGN$activePage)
                   )
                }
             })  # end of render
+
             output$yboxOutcomes = renderUI(tagList(
                bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(
-"<p>If you are a member of this project with appropriate permissions, you can </p>
+"<p>On this page, enter all the Outcomes that meet the criteria of your project. You should edit <i>All Outcomes</i>
+if your project is interested only in specific Outcomes, or leave it if you'll accept any outcome.</p>
+<p>Your Principal Investigator may have customized the Outcome form in the Members & Settings menu to collect
+additional information on each Outcome.</p>
 "))))))
          ))
          },
          "3" = {
-            restOfPage = "Trials-Arms-Groups Here"
+            subMenu <- ""
+            restOfPage = "Trials Here"
          },
          "10" = {                                     # edit an item
             S$IN$FORM <<- imGetFORM(S$IN$TABLE)           # S$IN$TABLE is set when preparing multi-item view
@@ -142,17 +134,15 @@ HTML(paste0(
          }
       )
 
-      # Javascript notes:
-      # $('#tinid')[0].value gets what's in a text input
-      # $('#cbxid')[0].checked gets status of a checkbox
-
-      # better yet, use input[[dynamicName]] for input$staticName
-
       pageMenu = {
          if(S$hideMenus) {
             ""
          } else {
-            bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Dashboard", "Outcomes", "Trials-Arms-Groups"))
+            tagList(
+               bs4("md", id="sub", n=1:4, active=rv$menuActive, text=c("Dashboard", "PICO Setup", "Trials", "Citation List")),
+               HTML0(subMenu),
+               bs4("dx", style="height:1.5rem")
+            )
          }
       }
       return(tagList(
@@ -222,3 +212,34 @@ observeEvent(input$js.omclick, {
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
+
+
+# These two globals need to be set up before calling this function
+#    S$IN$TABLE <<- "outcome"
+#    S$IN$NAME <<- "Outcome"
+getDataChunk <- function() {
+   tableID <- paste0(S$IN$TABLE,"ID")
+# First get all of tableIDs for the rows that have the name to display in the scroller
+   R <- recGet(S$db, S$IN$TABLE, tableID, tibble(c("name", "=", S$IN$NAME)))
+# If there aren't any, just set firstOne flag
+   if(R[1,1]==0) {
+      S$IN$flag$firstOne <<- TRUE
+   } else {
+# Set up Chunking and Pagination variables
+      S$IN$flag$firstOne <<- FALSE
+      S$IN$IDs <<- as.integer(R$outcomeID)
+      S$IN$CHUNKS <<- chunker(S$IN$IDs, S$PGN$itemsPerPage)
+      S$PGN$nPages <<- length(S$IN$CHUNKS)
+      if(S$PGN$activePage > S$PGN$nPages) {                              # This can happen during filtering
+         S$PGN$activePage <<- 1
+      }
+# Now get the data (value field) for this chunk
+      R = recGet(S$db, S$IN$TABLE, "value", tibble(c(tableID, " IN ",    # Get data for this chunk
+            paste0("(", paste0(S$IN$CHUNKS[[S$PGN$activePage]], collapse=","), ")"))))
+   }
+   return(R)
+}
+
+
+
+
