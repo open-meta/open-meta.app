@@ -913,8 +913,8 @@ setProgress(.5)
             if(!("DO" %in% cnames)) t$DO <- rep(as.character(NA), nrow(t))
             if("DOI" %in% cnames) { t$DO <- ifelse(is.na(t$DO), t$DOI, t$DO) }
             if("UR" %in% cnames) {                                         # EBSCO (a record can have multiple URs)
-               p <- str_locate(t$UR, coll("http://dx.doi.org/"))               # start-end matrix for "http://dx.doi.org/"
-               t$UR <- ifelse(is.na(p[,2]), p[,2], str_sub(t$UR, p[,2]+1, -1)) # NA or everything after "http://dx.doi.org/"
+               p <- str_locate(t$UR, coll("https?://(dx\.)?doi.org/"))               # start-end matrix for the DOI resolver URLs
+               t$UR <- ifelse(is.na(p[,2]), p[,2], str_sub(t$UR, p[,2]+1, -1)) # NA or everything after the DOI resolver URLs
                p <- str_locate(t$UR, coll("@'`#$%"))                           # start-end matrix for "@'`#$%"
                t$UR <- ifelse(is.na(p[,1]), t$UR, str_sub(t$UR, 1, p[,1]-1))   # t$UR or part of string before "@'`#$%"
                t$DO <- ifelse(is.na(t$DO), t$UR, t$DO)                         # if we don't already have a DOI, now we do
@@ -1529,4 +1529,3 @@ processSearch = function() {
       S$PM$progress$close()
    }
 }
-
