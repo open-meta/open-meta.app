@@ -32,11 +32,16 @@ if(S$P$Msg=="") {
    output$uiMeat <- renderUI({c(rv$menuActive, rv$subMenu, rv$limn); isolate({
       if(rv$limn && S$P$Msg=="") {
          if(S$P$Modify) {                              # If modification is allowed we're at *Members & Settings*
-            menubars=tagList(
-               bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Inputs")),
-               bs4("mp", id="custom", n=1:5, active=rv$subMenu, text=c("Stage 1 Review", "Outcomes", "Trials", "Arms", "Groups")),
-               bs4("dx", style="height:1.5rem")
-            )
+            if(S$hideMenus) {
+               menubars = ""
+            } else {
+               menubars=tagList(
+                  bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Inputs")),
+                  bs4("mp", id="custom", n=1:8, active=rv$subMenu, text=c("Stage 1 Review", "Trials", "Participants",
+                     "Interventions", "Comparisons", "Outcomes", "Arms", "Groups")),
+                  bs4("dx", style="height:1.5rem")
+               )
+            }
             switch(as.character(rv$menuActive),
                "1" = {
                   menubars=tagList(
@@ -198,14 +203,6 @@ value of this data to your project actually worth all the extra work for your re
                            )
                         },
                      "2" = {
-                        imGetFORM("outcome")
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("outcome"))
-                        )
-                     },
-                     "3" = {
                         imGetFORM("trial")
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
@@ -213,7 +210,39 @@ value of this data to your project actually worth all the extra work for your re
                            output$yellowbox    <- renderUI(yellowbox("trial"))
                         )
                      },
+                     "3" = {
+                        imGetFORM("participant")
+                        restOfPage = tagList(
+                           output$modifyInputs <- renderUI(imModifyInputs()),
+                           output$showInputs   <- renderUI(imShowInputs()),
+                           output$yellowbox    <- renderUI(yellowbox("participant"))
+                        )
+                     },
                      "4" = {
+                        imGetFORM("intervention")
+                        restOfPage = tagList(
+                           output$modifyInputs <- renderUI(imModifyInputs()),
+                           output$showInputs   <- renderUI(imShowInputs()),
+                           output$yellowbox    <- renderUI(yellowbox("intervention"))
+                        )
+                     },
+                     "5" = {
+                        imGetFORM("comparison")
+                        restOfPage = tagList(
+                           output$modifyInputs <- renderUI(imModifyInputs()),
+                           output$showInputs   <- renderUI(imShowInputs()),
+                           output$yellowbox    <- renderUI(yellowbox("comparison"))
+                        )
+                     },
+                     "6" = {
+                        imGetFORM("outcome")
+                        restOfPage = tagList(
+                           output$modifyInputs <- renderUI(imModifyInputs()),
+                           output$showInputs   <- renderUI(imShowInputs()),
+                           output$yellowbox    <- renderUI(yellowbox("outcome"))
+                        )
+                     },
+                     "7" = {
                         imGetFORM("arm")
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
@@ -221,7 +250,7 @@ value of this data to your project actually worth all the extra work for your re
                            output$yellowbox    <- renderUI(yellowbox("arm"))
                         )
                      },
-                     "5" = {
+                     "8" = {
                         imGetFORM("group")
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
@@ -271,10 +300,16 @@ value of this data to your project actually worth all the extra work for your re
 
 yellowbox <- function(t) {
    return(bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(               # The yellow box
-"<p>You can add your own custom inputs to collect additional information about your project's outcomes, trials,
-arms, and groups. When you arrive here, you will see the standard inputs we provide for these pages. Your customized
-inputs can collect any type of additional information you like. The information you collect with custom inputs is
-typically used for sub-group analysis and for meta-regression, but you can use it for anything you like.</p>
+"<p>You can add your own custom inputs to collect additional information about your project's research studies.
+When you arrive here, you will see the standard inputs we provide. Your customized inputs can collect any type
+of additional information you like. The information you collect with custom inputs is typically used for
+sub-group analysis and for meta-regression, but you can use it for anything you like.</p>
+<p>Keep in mind that these customized inputs can help you make your data less granular but not more granular.
+That is, they can help you to collect groups of related items together. For example, if the outcomes you are
+studying include both physical measures, like grip strength, and mental measures, like memory tests, you can
+add a custom input to <i>Outcomes</i> that allows you to say which outcomes are related to physical performance
+and which are related to mental performance. Then, in your analysis, you could compare all the physical
+outcomes to all the mental outcomes.
 <p>The page has two sections. The upper section either has a green button for adding an additional input or a
 form to collect information about your customized input (used both when adding a new input and editing one you've
 already created).</p>
@@ -453,16 +488,18 @@ observeEvent(input$js.omclick, {
          rv$limn = rv$limn + 1
       },
       "editMe" = {                                                       # This is the green Edit button
-         S$IN$flag$showAddInputButton <<- FALSE
-         S$hideMenus <<- TRUE
-         S$IN$flag$editingForm <<- TRUE                                  # disable selector, among other things
-         S$IN$FORMrow <<- S$IN$FORM[n,]
-         S$IN$FORMrowform <<- imFORMrow2form(S$IN$FORMrow)                  # expand form row into a form
-         S$IN$inputType <<- which(S$IN$codeTypes %in% S$IN$FORM[n,"type"])  # get type of input for selector
-         rv$limn = rv$limn + 1
+         if(S$P$SA || (S$P$Modify && !S$IN$FORM[[n, "locked"]])) {
+            S$IN$flag$showAddInputButton <<- FALSE
+            S$hideMenus <<- TRUE
+            S$IN$flag$editingForm <<- TRUE                                       # disable selector, among other things
+            S$IN$FORMrow <<- S$IN$FORM[n,]
+            S$IN$FORMrowform <<- imFORMrow2form(S$IN$FORMrow)                    # expand form row into a form
+            S$IN$inputType <<- which(S$IN$codeTypes %in% S$IN$FORM[[n,"type"]])  # get type of input for selector
+            rv$limn = rv$limn + 1
+         }
       },
       "saveInput" = {                                                    # This button is on the output$modifyAnInput screen
-         if(imFormValidates()) {
+         if(S$P$Modify && imFormValidates()) {
             imSaveform2FORMrow()
             S$IN$flag$showAddInputButton <<- TRUE
             S$hideMenus <<- FALSE
@@ -484,24 +521,30 @@ observeEvent(input$js.omclick, {
          rv$limn = rv$limn + 1
       },
       "deleteMe" = {
-         dbLink <- poolCheckout(shiny.pool)                              # When deleting an input, we also need to delete
-         on.exit(poolReturn(dbLink), add = TRUE)                         #   its id from the ids table
-         r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[n, "id"], "';"))
-         S$IN$FORM <<- S$IN$FORM[-as.numeric(n),]                        # Delete the n row from FORM
-         imSaveFORM()                                                    # Save the FORM
-         rv$limn = rv$limn + 1
+         if(S$P$Modify && !S$IN$FORM[[n,"locked"]]) {
+            dbLink <- poolCheckout(shiny.pool)                              # When deleting an input, we also need to delete
+            on.exit(poolReturn(dbLink), add = TRUE)                         #   its id from the ids table
+            r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[n, "id"], "';"))
+            S$IN$FORM <<- S$IN$FORM[-as.numeric(n),]                        # Delete the n row from FORM
+            imSaveFORM()                                                    # Save the FORM
+            rv$limn = rv$limn + 1
+         }
       },
       "upMe" = {
-         S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] - 1.5
-         S$IN$FORM <<- imFixOrder(S$IN$FORM)
-         imSaveFORM()
-         rv$limn = rv$limn + 1
+         if(S$P$Modify) {
+            S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] - 1.5
+            S$IN$FORM <<- imFixOrder(S$IN$FORM)
+            imSaveFORM()
+            rv$limn = rv$limn + 1
+         }
       },
       "downMe" = {
-         S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] + 1.5
-         S$IN$FORM <<- imFixOrder(S$IN$FORM)
-         imSaveFORM()
-         rv$limn = rv$limn + 1
+         if(S$P$Modify) {
+            S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] + 1.5
+            S$IN$FORM <<- imFixOrder(S$IN$FORM)
+            imSaveFORM()
+            rv$limn = rv$limn + 1
+         }
       },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
