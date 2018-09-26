@@ -184,7 +184,7 @@ bs4Menus = function(attribs) {
    }
    menuLines = ""
    for(i in 1:length(attribs$text)) {
-      if(i==attribs$active) {active=" active"} else {active=""}
+      if(i==as.numeric(attribs$active)) {active=" active"} else {active=""}
       if(!is.null(attribs$links)) {
          action = paste0('href="', attribs$links[i], '" ')
       } else {
