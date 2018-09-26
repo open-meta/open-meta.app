@@ -51,13 +51,37 @@ sTime = function(t=now(tz="UTC")) {                    # sTime() = now() as UTC 
 esc = function(s) {                            # depricated; need to remove usages before deleting, however...
    return(htmltools::htmlEscape(s))
 }
-escHTML = function(s) {                               # typically used with input$
-   if(is.null(s) || is.na(s) || s=="") { return("") } # deal with null and empty inputs - hurray!
-   return(htmltools::htmlEscape(s))
+# One or the other of the following two functions should ALWAYS be used with raw input to prevent HTML injection and other problems.
+# If the input is NULL (not ready or checkbox group with nothing checked) or character(0) (shouldn't happen) code will return "".
+# If the input is logical (single checkbox), numeric or numeric vector (number, actionButton, slider, slider-range),
+#    or a list (file upload), it is returned as is.
+# But if it's character or character vector (text, radio, select, date, date-range, checkbox group) the HTML
+#    if either escaped or stripped. NAs are converted to "" and "" is left as is.
+escHTML = function(s) {
+   return(stripHTML(s, escapeOnly=TRUE))
 }
-stripHTML = function(s) {
-   if(is.null(s) || is.na(s) || s=="") { return("") }
-   return(rvest::html_text(xml2::read_html(paste0("<html>", s))))    # <html> forces read_html to see a string rather than a path
+stripHTML = function(s, escapeOnly=FALSE) {           # Vectorized!
+   t <- ""
+   if(!is.null(s)) {                                  # Have to deal with this seperately because is.null() isn't vectorized
+      if(!is.character(s)) {                          # If it's not a character vector, no HTML, so return as is
+         t <- s
+      } else {
+         if(length(s)>0) {                            # character(0) (this shouldn't happen) will return ""
+            for(i in 1:length(s)) {                   # Loop through the vector
+               if(is.na(s[i]) || s[i]=="") {          # Turn any NAs to "" and skip "" itself
+                  t[i] <- ""
+               } else {
+                  if(escapeOnly) {
+                     t[i] <- htmltools::htmlEscape(s[i])
+                  } else {                            # pasting on "<html>" forces read_html to see a string rather than a path
+                     t[i] <- rvest::html_text(xml2::read_html(paste0("<html>", s[i])))
+                  }
+               }
+            }
+         }
+      }
+   }
+   return(t)
 }
 
 nat = function(x) {          # convert NAs in a logical vector to TRUE
