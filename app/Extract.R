@@ -22,7 +22,7 @@ S$PGN$activePage <- 1
 S$PGN$nPages <- 0
 
 rv$menuActive = 1    # Start out on first sub-menu
-rv$subMenu = 1
+rv$submenuActive = 1
 
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({rv$limn; isolate({
@@ -33,18 +33,43 @@ if(S$P$Msg=="") {
             restOfPage = "Dashboard Here"
          },
          "2" = {
-            subMenu <- as.character(bs4("mp", id="custom", n=1:5, active=rv$subMenu, text=c("Participants", "Interventions", "Comparisons", "Outcomes", "Time Spans")))
-
+            subMenu <- ""
+            restOfPage = "Trials Here"
+         },
+         "3" = {
+            subMenu <- as.character(bs4("mp", id="subsub", n=1:5, active=rv$submenuActive, text=c("Participants", "Interventions", "Comparisons", "Outcomes", "Time Spans")))
+            switch(rv$submenuActive,
+               "1" = {
+                  showOutput = "showOutcomes"
+                  yboxOutput = "yboxOutcomes"
+               },
+               "2" = {
+                  showOutput = "showOutcomes"
+                  yboxOutput = "yboxOutcomes"
+               },
+               "3" = {
+                  showOutput = "showOutcomes"
+                  yboxOutput = "yboxOutcomes"
+               },
+               "4" = {
+                  showOutput = "showOutcomes"
+                  yboxOutput = "yboxOutcomes"
+               },
+               "5" = {
+                  showOutput = "showOutcomes"
+                  yboxOutput = "yboxOutcomes"
+               }
+            )
             restOfPage = tagList(
                bs4("r", bs4("c1"), bs4("c10",
-                  uiOutput("addOutcome"),
-                  uiOutput("showOutcomes"),
-                  uiOutput("yboxOutcomes")))
+                  uiOutput("addChoice"),
+                  uiOutput(showOutput),
+                  uiOutput(yboxOutput)))
             )
-            output$addOutcome <- renderUI(
+            output$addChoice <- renderUI(
                if(S$P$Modify) {                                                          # Only show Add button if
                   tagList(                                                               #   user has permission to Add
-                     bs4("btn", id="addInput", q="g", "Add an Outcome"),
+                     bs4("btn", id="addInput", q="g", "Add a Choice"),
                      bs4("hr")
                   )
                } else {
@@ -96,7 +121,7 @@ HTML(paste0(
                      bs4("pgn", np=S$PGN$nPages, ap=S$PGN$activePage)
                   )
                }
-            })  # end of render
+            })  # end of render showOutcomes
 
             output$yboxOutcomes = renderUI(tagList(
                bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(
@@ -107,9 +132,9 @@ additional information on each Outcome.</p>
 "))))))
          ))
          },
-         "3" = {
+         "4" = {
             subMenu <- ""
-            restOfPage = "Trials Here"
+            restOfPage = "Citation List Here"
          },
          "10" = {                                     # edit an item
             S$IN$FORM <<- imGetFORM(S$IN$TABLE)           # S$IN$TABLE is set when preparing multi-item view
@@ -120,16 +145,23 @@ additional information on each Outcome.</p>
                }                                                               # In R, it's the "name" of the "value"
             }
             if(S$P$Modify) {
-               SaveBtn = HTML0(bs4("btn", id="save", n=1, q="b", "Save Details"))
+               SaveBtn = HTML0(bs4("btn", id="save", n=1, q="b", "Save"))
+               DeleteBtn = HTML0(bs4("btn", id="delete", n=1, q="r", "Delete"))
             } else {                                      # If user can't modify inputs, force View (disabled inputs)
                S$IN$FORM$disable <<- TRUE                 #    and skip the Save button
+               SaveBtn = ""
+               DeleteBtn = ""
             }
             restOfPage = tagList(
                imForm2HTML(S$IN$FORM),
-               bs4("d", class="text-right mt-3",
-                  bs4("btn", id="cancel", n=1, q="b", "Cancel"),
-                  SaveBtn
+               bs4("r", bs4("c8"),
+                   bs4("c3", bs4("btn", id="cancel", n=1, q="b", "Cancel"), SaveBtn),
+                   bs4("c1", DeleteBtn)
                )
+               # bs4("d", class="text-right mt-3",
+               #    bs4("btn", id="cancel", n=1, q="b", "Cancel"),
+               #    SaveBtn
+               # )
             )
          }
       )
@@ -139,7 +171,7 @@ additional information on each Outcome.</p>
             ""
          } else {
             tagList(
-               bs4("md", id="sub", n=1:4, active=rv$menuActive, text=c("Dashboard", "PICO Setup", "Trials", "Citation List")),
+               bs4("md", id="sub", n=1:4, active=rv$menuActive, text=c("Dashboard", "Trial Setup", "PICO(T) Setup", "Citation List")),
                HTML0(subMenu),
                bs4("dx", style="height:1.5rem")
             )
@@ -172,6 +204,12 @@ observeEvent(input$js.omclick, {
          rv$menuActive = n
          rv$limn = rv$limn+1
       },
+      "subsub" = {
+         S$hideMenus <<- FALSE
+         S$PGN$activePage <- 1                    # When changing submenu, set scroller back to 1
+         rv$submenuActive = as.character(n)
+         rv$limn = rv$limn+1
+      },
       "pgn" = {
          S$PGN$activePage <<- as.numeric(n)
          rv$limn = rv$limn+1
@@ -200,6 +238,23 @@ observeEvent(input$js.omclick, {
          rv$menuActive = 2
       },
       "cancel" = {
+         S$hideMenus <<- FALSE
+         rv$menuActive = 2
+         rv$limn = rv$limn+1
+      },
+      "delete" = {
+#   Needs S$IN$flag$firstOne
+#         S$IN$TABLE
+#         S$IN$recID
+         NUM <- imID2NUM()                                               # We'll need this for each row, so save in variable
+         for(i in 1:nrow(S$IN$FORM)) {                                   # Save FORM values
+            R <-  recGet(S$db, S$IN$TABLE, SELECT="**",
+                     WHERE=tibble(c(paste0(S$IN$TABLE, "NUM"), "=", NUM), c("name", "=", S$IN$FORM$name[i])))
+            R$outcomeNUM[2] = NUM                                        # While edited recs will already have NUM
+            R$name[2] = S$IN$FORM$name[i]                                #    and Name, must do this for new rows!
+            R$value[2] = S$IN$FORM$value[i]
+            R <- recSave(R, S$db)
+         }
          S$hideMenus <<- FALSE
          rv$menuActive = 2
          rv$limn = rv$limn+1
