@@ -120,16 +120,21 @@ imShowInputs <- function() {
          bs4("hr0", class="pb-4")
       )
    } else {
-      m=""
-      if(nrow(S$IN$FORM)>0) {                                                    # A new FORM will have no rows
-         for(i in 1:nrow(S$IN$FORM)) {
-            if(!S$IN$flag$showAddInputButton || (S$IN$FORM$locked && !S$P$SA)) { # if locked and not Sys Admin, don't allow changes
-               m = paste0(m, imForm2HTML(S$IN$FORM[i,]))                         #    also no buttons if modifying an input
+      m = ""
+      nr = nrow(S$IN$FORM)
+      if(nr > 0) {                                                               # A new FORM will have no rows
+         for(i in 1:nr) {
+            if(!S$IN$flag$showAddInputButton || !S$P$Modify ||                   # Don't show buttons if modifying an input,
+                        (S$IN$FORM$locked[i] && !S$P$SA)) {                      #    without permission, or if locked and not Sys Admin
+               m = paste0(m, imForm2HTML(S$IN$FORM[i,]))
             } else {
+               uq = dq = "b"
+               if(i==1)  { uq = c("b", "X") }                                    # Disable first moveup button
+               if(i==nr) { dq = c("b", "X") }                                    #    and last movedown button
                m = paste0(m, imForm2HTML(S$IN$FORM[i,]),
-                  bs4("btn", id="upMe", n=i, q="b", class="mb-2", "Move up"),
+                  bs4("btn", id="upMe", n=i, q=uq, class="mb-2", "Move up"),
                   bs4("btn", id="editMe", n=i, q="g", class="mb-2", "Edit"),
-                  bs4("btn", id="downMe", n=i, q="b", class="mb-2", "Move down"),
+                  bs4("btn", id="downMe", n=i, q=dq, class="mb-2", "Move down"),
                   bs4("btn", id="deleteMe", n=i, q="r", class="mb-2", style="float:right;", "Delete")
                   )
             }
@@ -172,14 +177,14 @@ imFORMrow2form <- function(FORMrow) {
 
 # This converts either a FORM or a form to an HTML form
 imForm2HTML <- function(Form) {
-   r = "<form><div>"                            # This div will be closed by the first input; just a hack to give
-   if(nrow(Form)>0) {                           #   each input the chance to close the previous row and start a new one.
+   r = '<form><div class="form-row">'            # This div will be closed by the first input; just a hack to give
+   if(nrow(Form)>0) {                            #   each input the chance to close the previous row and start a new one.
       for(i in 1:nrow(Form)) {
          thisr = imFormRow2HTML(Form[i,])
          r = paste0(r, thisr)
       }
    }
-   return(HTML0(r, "</div></form>"))            # This /div closes the last row of the form
+   return(HTML0(r, "</div></form>"))             # This /div closes the last row of the form
 }
 
 # Here we arrive at the heart of the matter.
@@ -210,8 +215,8 @@ imFormRow2HTML = function(tr) {
       "50%" = "6",
       "66%" = "8",
       "75%" = "9",
-      "100%" = "12",
-      "12"               # default width if none provided
+      "100%" = "12",                                           # Final line provides support for standard 1 to 12 widths.
+      ifelse(tr$width=="", "12", tr$width)                     #   Default for no width provided is 12 (100%)
    )
    class = ifelse(tr$inline, " inline", "")
    valueP = ifelse(nchar(value[1])>0, paste0(' value="', value, '"'), '')
@@ -224,12 +229,17 @@ imFormRow2HTML = function(tr) {
    optionsCode = ""                       # Initialize for checkbox-radio-select
    ariaD = paste0(' ariaDescribedby="aria', tr$id,'"')
 
-   if(tr$id=="name" && S$IN$flag$editingForm) {disabled = " disabled"}     # can't edit "name" if editing
+   if(tr$id=="name" && S$IN$flag$editingForm) {disabled = " disabled"}   # can't edit "name" if editing
 
-### row-col-label
-   r=paste0('', '</div><div class="form-row">'[!tr$sameline])           # if not sameline, close old row and start new one (caller must start a row)
-   r=paste0(r, '<div class="form-group col-', width, '">')             # start new columnn
-
+### row-col-label                                              # imForm2HTML() starts with '<form><div class="form-row">'
+   r=paste0('', '</div><div class="form-row">'[!tr$sameline])  #    and ends with '</div></form>. If the first FORMrow has the expected
+   r=paste0(r, '<div class="form-group col-', width, '">')     #    sameline=FALSE, this code will create a blank and invisible row. On
+                                                               #    the other hand, if sameline=TRUE in the first input by mistake, this
+                                                               #    code forgives that error and the first input goes in the row that's
+                                                               #    already open. After the first row, sameline=FALSE closes the existing
+                                                               #    row and starts a new one; sameline=TRUE does not. In any case, each
+                                                               #    input gets its own column with a width determined by the "Width of
+                                                               #    this input" % setting converted to columns above.
 ### text-password-number
    if(any(c("text", "password", "number") %in% tr$type)) {
       class = paste0(' class="form-control ', class, '"')
@@ -400,44 +410,34 @@ imSaveform2FORMrow <- function() {
                                    id, "', '", S$IN$TABLE, "', '", name, "');"))
       ## if(r!=1), insert failed; however, imFormValidates() checked for uniqueness just milliseconds ago
    }
-   form <- imGetBlankform(formtype)           # Get the form for this type of FORMrow; we need its ids
-   for(id in form$id) {                       # Loop through the form ids; some, but not all, are columns in FORMrow
-      if(is.null(input[[id]])) {              # If input[[id]] is NULL, it can only be checkboxes where nothing is checked
-         rawI <- ""
-      } else {
-         rawI <- str_trim(stripHTML(as.character(input[[id]])))  # trim and strip HTML from input$
+   form <- imGetBlankform(formtype)                              # Get the form for this type of FORMrow; we need its ids
+   for(id in form$id) {                                          # Loop through the form ids; some, but not all, are columns in FORMrow
+      rawI <- str_trim(stripHTML(input[[id]]))                   # trim and strip HTML from input$
+      if(id=="options" && formtype %in% c("select", "radio", "checkbox")) {   # Special handling for Select, Radio, and Checkbox options
+         rawI <- ifelse(str_sub(rawI,-1,-1)==";", str_sub(rawI,1,-2), rawI)   # remove a trailing ";" from option list
       }
-      # Special handling for ids "direction" and "other"
-      if(id=="direction" || id=="other") {
-      # Special handling for select-radio-checkbox ids "direction" and "other"
-#      if(formtype %in% c("select", "radio", "checkbox") && (id=="direction" || id=="other")) {
-         rawI <- ifelse(str_sub(rawI,-1,-1)==";", str_sub(rawI,1,-2), rawI)  # remove trailing ";"
-         rawI <- str_trim(unlist(str_split(rawI, ";")))          # vectorize and retrim
-      print(id)
-      print(rawI)
-      print("sameline" %in% rawI)
+      if(id %in% c("direction", "other")) {                      # Special handling for ids "direction" and "other"
          if(id=="direction") {
-            FORMrow[1, "inline"] <- "across the page" %in% rawI
+            FORMrow[1, "inline"] <- "across the page" %in% rawI  # Input is character or character vector (checkbox with multiple checks)
          } else {
-            FORMrow[1, "sameline"] <- "sameline" %in% rawI
+            FORMrow[1, "sameline"] <- "sameline" %in% rawI       # FORMrow table has logical vectors
             FORMrow[1, "disabled"] <- "disabled" %in% rawI
             FORMrow[1, "locked"] <- "locked" %in% rawI
          }
       } else {
-         FORMrow[1,id] <- ifelse(is.na(rawI), "", rawI)          # NA happens when min, max, step, or maxlength are empty
-      }
+         FORMrow[1,id] <- ifelse(is.na(rawI), "", rawI)          # NA happens when min, max, step, or maxlength are empty. stripHTML()
+      }                                                          #   converts as.character(NA) to "", but returns numeric as is
    }
    if(nrow(S$IN$FORM)==0) {                                      # Create a new tibble
       S$IN$FORM <<- FORMrow
    } else {
       if(FORMrow$order==999) {                                   # Add an additional row to an existing tibble
-         print(S$IN$FORM)
-         print(FORMrow)
          S$IN$FORM <<- rbind(S$IN$FORM, FORMrow)                 # $order=999 means it's a new FORMrow
       } else {
          S$IN$FORM[S$IN$FORM$order==FORMrow$order,] <<- FORMrow  # Update an existing row in an exisiing tibble
       }
    }
+   print(FORMrow$max)
    imSaveFORM()
 }
 
