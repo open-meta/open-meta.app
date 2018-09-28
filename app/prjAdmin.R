@@ -36,16 +36,16 @@ if(S$P$Msg=="") {
                menubars = ""
             } else {
                menubars=tagList(
-                  bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Inputs")),
-                  bs4("mp", id="custom", n=1:8, active=rv$subMenu, text=c("Stage 1 Review", "Trials", "Participants",
-                     "Interventions", "Comparisons", "Outcomes", "Arms", "Groups")),
+                  bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Data Collection Forms")),
+                  bs4("mp", id="custom", n=1:9, active=rv$subMenu, text=c("Stage 1 Review", "Trials", "Arms", "Groups", "Participants",
+                     "Interventions", "Comparisons", "Outcomes", "Time Spans")),
                   bs4("dx", style="height:1.5rem")
                )
             }
             switch(as.character(rv$menuActive),
-               "1" = {
+               "1" = {                                  # For this choice, we don't want the submenu after all...
                   menubars=tagList(
-                     bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Inputs"))
+                     bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Data Collection Forms"))
                   )
                   switch(S$view,
                      "memberList" = {
@@ -203,59 +203,75 @@ value of this data to your project actually worth all the extra work for your re
                            )
                         },
                      "2" = {
-                        imGetFORM("trial")
+                        t <- "trial"
+                        imGetFORM(t)
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
                            output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("trial"))
+                           output$yellowbox    <- renderUI(yellowbox(t))
                         )
                      },
                      "3" = {
-                        imGetFORM("participant")
+                        t <- "arm"
+                        imGetFORM(t)
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
                            output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("participant"))
+                           output$yellowbox    <- renderUI(yellowbox(t))
                         )
                      },
                      "4" = {
-                        imGetFORM("intervention")
+                        t <- "group"
+                        imGetFORM(t)
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
                            output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("intervention"))
+                           output$yellowbox    <- renderUI(yellowbox(t))
                         )
                      },
                      "5" = {
-                        imGetFORM("comparison")
+                        t <- "participant"
+                        imGetFORM(t)
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
                            output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("comparison"))
+                           output$yellowbox    <- renderUI(yellowbox(t))
                         )
                      },
                      "6" = {
-                        imGetFORM("outcome")
+                        t <- "intervention"
+                        imGetFORM(t)
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
                            output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("outcome"))
+                           output$yellowbox    <- renderUI(yellowbox(t))
                         )
                      },
                      "7" = {
-                        imGetFORM("arm")
+                        t <- "comparison"
+                        imGetFORM(t)
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
                            output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("arm"))
+                           output$yellowbox    <- renderUI(yellowbox(t))
                         )
                      },
                      "8" = {
-                        imGetFORM("group")
+                        t <- "outcome"
+                        imGetFORM(t)
                         restOfPage = tagList(
                            output$modifyInputs <- renderUI(imModifyInputs()),
                            output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox("group"))
+                           output$yellowbox    <- renderUI(yellowbox(t))
+                        )
+                     },
+                     "9" = {
+                        t <- "timespan"
+                        imGetFORM(t)
+                        restOfPage = tagList(
+                           output$modifyInputs <- renderUI(imModifyInputs()),
+                           output$showInputs   <- renderUI(imShowInputs()),
+                           output$yellowbox    <- renderUI(yellowbox(t))
                         )
                      }
                   )
@@ -300,19 +316,24 @@ value of this data to your project actually worth all the extra work for your re
 
 yellowbox <- function(t) {
    return(bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(               # The yellow box
-"<p>You can add your own custom inputs to collect additional information about your project's research studies.
-When you arrive here, you will see the standard inputs we provide. Your customized inputs can collect any type
-of additional information you like. The information you collect with custom inputs is typically used for
-sub-group analysis and for meta-regression, but you can use it for anything you like.</p>
-<p>Keep in mind that these customized inputs can help you make your data less granular but not more granular.
-That is, they can help you to collect groups of related items together. For example, if the outcomes you are
-studying include both physical measures, like grip strength, and mental measures, like memory tests, you can
-add a custom input to <i>Outcomes</i> that allows you to say which outcomes are related to physical performance
-and which are related to mental performance. Then, in your analysis, you could compare all the physical
-outcomes to all the mental outcomes.
-<p>The page has two sections. The upper section either has a green button for adding an additional input or a
-form to collect information about your customized input (used both when adding a new input and editing one you've
-already created).</p>
+"<p>This is where you can add your own custom inputs to the forms that collect information about specific aspects of
+your project's research studies. When you arrive here, you will see the standard forms we provide. The customized
+inputs you add to the forms can collect any type of information you like. However, the information you collect with custom
+inputs is typically used for sub-group analysis and for meta-regression.</p>
+<p>Keep in mind that any customized inputs you add on this page can help you make your data <i>less granular</i>
+but not more granular. That is, they can help you to collect groups of related items together. For example,
+if the outcomes you are studying include both physical measures, like grip strength, and mental measures, like
+memory tests, you can add a custom input to <i>Outcomes</i> that allows you to say which outcomes are related
+to physical performance and which are related to mental performance. This would allow you to analyze all the
+physical performance outcomes, or all the mental performance outcomes, together as a group. If you don't collect
+this informtion, you will be limited to analyzing only individual outcomes or all of the outcomes together.</p>
+<p>To make your data <i>more granular</i>, you're in the wrong place. Instead, go to your project's <i>Extract/
+PICO(T) setup</i> menu. That's were you can enter any number of different participant groups, interventions,
+comparisons, outcomes, and time spans. The relationship between this page and that one is that you will use the
+input form you design here to collect data on the specific items you enter there.</p><hr>
+<p>This page has two sections. The upper section either has a green button for adding an additional input to a
+specific form that collects information about trials, arms, and so on. This upper section exapands both when
+adding a new input and editing one you've already created.</p>
 <p>The lower section displays either what your inputs currently look like or provides buttons for editing, moving,
 or deleting inputs you have added. These buttons will never appear, however, for the standard inputs, which you
 can't edit, move, or delete.</p>
