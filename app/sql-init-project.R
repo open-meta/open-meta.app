@@ -26,10 +26,8 @@ initProject = function(projectID, projectName, pool) {
    r = dbExecute(dbLink, createTable(S$db, "search"))
    r = dbExecute(dbLink, createTable(S$db, "catalog"))
    r = dbExecute(dbLink, createTable(S$db, "review"))
-   r = dbExecute(dbLink, createTable(S$db, "outcome"))
-   r = dbExecute(dbLink, createTable(S$db, "trial"))
-   r = dbExecute(dbLink, createTable(S$db, "arm"))
-   r = dbExecute(dbLink, createTable(S$db, "group"))
+   r = dbExecute(dbLink, createTable(S$db, "piconame"))
+   r = dbExecute(dbLink, createTable(S$db, "extract"))
    r = dbExecute(dbLink, createTable(S$db, "ids"))
 
 ### Membership table is done by caller on both new installs and new projects
@@ -50,6 +48,24 @@ initProject = function(projectID, projectName, pool) {
    r$name[2] = "forcePass"
    r$value[2] = "T"
    r = recSaveR(r, db=S$db, pool=pool)
+
+   # Move forms from om$prime.settings to S$db.settings. Also update project's `ids` table
+   moveFORMS = c("trial", "arm", "group", "participant", "intervention", "comparison", "outcome", "timespan")
+   for(tableName in moveFORMS) {
+      t = paste0("inputForm-", tableName)
+      r = recGet("om$prime", "settings", "**", WHERE=tibble(c("name", "=", t)), pool=pool)
+      r$settingsID <- r$verNum <- 0                  # change both vectors (it's an insert not an update)
+      r$name[1] <- r$value[1] <-""                   # If [1] and [2] are the same, sql.core drops the field!
+      r$comment[1] <- "a"                            # Need to change [1] here, too, so "" in [2] takes.
+      r = recSaveR(r, db=S$db, pool=pool)
+      f = as.tibble(fromJSON(r$r$value[2]))          # Convert value to a FORM, FORM$name to an ID,
+      if(nrow(f)>0) {
+         for(name in f$name) {
+            id <- paste0("id", paste0(utf8ToInt(name), collapse=""))   # create valid id syntax for both R and JavaScript
+            r = dbExecute(dbLink, paste0("INSERT INTO `", S$db, "`.`ids` VALUES ('", id, "', '", tableName, "', '", name, "');"))
+         }
+      }
+   }
 
 ### Complete protocol table
    # Get protohelp
