@@ -15,8 +15,8 @@ output$uiHead <- renderUI({        # No rv$limn because this only needs to be re
       cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
    }
    if(S$userOK) {
-      text=c("Control Panel","Users", "Pages", "Projects", "User Projects", "Project Users")
-      links=c("?adminCP", "?adminUsers", "?adminPages", "?adminProjects", "?adminUserPrj", "?adminPrjUser")
+      text=c("Control Panel","Users", "Pages", "Projects", "User Projects", "Project Users", "Forms")
+      links=c("?adminCP", "?adminUsers", "?adminPages", "?adminProjects", "?adminUserPrj", "?adminPrjUser", "?adminForms")
       active=which(links %in% paste0("?", S$PG$pageName))
       if(length(active)==0) {active=0}
       return(tagList(

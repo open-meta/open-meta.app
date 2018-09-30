@@ -12,8 +12,8 @@ output$uiHead <- renderUI({rv$limn; isolate({
             bs4("hrt", "You haven't been granted access to this page.")
          ))
       } else {
-      text=c("Control Panel","Users", "Pages", "Projects", "User Projects", "Project Users")
-      links=c("?adminCP", "?adminUsers", "?adminPages", "?adminProjects", "?adminUserPrj", "?adminPrjUser")
+      text=c("Control Panel","Users", "Pages", "Projects", "User Projects", "Project Users", "Forms")
+      links=c("?adminCP", "?adminUsers", "?adminPages", "?adminProjects", "?adminUserPrj", "?adminPrjUser", "?adminForms")
          active=which(links %in% paste0("?", S$PG$pageName))
          if(length(active)==0) {active=0}
          return(tagList(
