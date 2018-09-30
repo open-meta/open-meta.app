@@ -54,23 +54,51 @@ DB.Initialization = function(burnItAllDown=FALSE) {
    SQL.Users <- dbGetQuery(dbLink, "SELECT `user` FROM `mysql`.`user`;")
 
    # New school init...
-   filename <- "../om2_dbs.sql"                            # .sql dump file created with mysqldump or HeidiSQL
-   if(file.exists(filename)) {                             # see: http://www.open-meta.org/technology/how-to-source-a-mysqldump-file-with-syntax-statements/
-      sql <- stri_read_lines(filename, encoding="utf8")    # read file into sql character vector
-      cmd <- ""                                            # initialize command
-      for(line in sql) {                                   # loop through sql vector, one line at a time
-         if(line!="" && str_sub(line,1,3)!="-- ") {        # skip blank and comment lines
-            cmd <- paste0(cmd, line)                       # add current line to command
-            if(str_sub(cmd,-1,-1)==";") {                  # if command ends with ";", execute it
-               r <- dbExecute(dbLink, cmd)                 #    else add more lines to cmd
-               cmd <- ""                                   # start over with next command
+   filenames <- c("../omPrimeDB.sql", "../omPrj1DB.sql")                     # .sql dump files created with mysqldump or HeidiSQL
+   for(filename in filenames) {
+      if(file.exists(filename)) {                             # see: http://www.open-meta.org/technology/how-to-source-a-mysqldump-file-with-syntax-statements/
+         sql <- stri_read_lines(filename, encoding="utf8")    # read file into sql character vector
+         cmd <- ""                                            # initialize command
+         for(line in sql) {                                   # loop through sql vector, one line at a time
+            if(line!="" && str_sub(line,1,3)!="-- ") {        # skip blank and comment lines
+               cmd <- paste0(cmd, line)                       # add current line to command
+               if(str_sub(cmd,-1,-1)==";") {                  # if command ends with ";", execute it
+                  r <- dbExecute(dbLink, cmd)                 #    else add more lines to cmd
+                  cmd <- ""                                   # start over with next command
+               }
             }
          }
       }
-      return("Initialization of database is complete...")
    }
 
-### The following code is still used for new installs when there's not an sql dump file!!
+# Add a page to om$prime.page
+      # pg = pageGet(pool=root.pool)
+      # pg$spReq[2] = 0
+      # pg$pageType[2] = 0
+      # pg$pageText[2] = ""
+      # pg$deleted[2] = 0
+      #
+      # pg$spReq[2] = 500
+      #
+      # pg$pageName[2] = "adminForms"
+      # r = recSaveR(pg, pool=root.pool)
+      #
+
+
+
+   return("Initialization of database is complete...")
+
+   # Nothing below here runs unless you comment out the return() above
+
+   # initialize sample project
+   # Only run this if there's no .sql file above to create the initial project
+   source("sql-init-project.R", local=TRUE)
+   r = initProject("1", "Effect of daily vitamin D<sub>3</sub> supplementation on human health and performance", root.pool)
+   return("Initialization of database is complete...")
+
+   # And nothing below here runs either unless you comment out the return() above, too.
+
+### Don't delete the following code. It may still be needed for new installs when there's not an sql dump file!!
    # Old school init....
 
    # does om$prime database exist?
@@ -214,6 +242,9 @@ DB.Initialization = function(burnItAllDown=FALSE) {
       r = recSaveR(pg, pool=root.pool)
 
       pg$pageName[2] = "adminPrjUser"
+      r = recSaveR(pg, pool=root.pool)
+
+      pg$pageName[2] = "adminForms"
       r = recSaveR(pg, pool=root.pool)
 
       pg$spReq[2] = 1   # Need to be logged in for this one to send email to PI
@@ -539,10 +570,6 @@ helpText='
 '
 r = saveP(order, title, helpText)
 
-   # initialize sample project
-
-   source("sql-init-project.R", local=TRUE)
-   r = initProject("1", PROJECTNAME, root.pool)
    return("Initialization of database is complete...")
 }
 
