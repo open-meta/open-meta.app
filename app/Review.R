@@ -166,7 +166,6 @@ no data is available for that graph at this time (no searches have been processe
                                  format(sum(S$PGN$FR$reviewBest==2), big.mark = ","), " passed</span><br>")
                         )),
                         bs4("pgn", np=S$PGN$pageCount, ap=S$PGN$activePage),
-                        bs4("c12", bs4("hr0", class="pb-4")),
                         bs4("r",
                            bs4("c12",
 # This does the entire table with one vectorized paste0(). "cites" is a tibble and its columns are vectors.
@@ -174,7 +173,7 @@ no data is available for that graph at this time (no searches have been processe
 # In this particular example, there's one row with a col-11 containing all the data, using <br> to start new
 #    lines, and col-1 for the button. Note that cites$btn isn't stored in MySQL, but is added to "cites" above.
 HTML(paste0(
-'<div class="row justify-content-center">
+'<div class="row">
    <div class="col-11">
       <b>Review Status:</b> ',
          ifelse(cites$reviewBest==0, 'Not reviewed', ifelse(cites$reviewBest==1, 'Stage 1 Fail', 'Stage 1 Pass')), '
