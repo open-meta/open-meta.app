@@ -42,13 +42,14 @@ rv$imGetFORMData <- 0
 #    otherwise load a FORM with the right columns but no rows. Also sets two table-name-related globals.
 imGetFORM = function(myTable) {
    S$IN$TABLE <<- myTable                                  # Need this to save an edited FORM later
-   S$IN$settingsName <<- paste0("inputForm-", myTable)     # imSaveform2FORMrow() will need this too
-   r <-recGet(S$db, "settings", "value", tibble(c("name", "=", S$IN$settingsName)))
+   S$IN$FORMname <<- paste0("inputForm-", myTable)         # imSaveform2FORMrow() will need this too
+   r <-recGet(S$db, "settings", "value", tibble(c("name", "=", S$IN$FORMname)))
    if(r$value!="") {                                       # did recGet return anything?
       S$IN$FORM <<- as.tibble(fromJSON(r$value))           # Yes, unJSONize as it's a tibble
    } else {
       S$IN$FORM <<- imGetBlankFORMrow("blank")[-1,]        # No, build a zero-row tibble with default input parameters
    }
+   return(S$IN$FORM)
 }
 
 # This handles the top of the customization page, where inputs are added and edited
@@ -61,7 +62,7 @@ imModifyInputs <- function() {
          bs4("hr")
       ))
    } else {
-      ir = imGetBlankFORMrow("select")
+      ir = imGetBlankFORMrow("select")         # This builds the type-of-input selector
       ir$id = "inputType"
       ir$value = S$IN$userTypes[S$IN$inputType]
       ir$options = paste0(S$IN$userTypes, collapse=";")
@@ -72,8 +73,8 @@ imModifyInputs <- function() {
          ir$disabled = TRUE                    #    a FORMrow
       }
       return(tagList(
-         imForm2HTML(ir),
-         output$modifyAnInput <- renderUI(imModifyAnInput()),
+         imForm2HTML(ir),                      # This displays the type-of-input selector
+         output$modifyAnInput <- renderUI(imModifyAnInput()),    # This displays the form for collecting info about that input
          HTML('<div class="text-right mt-3">'),
          bs4("btn", id="cancelInput", n=1, q="b", "Cancel"),
          bs4("btn", id="saveInput", n=1, q="b", "Save"),
@@ -83,8 +84,8 @@ imModifyInputs <- function() {
    }
 }
 
-# REACTIVE - This runs each time the input$inputType selector is changed
-# This is called by a render function innside imModifyInputs() to display the form for creating/editing a FORMrow
+# REACTIVE - This is called each time its embedded input$inputType selector is changed because it's called
+#    by a render function inside imModifyInputs(). It displays the form for creating/editing a FORMrow
 imModifyAnInput <- function() {
    r = ""
    if(S$IN$flag$editingForm || is.null(input$inputType)) {
@@ -303,15 +304,16 @@ optionsCode, '
 #    Also check for all required fields.
 imFormValidates <- function() {
    msg=""
-   if(!S$IN$flag$editingForm) {                            # Only need to validate the name for new inputs
-      name <- str_trim(stripHTML(as.character(input[["name"]]))) # trim and strip HTML from input$name
+   if(!S$IN$flag$editingForm) {                                                # Only need to validate the name for new inputs
+      name <- str_trim(stripHTML(as.character(input[["name"]])))               # trim and strip HTML from input$name
       if(name=="") {
          msg="<li>The short name for this input can't be blank.</li>"
       } else {
          dbLink <- poolCheckout(shiny.pool)                                    # get a dbLink from the pool
-         on.exit(poolReturn(dbLink), add = TRUE)                         # return it when done, even if there's an error
-         r = dbExecute(dbLink, paste0("SELECT idsID FROM ", S$db, ".ids WHERE idsID='", name, "';"))
-         if(r!=0) {
+         on.exit(poolReturn(dbLink), add = TRUE)                               # Have to use dbLink because ids is a non-standard table
+         r = dbGetQuery(dbLink, paste0("SELECT idsID FROM `", S$db, "`.`ids` WHERE idAsName='", name, "';"))    # dbExecute returns # of rows
+         s = dbGetQuery(dbLink, paste0("SELECT idsID FROM `om$prime`.`ids` WHERE idAsName='", name, "';"))      # check both id tables
+         if(nrow(r)!=0 || nrow(s)!=0) {                                        # dbGetQuery, returns a table with no rows if not found
             msg = "<li>Short names must be unique and that name is already taken.</li>"
          }
       }
@@ -437,14 +439,13 @@ imSaveform2FORMrow <- function() {
          S$IN$FORM[S$IN$FORM$order==FORMrow$order,] <<- FORMrow  # Update an existing row in an exisiing tibble
       }
    }
-   print(FORMrow$max)
    imSaveFORM()
 }
 
 # This is separated from imSaveform2FORMrow because it's also used after moveup, movedown, and delete
 imSaveFORM = function() {
-   r <- recGet(S$db, "settings", "**", tibble(c("name", "=", S$IN$settingsName)))
-   r$name[2] <- S$IN$settingsName                            # Set up in imGetForm; don't change it elsewhere!
+   r <- recGet(S$db, "settings", "**", tibble(c("name", "=", S$IN$FORMname)))
+   r$name[2] <- S$IN$FORMname                                # Set up in imGetForm; don't change it elsewhere!
    if(nrow(S$IN$FORM)>0) {
       S$IN$FORM$order <<- 1:nrow(S$IN$FORM)
       r$value[2] <- toJSON(S$IN$FORM)                        # FORM is a tibble, so we have to JSONize it
