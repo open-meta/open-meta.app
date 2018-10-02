@@ -262,6 +262,78 @@ generate_code <- function() {
    # Get our Bootstrap4 stuff
 source("bs4.R", local=TRUE)
 
+# The pickR function builds those paginated tables with buttons on the right that are everywhere in this app.
+# The ID allows you to put mulitiple pickRs on a single page.
+# It's typically the only thing in an output/renderUI.
+#    A good example of how to call it is in adminForms.R
+pickR <- function(ID, activePage, DB, TABLE, SELECT, WHERE, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF,
+                     NOtext="Nothing Found", itemsPerPage, scroll) {
+# Get filtered (by WHERE parameter) IDs
+   tableID <- paste0(TABLE,"ID")
+   R <- recGet(DB, TABLE, tableID, WHERE)
+# Flunk out if nothing returned
+   if(R[[1,1]]==0) {
+      return(HTML0("<h5>", NOtext, "</h5>"))
+   }
+# Build a headline
+   Headline <- HeadlineF(R)
+# Chunk the IDs
+   Rc <- chunker(R[[1,]], itemsPerPage)
+   pageCount <- length(Rc)
+   if(activePage > pageCount) { activePage <- 1 }          # Fix an activePage overflow (happens when filtering)
+# Get data for this chunk
+   Rx <- recGet(DB, TABLE, c(tableID, SELECT), tibble(c(tableID, " IN ", paste0("(", paste0(Rc[[activePage]], collapse=","), ")"))))
+   Rx <- ButtonF(Rx, ButtonData)
+# Fix Data
+   Rx <- FixDataF(Rx)
+   Rx <- Rx[,-1]                                           # Drop the tableID column
+# Return formatted results
+   pgnID <- paste0("pgn_", ID)
+   Headline <- ifelse(Headline=="", "", as.character(bs4("c12", HTML0(Headline))))
+   return(
+      tagList(
+         bs4("c12", bs4("hr0", class="pb-4")),
+         HTML0(Headline),
+         bs4("pgn", id=pgnID, np=pageCount, ap=activePage),       # Upper paginator
+         bs4("c12", class=ifelse(scroll, "pre-scrollable", ""),
+            bs4("r",
+               HTML0(FormatF(Rx))
+            )
+         ),
+         bs4("pgn", id=pgnID, np=pageCount, ap=activePage)        # Lower paginator
+      )
+   )
+}
+
+# Standard pickR formatting functions
+prf_1X1 = function(r) {                        # Standard function for one column of data and one row of buttons
+   return(paste0(
+'<div class="col-12"><div class="row">
+   <div class="col-10">', r[[1,]], '</div>
+   <div class="col-2">', r[[2,]], '</div>',
+   bs4('c12', bs4('hr0', class="py-2")), '
+</div></div>', collapse = ''))
+}
+
+# Standard pickR button-making function
+stdButtons <- function(Rx, buttons) {          # Make buttons for pickR function the standard way
+   numButtons <- length(buttons)
+   if(numButtons>0) {
+      for(i in 1:numButtons) {                 # Add button columns to the tibble
+         pattern = "XxX"
+         btn = bs4("btn", id=buttons[[i]]$id, n=pattern, q=buttons[[i]]$q, class=buttons[[i]]$class, buttons[[i]]$label)
+         Rx[,ncol(Rx)+1] = str_replace_all(btn, rep(pattern, nrow(Rx)), as.character(Rx[[1]]))   # str_replace is vectorized
+      }
+   }
+   return(Rx)
+}
+
+# Used when a placeholder function doesn't need to do anything. See FixDataF in pickR()
+THRU <- function(x) { return(x) }              # The function that does nothing. Needed by pickR() when nothing needs to happen.
+
+THRUb <- function(x) { return("") }            # Not suitable for a pipe. Obviously always returns "".
+
+# DT is deprecated, switching to the pickR function
    # DT support functions. This one gets data from MySQL, then formats it for omDT()
 omRx = function(db, table, SELECT, WHERE, buttons) {  # SELECT must start with tableID or buttons won't work right
    Rx <- recGet(db, table, SELECT, WHERE)             # Get records to display
