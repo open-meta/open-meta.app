@@ -111,6 +111,7 @@ DB.Initialization = function(burnItAllDown=FALSE) {
       r = dbExecute(dbLink, createTable("om$prime", "membership"))
       r = dbExecute(dbLink, createTable("om$prime", "protohelp"))
       r = dbExecute(dbLink, createTable("om$prime", "settings"))
+      r = dbExecute(dbLink, createTable("om$prime", "ids"))
       # inititialise user table
       u = userGet(pool=root.pool)
       u$userName[2] = "Admin"
