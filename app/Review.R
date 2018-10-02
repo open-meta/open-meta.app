@@ -517,3 +517,24 @@ observeEvent(rv$runFilter, {
       rv$render = rv$render+1
    }
 })
+
+
+# For conversion to pickR
+prf_cites = function(r) {
+# In this particular example, there's one row with a col-11 containing all the data, using <br> to start new
+#    lines, and col-1 for the button. Note that cites$btn isn't stored in MySQL, but is added to "cites" above.
+   return(paste0(
+'<div class="row">
+   <div class="col-11">
+      <b>Review Status:</b> ',
+         ifelse(r$reviewBest==0, 'Not reviewed', ifelse(r$reviewBest==1, 'Stage 1 Fail', 'Stage 1 Pass')), '
+         <b>Number of reviews:</b> ', r$reviewCount, '<br>
+      <span style="font-size: 1.25rem; color:#fff;">', r$title, '</span><br>
+      <b>By: </b>', r$author, '<br>
+      <b>Year:</b> ', r$Y, ' <b>Journal:</b> ', r$journal,  '<br>
+   </div>
+   <div class="col-1">', r$btn, '</div>',
+   bs4('c12', bs4('hr')), '
+</div>', collapse = ''))
+}
+
