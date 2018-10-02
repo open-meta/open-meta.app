@@ -465,7 +465,7 @@ bs4Pagination = function(attribs, children) {
                           paste0(attribs$id, "_", p), '" class="page-link">', p, '</a></li>')
    }
    return(
-      bs4("r", bs4("c12", class="mb-2", HTML(pgnStart, pgnMiddle, pgnEnd)))
+      bs4("c12", class="mb-2", HTML(pgnStart, pgnMiddle, pgnEnd))
    )
 }
 
