@@ -26,7 +26,7 @@ initProject = function(projectID, projectName, pool) {
    r = dbExecute(dbLink, createTable(S$db, "search"))
    r = dbExecute(dbLink, createTable(S$db, "catalog"))
    r = dbExecute(dbLink, createTable(S$db, "review"))
-   r = dbExecute(dbLink, createTable(S$db, "piconame"))
+   r = dbExecute(dbLink, createTable(S$db, "pico"))
    r = dbExecute(dbLink, createTable(S$db, "extract"))
    r = dbExecute(dbLink, createTable(S$db, "ids"))
 
@@ -50,19 +50,20 @@ initProject = function(projectID, projectName, pool) {
    r = recSaveR(r, db=S$db, pool=pool)
 
    # Move forms from om$prime.settings to S$db.settings. Also update project's `ids` table
-   moveFORMS = c("trial", "arm", "group", "participant", "intervention", "comparison", "outcome", "timespan")
-   for(tableName in moveFORMS) {
-      t = paste0("inputForm-", tableName)
-      r = recGet("om$prime", "settings", "**", WHERE=tibble(c("name", "=", t)), pool=pool)
+   formIDs = recGet("om$prime", "settings", c("settingsID","name"), WHERE=tibble(c("name", "LIKE", "PrjForm-%")), pool=pool)
+      for(i in 1:nrow(formIDs)) {
+         # first copy a form to project's settings table
+      r = recGet("om$prime", "settings", "**", WHERE=tibble(c("settingsID", "=", formIDs$settingsID[i])), pool=pool)
       r$settingsID <- r$verNum <- 0                  # change both vectors (it's an insert not an update)
       r$name[1] <- r$value[1] <-""                   # If [1] and [2] are the same, sql.core drops the field!
       r$comment[1] <- "a"                            # Need to change [1] here, too, so "" in [2] takes.
       r = recSaveR(r, db=S$db, pool=pool)
+         # now fix the project's ids table
       f = as.tibble(fromJSON(r$r$value[2]))          # Convert value to a FORM, FORM$name to an ID,
       if(nrow(f)>0) {
          for(name in f$name) {
             id <- paste0("id", paste0(utf8ToInt(name), collapse=""))   # create valid id syntax for both R and JavaScript
-            r = dbExecute(dbLink, paste0("INSERT INTO `", S$db, "`.`ids` VALUES ('", id, "', '", tableName, "', '", name, "');"))
+            r = dbExecute(dbLink, paste0("INSERT INTO `", S$db, "`.`ids` VALUES ('", id, "', '", formIDs$name[i], "', '", name, "');"))
          }
       }
    }
