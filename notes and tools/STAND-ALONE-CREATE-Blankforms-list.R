@@ -18,6 +18,22 @@ imName <- imGetBlankFORMrow("text")
    imName$width <- "25%"
    imName$helptext <- "Used in tables and graphs.<br>Must be unique; can't be changed.<br>15 characters maximum."
 
+imTable <- imGetBlankFORMrow("text")
+   imTable$id <- "table"
+   imTable$label <- "Data table"
+   imTable$placeholder <- "Required..."
+   imTable$sameline <- TRUE
+   imTable$width <- "25%"
+   imTable$helptext <- "Name of the table that data from this field will be stored in."
+
+imColumn <- imGetBlankFORMrow("text")
+   imColumn$id <- "column"
+   imColumn$label <- "Data column"
+   imColumn$placeholder <- "Required..."
+   imColumn$sameline <- TRUE
+   imColumn$width <- "25%"
+   imColumn$helptext <- "Name of the table column that data from this field will be stored in."
+
 imLabel <- imGetBlankFORMrow("text")
    imLabel$id <- "label"
    imLabel$label <- "Long name"
@@ -52,6 +68,10 @@ imOther <- imGetBlankFORMrow("checkbox")            # options include disabled
 w=1
    r <- imName
 w=w+1
+   r[w,] <- imTable
+w=w+1
+   r[w,] <- imColumn
+w=w+1
    r[w,] <- imLabel
 w=w+1
    r[w,] <- imHelptext
@@ -82,6 +102,10 @@ imBlankforms[["text"]] <- r          # userType is "Simple Text"
 w=1
    r <- imName
 w=w+1
+   r[w,] <- imTable
+w=w+1
+   r[w,] <- imColumn
+w=w+1
    r[w,] <- imLabel
 w=w+1
    r[w,] <- imHelptext
@@ -105,6 +129,10 @@ imBlankforms[["quill"]] <- r         # userType is "Text editor"
 ### Numeric input
 w=1
    r <- imName
+w=w+1
+   r[w,] <- imTable
+w=w+1
+   r[w,] <- imColumn
 w=w+1
    r[w,] <- imLabel
 w=w+1
@@ -154,6 +182,10 @@ imBlankforms[["number"]] <- r         # userType is "Numeric"
 w=1
    r <- imName
 w=w+1
+   r[w,] <- imTable
+w=w+1
+   r[w,] <- imColumn
+w=w+1
    r[w,] <- imLabel
 w=w+1
    r[w,] <- imHelptext
@@ -180,6 +212,10 @@ imBlankforms[["select"]] <- r         # userType is "Select (dropdown)"
 ### Radio button input
 w=1
    r <- imName
+w=w+1
+   r[w,] <- imTable
+w=w+1
+   r[w,] <- imColumn
 w=w+1
    r[w,] <- imLabel
 w=w+1
@@ -215,6 +251,10 @@ imBlankforms[["radio"]] <- r         # userType is "Radio buttons"
 ### Checkboxes input
 w=1
    r <- imName
+w=w+1
+   r[w,] <- imTable
+w=w+1
+   r[w,] <- imColumn
 w=w+1
    r[w,] <- imLabel
 w=w+1
