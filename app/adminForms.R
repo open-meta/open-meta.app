@@ -54,36 +54,35 @@ output$uiHead <- renderUI({rv$limn; isolate({
 output$uiMeat <- renderUI({c(rv$limn); isolate({
    if(rv$limn) {
       switch(S$display,
-         "open" = {
-            restofpage <-
-               tagList(
-                  bs4("r", align="hc",
-                     bs4("c7",
-                     bs4("r", id="newBTN"),
-                     bs4("r", id="pickR")
-                  ))
-               )
+         "open" = { return(
+            tagList(
+               bs4("r", align="hc",
+                  bs4("c7",
+                  bs4("r", id="newBTN"),
+                  bs4("r", id="pickR"),
+                  bs4("r", id="ybox")
+               ))
+            ))
          },
-         "newForm" = {
-            restofpage <-
-               tagList(
-                  bs4("r", align="hc",
-                     bs4("c7",
-                     bs4("r", id="newForm")
-                  ))
-               )
+         "newForm" = { return(
+            tagList(
+               bs4("r", align="hc",
+                  bs4("c7",
+                  bs4("r", id="newForm"),
+                  bs4("r", id="ybox")
+               ))
+            ))
          },
-         "editForm" = {
-            restofpage <-
-               tagList(
-                  bs4("r", align="hc",
-                     bs4("c10",
-                     bs4("r", id="editForm")
-                  ))
-               )
+         "editForm" = { return(
+            tagList(
+               bs4("r", align="hc",
+                  bs4("c10",
+                  bs4("r", id="editForm"),
+                  bs4("r", bs4("c12", id="ybox"))
+               ))
+            ))
          }
       )
-      return(restofpage)
    }
 })})
 
@@ -108,9 +107,10 @@ output$pickR <- renderUI({c(rv$limn, rv$limnForms); isolate({              # !!!
    SELECT = "name"                                                         # These are the table fields needed to build the pickR
    WHERE = tibble(c("name", "LIKE", "%form%"))                             # This is the incoming filter
    HeadlineF = THRUb                                                       # THRUb returns "", as we have no headline
-   ButtonData = list(edit=list(id=ID, q="b", class="", label="Edit Form"))
+   ButtonData <- list(edit=list(id=paste0("editForm"), q="g", class="mr-2", label="Edit"),
+                    delete=list(id=paste0("deleteForm"), q="r", label="Delete"))
    ButtonF = stdButtons                                                    # use just the function name; no quotes, no ()
-   FixDataF = THRU                                                         # the THRU function does exactly nothing
+   FixDataF = THRU
    FormatF = prf_1X1
    NOtext = "No forms found by this filter."
    itemsPerPage = S$PKR$itemsPerPage                                       # Modifiable pickR-by-pickR
@@ -121,12 +121,14 @@ output$pickR <- renderUI({c(rv$limn, rv$limnForms); isolate({              # !!!
 
 output$newForm <- renderUI({rv$limn; isolate({
    r <- recGet(S$db, "settings", "value", tibble(c("name", "=", "Form-newForm")))
+   FORM <- fromJSON(r$value)
+   S$newFormNameID <<- FORM[[FORM$name=="newFormName", "id"]]              # Need to do this because ID is "id...utf8numbers"
    tagList(
       bs4("c12",
          HTML0('<h5 class="my-4">Create a new form</h5>'),
 #         bs4("tin", id="newForm", "Form name"),                           # Need this when there's no Form-newForm yet
-         imForm2HTML(fromJSON(r$value)),
-         bs4("r", align="he", bs4("c3",
+         imForm2HTML(FORM),
+         bs4("r", align="he", bs4("c4",
             HTML0('<div class="text-right mt-3">'),
             bs4("btn", id="cancelAdd", n=1, q="b", "Cancel"),
             bs4("btn", id="saveAdd", n=1, q="b", "Save"),
@@ -138,6 +140,10 @@ output$newForm <- renderUI({rv$limn; isolate({
 })})
 
 output$editForm <- renderUI({rv$limn; isolate({
+   BackBtn <- ""
+   if(S$IN$flag$showAddInputButton) {                                      # Only show the back button if not editing an input.
+      BackBtn <- bs4("btn", id="cancelAdd", n=2, q="b", "Back to List of Forms")
+   }
    return(
       tagList(
          bs4("c12",
@@ -145,10 +151,30 @@ output$editForm <- renderUI({rv$limn; isolate({
             HTML0('<h5 class="mb-4">Edit System-Wide Forms</h5>'),
             output$modifyInputs <- renderUI(imModifyInputs()),
             output$showInputs   <- renderUI(imShowInputs()),
-            bs4("btn", id="cancelAdd", n=2, q="b", "Cancel")
+            BackBtn
          )
       )
    )
+})})
+
+output$ybox <- renderUI({c(rv$limn); isolate({
+yBox = HTML0(
+"<p>If you're here, you're a system administrator. The forms you create and edit here are saved in the om$prime.settings
+file (with appropriate changes to the om$prime ids file).</p>
+<p>When a user starts a new project, the forms with names that begin <i>PrjForms-</i> in the om$prime.settings file are
+copied to the project's settings file. Thus, all the inputs you add to forms here appear in every project and should be basic
+inputs that collect information required by every project.</p>
+<p>Principal Investigators can customize some of these forms (the ones that begin with <i>PrjForm-</i>) by adding additional
+fields. The idea is to allow each project to collect customized information. But that's NOT what's going on on this page;
+here you create and edit the parts of forms that are the same for every project.</p>
+<p>PS: There are some minor problems with using a double-quotation mark in a field. It works fine until you try to edit that
+input, at which point the value of the input will end at the first double-quote. Single quotes work, as does re-entering the
+text every time you edit an input. Sorry; this one is too complicated to figure out.</p>
+")
+   return(tagList(
+      bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
+   ))
+
 })})
 
 ### observer for omclick
@@ -165,35 +191,59 @@ observeEvent(input$js.omclick, {
          limnID = paste0("limn", n)         # The pickR render should respond to this rv$limn...;
          rv[[limnID]] = rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
       },
-      "Forms" = {                  # Edit Button, "Forms" is the ID of one of the pickRs on this page; this loads the selected form
-         r <-recGet(S$db, "settings", c("name","value"), tibble(c("settingsID", "=", n)))
-         S$IN$FORMname <<- r$name
-         S$IN$FORM <<- as.tibble(fromJSON(r$value))           # Yes, unJSONize as it's a tibble
-         S$IN$flag$showAddInputButton <<- TRUE
-         S$display <<- "editForm"
-         S$hideMenus <<- TRUE
-         rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
-      },
       "newForm" = {
          S$IN$flag$showAddInputButton <<- TRUE
          S$display <<- "newForm"
          S$hideMenus <<- TRUE
          rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
       },
+      "editForm" = {                  # Edit Button, "Forms" is the ID of one of the pickRs on this page; this loads the selected form
+         # This doesn't use imGetForm because at this point we have the form's ID rather than its name.
+         r <-recGet(S$db, "settings", c("name","value"), tibble(c("settingsID", "=", n)))
+         S$IN$FORMname <<- r$name
+         S$IN$FORM <<- as.tibble(fromJSON(r$value))           # Yes, unJSONize as it's a tibble
+         S$IN$flag$showAddInputButton <<- TRUE
+         S$IN$flag$editingForm <<- FALSE                      # Need this for the Look and Feel item-disabling if()
+         S$display <<- "editForm"
+         S$hideMenus <<- TRUE
+         rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
+      },
+      "deleteForm" = {
+         if(S$P$Modify) {
+            r <-recGet(S$db, "settings", c("name","value"), tibble(c("settingsID", "=", n)))
+            S$IN$FORM <<- as.tibble(fromJSON(r$value))
+            dbLink <- poolCheckout(shiny.pool)                              # When deleting a FORM, we also need to delete
+            on.exit(poolReturn(dbLink), add = TRUE)                         #   its ids from the ids table
+            for(i in 1:nrow(S$IN$FORM)) {
+               r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[i, "id"], "';"))
+            }
+            r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`settings` WHERE settingsID='", n, "';"))
+            rv$limn = rv$limn + 1
+         }
+      },
       "saveAdd" = {
-         f = str_trim(stripHTML(input$newForm))
-         r = recGet(S$db, "settings", "**", tibble(c("name", "=", f)))
-         if(r[[1,1]]==0) {
-            r$name[2] <- f
-            r$value[2] <- toJSON(imGetBlankFORMrow("text"))
-            r = recSave(r)
-            S$display <<- "open"
-            S$hideMenus <<- FALSE
-            rv$limn <- rv$limn +1   # Need to limn at this level to un-hideMenus, also to display added Form
+         f = str_trim(stripHTML(input[[S$newFormNameID]]))
+         if(str_sub(f, 1, 5)=="Form-" || str_sub(f, 1, 8)=="PrjForm-" || str_sub(f, 1, 10)=="inputForm-") {
+            r = recGet(S$db, "settings", "**", tibble(c("name", "=", f)))
+               if(r[[1,1]]==0) {
+                  r$name[2] <- f
+                  r$value[2] <- toJSON(imGetBlankFORMrow("blank")[-1,])
+                  r = recSave(r)
+                  S$display <<- "open"
+                  S$hideMenus <<- FALSE
+                  rv$limn <- rv$limn +1   # Need to limn at this level to un-hideMenus, also to display added Form
+               } else {
+                  S$modal_title <<- "Whoops"
+                  S$modal_text <<- HTML0("<p>That name is taken.</p>")
+                  S$modal_size <<- "s"
+                  rv$modal_warning <- rv$modal_warning + 1
+               }
          } else {
             S$modal_title <<- "Whoops"
-            S$modal_text <<- HTML("<p>That name is taken.</p>")
-            S$modal_size <<- "s"
+            S$modal_text <<- HTML0("<p>Form names MUST begin with either <i>PrjForm-</i> (for a project's ",
+                                  "customizable forms), <i>Form-</i> for system-wide forms, or <i>inputForm-</i>",
+                                  "for inputMeta's own input forms.</p>")
+            S$modal_size <<- "m"
             rv$modal_warning <- rv$modal_warning + 1
          }
       },
@@ -215,8 +265,8 @@ observeEvent(input$js.omclick, {
          S$IN$FORMrowform$order <<- 1:nrow(S$IN$FORMrowform)
          rv$limn = rv$limn + 1
       },
-      "editMe" = {                  # This is the green Edit button
-         if(S$P$SA || (S$P$Modify && !S$IN$FORM[[n, "locked"]])) {
+      "editMe" = {               # This is the green Edit button
+         if(S$P$Modify) {
             S$IN$flag$showAddInputButton <<- FALSE
             S$hideMenus <<- TRUE
             S$IN$flag$editingForm <<- TRUE                                       # disable selector, among other things
@@ -228,11 +278,10 @@ observeEvent(input$js.omclick, {
       },
       "saveInput" = {               # This button is on the output$modifyAnInput screen
          if(S$P$Modify && imFormValidates()) {
-            print("Saving in saveInput")
+#            S$IN$TABLE <<- "pico"
             imSaveform2FORMrow()
             S$IN$flag$showAddInputButton <<- TRUE
             S$IN$settingsName
-            S$hideMenus <<- FALSE
             saveDB <- S$db
             imSaveFORM()
             rv$limn = rv$limn + 1
@@ -240,11 +289,10 @@ observeEvent(input$js.omclick, {
       },
       "cancelInput" = {             # This button is on the output$modifyAnInput screen
          S$IN$flag$showAddInputButton <<- TRUE
-         S$hideMenus <<- FALSE
          rv$limn = rv$limn + 1
       },
       "deleteMe" = {
-         if(S$P$Modify && !S$IN$FORM[[n,"locked"]]) {
+         if(S$P$Modify) {
             dbLink <- poolCheckout(shiny.pool)                              # When deleting an input, we also need to delete
             on.exit(poolReturn(dbLink), add = TRUE)                         #   its id from the ids table
             r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[n, "id"], "';"))
@@ -256,16 +304,14 @@ observeEvent(input$js.omclick, {
       "upMe" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] - 1.5
-            S$IN$FORM <<- imFixOrder(S$IN$FORM)
-            imSaveFORM()
+            imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
             rv$limn = rv$limn + 1
          }
       },
       "downMe" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] + 1.5
-            S$IN$FORM <<- imFixOrder(S$IN$FORM)
-            imSaveFORM()
+            imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
             rv$limn = rv$limn + 1
          }
       },
