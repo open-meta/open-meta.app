@@ -294,7 +294,7 @@ extract=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14)
 
 #ids
 F1  = tibble(Name="idsID",     Type="VARCHAR",   Size="70",  NoSign="F", NoNull="T", Default="s",       Key="PRIMARY KEY")
-F2  = tibble(Name="table",     Type="VARCHAR",   Size="15",  NoSign="F", NoNull="T", Default="s",       Key="")
+F2  = tibble(Name="form",      Type="VARCHAR",   Size="50",  NoSign="F", NoNull="T", Default="s",       Key="")
 F3  = tibble(Name="idAsName",  Type="VARCHAR",   Size="15",  NoSign="F", NoNull="T", Default="s",       Key="")
 ids=rbind(F1,F2,F3)
 
