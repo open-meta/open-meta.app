@@ -23,11 +23,6 @@ S$P$roles <- c("Principal Investigator", "Co-Principal Investigator", "Project A
 S$IN$flag$showAddInputButton <- TRUE      #
 S$IN$view <- "Look and Feel"
 
-# dbLink <- poolCheckout(shiny.pool)
-# r = dbExecute(dbLink, createTable(S$db, "ids"))
-# poolReturn(dbLink)
-# print(r)
-
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({c(rv$menuActive, rv$subMenu, rv$limn); isolate({
       if(rv$limn && S$P$Msg=="") {
@@ -203,77 +198,35 @@ value of this data to your project actually worth all the extra work for your re
                            )
                         },
                      "2" = {
-                        t <- "trial"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Trial"
                      },
                      "3" = {
-                        t <- "arm"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Arm"
                      },
                      "4" = {
-                        t <- "group"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Group"
                      },
                      "5" = {
-                        t <- "participant"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Participant Grp"
                      },
                      "6" = {
-                        t <- "intervention"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Intervention"
                      },
                      "7" = {
-                        t <- "comparison"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Comparison"
                      },
                      "8" = {
-                        t <- "outcome"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Outcome"
                      },
                      "9" = {
-                        t <- "timespan"
-                        imGetFORM(t)
-                        restOfPage = tagList(
-                           output$modifyInputs <- renderUI(imModifyInputs()),
-                           output$showInputs   <- renderUI(imShowInputs()),
-                           output$yellowbox    <- renderUI(yellowbox(t))
-                        )
+                        FORMname "PrjForm-Time Span"
                      }
+                  )
+                  S$IN$FORM <<- imGetFORM(FORMname)
+                  restOfPage = tagList(
+                     output$modifyInputs <- renderUI(imModifyInputs()),
+                     output$showInputs   <- renderUI(imShowInputs()),
+                     output$yellowbox    <- renderUI(yellowbox(form))
                   )
                }
             )
@@ -545,7 +498,7 @@ observeEvent(input$js.omclick, {
          if(S$P$Modify && !S$IN$FORM[[n,"locked"]]) {
             dbLink <- poolCheckout(shiny.pool)                              # When deleting an input, we also need to delete
             on.exit(poolReturn(dbLink), add = TRUE)                         #   its id from the ids table
-            r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[n, "id"], "';"))
+            r = dbGetQuery(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[n, "id"], "';"))
             S$IN$FORM <<- S$IN$FORM[-as.numeric(n),]                        # Delete the n row from FORM
             imSaveFORM()                                                    # Save the FORM
             rv$limn = rv$limn + 1
@@ -554,16 +507,14 @@ observeEvent(input$js.omclick, {
       "upMe" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] - 1.5
-            S$IN$FORM <<- imFixOrder(S$IN$FORM)
-            imSaveFORM()
+            imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
             rv$limn = rv$limn + 1
          }
       },
       "downMe" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] + 1.5
-            S$IN$FORM <<- imFixOrder(S$IN$FORM)
-            imSaveFORM()
+            imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
             rv$limn = rv$limn + 1
          }
       },
