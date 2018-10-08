@@ -309,8 +309,8 @@ pickR <- function(ID, activePage, DB, TABLE, SELECT, WHERE, HeadlineF, ButtonDat
 prf_1X1 = function(r) {                        # Standard function for one column of data and one row of buttons
    return(paste0(
 '<div class="col-12"><div class="row">
-   <div class="col-10">', r[[1,]], '</div>
-   <div class="col-2">', r[[2,]], '</div>',
+   <div class="col-8">', r[[1,]], '</div>
+   <div class="col-4 text-right">', r[[2,]], '</div>',
    bs4('c12', bs4('hr0', class="py-2")), '
 </div></div>', collapse = ''))
 }
@@ -318,12 +318,23 @@ prf_1X1 = function(r) {                        # Standard function for one colum
 # Standard pickR button-making function
 stdButtons <- function(Rx, buttons) {          # Make buttons for pickR function the standard way
    numButtons <- length(buttons)
+   cnames <- c(names(Rx), "Action")
+   # if(numButtons>0) {
+   #    for(i in 1:numButtons) {                 # Add button columns to the tibble
+   #       pattern = "XxX"
+   #       btn = bs4("btn", id=buttons[[i]]$id, n=pattern, q=buttons[[i]]$q, class=buttons[[i]]$class, buttons[[i]]$label)
+   #       Rx[, ncol(Rx) + i] = str_replace_all(btn, rep(pattern, nrow(Rx)), as.character(Rx[[1]]))   # str_replace is vectorized
+   #    }
+   #    names(Rx) <- cnames
+   # }
    if(numButtons>0) {
+      btn=rep("", nrow(Rx))
       for(i in 1:numButtons) {                 # Add button columns to the tibble
          pattern = "XxX"
-         btn = bs4("btn", id=buttons[[i]]$id, n=pattern, q=buttons[[i]]$q, class=buttons[[i]]$class, buttons[[i]]$label)
-         Rx[,ncol(Rx)+1] = str_replace_all(btn, rep(pattern, nrow(Rx)), as.character(Rx[[1]]))   # str_replace is vectorized
+         btn = paste0(btn, as.character(bs4("btn", id=buttons[[i]]$id, n=pattern, q=buttons[[i]]$q, class=buttons[[i]]$class, buttons[[i]]$label)))
       }
+      Rx[, ncol(Rx) + 1] = str_replace_all(btn, rep(pattern, nrow(Rx)), as.character(Rx[[1]]))   # str_replace is vectorized
+      names(Rx) <- cnames
    }
    return(Rx)
 }
@@ -332,6 +343,8 @@ stdButtons <- function(Rx, buttons) {          # Make buttons for pickR function
 THRU <- function(x) { return(x) }              # The function that does nothing. Needed by pickR() when nothing needs to happen.
 
 THRUb <- function(x) { return("") }            # Not suitable for a pipe. Obviously always returns "".
+
+SHOW <- function(x)  {print(x); return(x)}
 
 # DT is deprecated, switching to the pickR function
    # DT support functions. This one gets data from MySQL, then formats it for omDT()
@@ -551,7 +564,7 @@ server <- function(input, output, session) {
             text = c(text, "Help/Contact")
          }
          if(S$hideMenus) {
-            return(HTML("Click <b>Save</b> or <b>Cancel</b> at the bottom of the page."))
+            return(HTML("Click <b>Save</b> or <b>Cancel</b>."))
          } else {
             return(bs4("mp", text=text, links=links, active=0))
          }
