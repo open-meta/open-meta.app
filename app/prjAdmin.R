@@ -198,36 +198,38 @@ value of this data to your project actually worth all the extra work for your re
                            )
                         },
                      "2" = {
-                        FORMname "PrjForm-Trial"
+                        FORMname <- "PrjForm-Trial"
                      },
                      "3" = {
-                        FORMname "PrjForm-Arm"
+                        FORMname <- "PrjForm-Arm"
                      },
                      "4" = {
-                        FORMname "PrjForm-Group"
+                        FORMname <- "PrjForm-Group"
                      },
                      "5" = {
-                        FORMname "PrjForm-Participant Grp"
+                        FORMname <- "PrjForm-Participant Grp"
                      },
                      "6" = {
-                        FORMname "PrjForm-Intervention"
+                        FORMname <- "PrjForm-Intervention"
                      },
                      "7" = {
-                        FORMname "PrjForm-Comparison"
+                        FORMname <- "PrjForm-Comparison"
                      },
                      "8" = {
-                        FORMname "PrjForm-Outcome"
+                        FORMname <- "PrjForm-Outcome"
                      },
                      "9" = {
-                        FORMname "PrjForm-Time Span"
+                        FORMname <- "PrjForm-Time Span"
                      }
                   )
-                  S$IN$FORM <<- imGetFORM(FORMname)
-                  restOfPage = tagList(
-                     output$modifyInputs <- renderUI(imModifyInputs()),
-                     output$showInputs   <- renderUI(imShowInputs()),
-                     output$yellowbox    <- renderUI(yellowbox(form))
-                  )
+                  if(rv$subMenu>1) {
+                     S$IN$FORM <<- imGetFORM(FORMname)
+                     restOfPage = tagList(
+                        output$modifyInputs <- renderUI(imModifyInputs()),
+                        output$showInputs   <- renderUI(imShowInputs()),
+                        output$yellowbox    <- renderUI(yellowbox(form))
+                     )
+                  }
                }
             )
             return(tagList(

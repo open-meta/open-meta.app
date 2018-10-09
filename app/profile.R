@@ -231,7 +231,7 @@ observeEvent(input$ok_btn, {
 observeEvent(input$chgPassword_btn, {
    S$modal_title <<- "Whoops!"
    alertText <- ""
-   if(!checkpw(input$password, S$U$hashedPW[2])) {          # right password?
+   if(!checkpw(input$password, S$U$hashedPW)) {             # right password?
       alertText <- paste0(alertText, "<p>That's not your current password.</p>")
    }
    if(input$password1 == "") {

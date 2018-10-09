@@ -13,7 +13,7 @@ output$uiHead <- renderUI({
 S$Mlist = membershipGet(c("projectID", "role"), tibble(c("userID", "=", S$U$userID)))
 
 output$uiMeat <- renderUI({rv$limn; isolate({
-   if(S$Mlist$projectID==0) {
+   if(S$Mlist$projectID[1]==0) {
       return(tagList(
          bs4("r", align="hc",
             bs4("ca",
