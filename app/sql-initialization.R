@@ -54,7 +54,32 @@ DB.Initialization = function(burnItAllDown=FALSE) {
    SQL.Users <- dbGetQuery(dbLink, "SELECT `user` FROM `mysql`.`user`;")
 
    # New school init...
-   filenames <- c("../omPrimeDB.sql", "../omPrj1DB.sql")                     # .sql dump files created with mysqldump or HeidiSQL
+      # .sql dump files created with mysqldump or HeidiSQL
+      # omPrimeBaseDB.sql includes:
+         # membership table with Admin and TomW as PI and Observer on project 1
+         # page table with all current pages
+         # project table with 1 project
+         # protohelp table
+         # user table with Admin and TomW
+      # omPrimeAuxDB.sql includes:
+         # settings with uploadMaxCites and forms
+         # ids with utf8 ids for those forms
+      # omPrj1BaseDB.sql has these tables
+         # catalog
+         # cite1
+         # cite2
+         # comment
+         # protocol
+         # review
+         # search
+      # omPrj1AuxDB.sql has these tables
+         # extract
+         # pico
+         # settings
+         # ids
+
+
+   filenames <- c("../Database/omPrimeBaseDB.sql", "../Database/omPrimeAuxDB.sql", "../Database/omPrj1BaseDB.sql", "../Database/omPrj1AuxDB.sql")
    for(filename in filenames) {
       if(file.exists(filename)) {                             # see: http://www.open-meta.org/technology/how-to-source-a-mysqldump-file-with-syntax-statements/
          sql <- stri_read_lines(filename, encoding="utf8")    # read file into sql character vector
@@ -87,6 +112,20 @@ DB.Initialization = function(burnItAllDown=FALSE) {
 
 
    return("Initialization of database is complete...")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
    # Nothing below here runs unless you comment out the return() above
 
