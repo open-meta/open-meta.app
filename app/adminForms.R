@@ -120,13 +120,15 @@ output$pickR <- renderUI({c(rv$limn, rv$limnForms); isolate({              # !!!
 # Also needs first two items in omclick observer
 
 output$newForm <- renderUI({rv$limn; isolate({
-   r <- recGet(S$db, "settings", "value", tibble(c("name", "=", "Form-newForm")))
-   FORM <- fromJSON(r$value)
-   S$newFormNameID <<- FORM[[FORM$name=="newFormName", "id"]]              # Need to do this because ID is "id...utf8numbers"
+   FORM <- imGetBlankFORMrow("text")
+   FORM$id <- S$newFormNameID <<- "id110101119701111141097897109101"       # "newFormName" in utf8 code
+   FORM$name <- "newFormName"
+   FORM$label <- "Name of the new form"
+   FORM$helptext <- "Customizable forms must begin with 'PrjForm-'. All others must begin with 'Form-'"
+   FORM$value <- "Form-"
    tagList(
       bs4("c12",
          HTML0('<h5 class="my-4">Create a new form</h5>'),
-#         bs4("tin", id="newForm", "Form name"),                           # Need this when there's no Form-newForm yet
          imForm2HTML(FORM),
          bs4("r", align="he", bs4("c4",
             HTML0('<div class="text-right mt-3">'),
