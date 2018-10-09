@@ -55,8 +55,7 @@ initProject = function(projectID, projectName, pool) {
          # first copy a form to project's settings table
       r = recGet("om$prime", "settings", "**", WHERE=tibble(c("settingsID", "=", formIDs$settingsID[i])), pool=pool)
       r$settingsID <- r$verNum <- 0                  # change both vectors (it's an insert not an update)
-      r$name[1] <- r$value[1] <-""                   # If [1] and [2] are the same, sql.core drops the field!
-      r$comment[1] <- "a"                            # Need to change [1] here, too, so "" in [2] takes.
+      r$comment[1] <- r$name[1] <- r$value[1] <-"-"  # If [1] and [2] are the same, sql.core drops the field!
       r = recSaveR(r, db=S$db, pool=pool)
          # now fix the project's ids table
       f = as.tibble(fromJSON(r$r$value[2]))          # Convert value to a FORM, FORM$name to an ID,
@@ -66,6 +65,15 @@ initProject = function(projectID, projectName, pool) {
             r = dbExecute(dbLink, paste0("INSERT INTO `", S$db, "`.`ids` VALUES ('", id, "', '", formIDs$name[i], "', '", name, "');"))
          }
       }
+      }
+
+   # Move base pico records to the project
+   r <- recGet("om$prime", "pico", "picoID", WHERE=tibble(c("picoID", ">", "0")), pool=pool)
+   for(id in r$picoID) {
+      r <- recGet("om$prime", "pico", "**", WHERE=tibble(c("picoID", "=", id)), pool=pool)
+      r$picoID <- r$verNum <- 0                      # change both vectors (it's an insert not an update)
+      r$comment[1] <- r$name[1] <- r$value[1] <-"-"  # If [1] and [2] are the same, sql.core drops the field!
+      r <- recSaveR(r, db=S$db, pool=pool)
    }
 
 ### Complete protocol table
