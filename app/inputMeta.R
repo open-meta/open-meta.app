@@ -24,8 +24,35 @@ rv$imGetFORMData <- 0
 S$IN$userTypes <- c("Simple text", "Text editor", "Numeric", "Select (dropdown)", "Radio buttons", "Checkboxes")
 S$IN$codeTypes <- c("text", "quill", "number", "select", "radio", "checkbox")
 
-# Load the shared imGetBlankFORMrow function
-source("inputMetaAux.R", local=TRUE)  # This will create a default one-row tibble with the columns of a FORMrow
+### Defines the columns in a form or FORM tibble
+imGetBlankFORMrow = function(type) {
+   return(tibble(
+      type=type,                # see S$IN$codeTypes
+      id="",                    # identifies one of these parameter for Forms; otherwise the input name
+      name="",                  #    a short identifier for tables and figures (must be unique)
+      table="",                 # Table the data collected by this input is stored in
+      column="",                # Column that data collected by this input is stored in
+      label="",
+      helptext="",
+      width="",                 # for width the possible options are 25%-50%-75%-100%
+      value="",                 # selected option(s) for select-radio-checkbox; otherwise current value
+      placeholder="",
+      maxlength="",             # Number of characters accepted
+      min="",                   # These three are for the numeric input type
+      max="",                   #  ...the value of these numbers will be in strings, however
+      step="",
+      options="",               # all the options for select-radio-checkbox, separated by ";"
+                                # for "form", the possible options are: inline, sameline, disabled, and locked
+      inline=TRUE,              # whether radio buttons and checkboxes are inline or in a column
+      sameline=FALSE,           # whether the current input should be on the same line as the previous input (if it would fit)
+      disabled=FALSE,           # whether this input should be disabled
+      locked=FALSE,             # whether this FORMrow should be locked
+      order=999                 # used to reorder the inputs
+#      required=,               # requires a true form submit to work, which we don't do
+#      readonly=,               # use disabled, which won't accept focus like readonly will
+#      size=0,                  # width of input, but form-control class overrides this one
+   ))
+}
 
 # Load the list of form defintions into memory.
 # This list is created by the STAND-ALONE-CREATE-Blankforms-list.R file,
@@ -527,30 +554,31 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
       #   is not what we want here. Instead, we now save the FORM values in the appropriate table, which can be
       #   either a name-value table or a standard row-column table. Then we throw the FORM away as saving it
       #   would change the FORM's default values!
-
-      dataTable <- S$IN$FORM[[1,"Table"]]                             # Name of SQL table is stored in FORM$Table
+      dataTable <- S$IN$FORM[[1,"table"]]                             # Name of SQL table is stored in FORM$Table
       if(dataTable %in% c("settings", "pico")) {                      # If it's a name-value table with one NUM field
          NUM <- imID2NUM(S$IN$recID, dataTable)                       #    We'll need this for each row, so save in variable
          tableNUM <- paste0(dataTable,"NUM")
+      }
+      if(dataTable=="extract") {                                      # More NUM fields to fill out
+          warning("At the bottom of inputMeta.R, the code for filling out the extra NUM fields in an Extract table is incomplete.")
+      }
+      if(dataTable %in% c("settings", "extract", "pico")) {
          for(i in 1:nrow(S$IN$FORM)) {                                # Save FORM values
             R <-  recGet(S$db, dataTable, SELECT="**",
                      WHERE=tibble(c(paste0(dataTable, "NUM"), "=", NUM), c("name", "=", S$IN$FORM$name[i])))
             R[[tableNUM]][2] = NUM                                    # While edited recs will already have NUM
             R$name[2] = S$IN$FORM$name[i]                             #    and Name, must do this for new rows!
             R$value[2] = S$IN$FORM$value[i]
+            R <- recSave(R, S$db)                                     # There's a save on each loop
          }
-      }
-      if(dataTable=="extract") {                                      # More NUM fields to fill out
-          warning("At the bottom of inputMeta.R, the code for filling out the extra NUM fields in an Extract table is incomplete.")
-      }
-      if(!dataTable %in% c("settings", "extract", "pico")) {          # It's a standard table
+      } else {                                                        # It's a standard table
          warning("At the bottom of inputMeta.R, the code for saving FORM data into a standard table is incomplete.")
          R <-  recGet(S$db, dataTable, SELECT="**", WHERE=tibble(c(paste0(dataTable, "ID"), "=", S$IN$recID)))
          for(i in 1:nrow(S$IN$FORM)) {
             R[[i, S$IN$FORM$column]] <- S$IN$FORM$value[i]            # Move data from rows to columns
          }
+         R <- recSave(R, S$db)                                        # Save it
       }
-      R <- recSave(R, S$db)                                           # Save it
       rv$limn = rv$limn+1                                             # Re-render
    }
 })
