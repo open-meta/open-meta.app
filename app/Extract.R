@@ -28,11 +28,13 @@ S$PKR$C$activePage <- 1
 S$PKR$O$activePage <- 1
 S$PKR$TS$activePage <- 1
 
+rv$limnStudies <- 0
+S$PRK$Studies$activePage <- 1
+
 S$picoName = ""
 S$display = "add"
 
 output$uiMeat <- renderUI({c(rv$limn); isolate({
-   print(paste0("At the start of rendering uiMeat, rv$limn is ", rv$limn))
    if(rv$limn && S$P$Msg=="") {
       switch(as.character(rv$menu1Active),
          "1" = { return(
@@ -230,7 +232,6 @@ output$picoPickR <- renderUI({c(rv$limn, rv$limnP, rv$limnI, rv$limnC, rv$limnO,
    scroll = FALSE                                                          # Modifiable pickR-by-pickR
    return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
 })})
-# Also needs first two items in omclick observer
 
 picoFix <- function(x) {
    x <- x[,-2]            # delete "name" column, leave "values"
@@ -319,14 +320,51 @@ output$editPico <- renderUI({c(rv$limn); isolate({
    )
 })})
 
-
-
-
-output$Extraction <- renderUI({c(rv$limn); isolate({
+output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
    if(TRUE) {
-
+      S$E$reviews <<- updateEXtable()
+   ###### pickR start
+      ID = "Studies"                                                 # This allows multiple pickRs on a single page
+      activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
+      TABLE = "extract"                                              # The table the pickR data will come from
+      SELECT = c("studyName", "catalogID")                           # These are the table fields needed to build the pickR
+      WHERE = tibble(c("studyName", "!=", ""))                       # This is the incoming filter
+      HeadlineF = THRUb                                              # THRUb returns "", as we have no headline
+      if(S$P$Modify) {                                               # View or Edit depends on permissions
+        ButtonData <- list(extract=list(id=paste0("extractStudy"), q="g", class="mr-2", label="Extract"))
+      } else {
+        ButtonData <- list(view=list(id=paste0("viewStudy"), q="b", label="View"))
+      }
+      ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
+      FixDataF = studyFix
+      FormatF = prf_5.3.4r
+      NOtext = "No studies found by this filter."
+      itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
+      scroll = FALSE                                                 # Modifiable pickR-by-pickR
+      return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
    }
-   review <- updateEXtable()
+})})
+
+studyFix <- function(R) {
+   statusText=c("Not reviewed", "Stage 1 Fail", "Stage 1 Pass", "Extraction Fail", "Extraction Pass")
+   R$status <- ""
+   for(i in 1:nrow(R)) {
+      R$status[i] <- statusText[S$E$reviews$decision[R$catalogID[i]==S$E$reviews$catalogID]+1]
+   }
+   return(tibble(extractID=R$extractID, studyName=R$studyName,       # reorder columns, drop catalogID
+                    status=R$status, action=R$Action))
+}
+
+prf_5.3.4r = function(r) {                        # Standard function for one column of data and one row of buttons
+   return(paste0(
+'<div class="col-12"><div class="row">
+   <div class="col-5">', r[[1,]], '</div>
+   <div class="col-3">', r[[2,]], '</div>
+   <div class="col-4 text-right">', r[[3,]], '</div>',
+   bs4('c12', bs4('hr0', class="py-2")), '
+</div></div>', collapse = ''))
+}
+
 
    # Moving on...
    # I think we're then ready to make a pickR from the extract table and the review decisions
@@ -345,12 +383,12 @@ output$Extraction <- renderUI({c(rv$limn); isolate({
    # The first group is the control group; there must also be at least one intervention group, but there can be multiple.
    # You enter the data for the groups, save them, do this for all outcomes, then for all arms, then for all Trials, and you're done.
 
-   return(
-      tagList(
-         bs4("c12", HTML("<pre>Length of review is ", nrow(review)," and it is ", review$catalogID, "</pre>"))
-      )
-   )
-})})
+#    return(
+#       tagList(
+#          bs4("c12", HTML("<pre>Length of review is ", nrow(review)," and it is ", review$catalogID, "</pre>"))
+#       )
+#    )
+# })})
 
 
 ### observer for omclick
@@ -362,6 +400,11 @@ observeEvent(input$js.omclick, {
    id = uid[[1]][1]        # We don't care about the value of uid[[1]][3]; it's just there
    n  = uid[[1]][2]        #   to guarantee Shiny.onInputChange sees something new and returns it.
    switch(id,
+      "pgn" = {                    # For pgn, [2] or n is the form name, [3] is the recID
+         S$PKR[[n]]$activePage <<- as.numeric(uid[[1]][3])
+         limnID = paste0("limn", n)         # The pickR render should respond to this rv$limn...;
+         rv[[limnID]] <- rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
+      },
       "menu1" = {
          S$hideMenus <<- FALSE
 #         S$PGN$activePage <- 1                    # When changing submenu, set scroller back to 1
