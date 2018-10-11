@@ -537,7 +537,7 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
          }
          ids = S$IN$FORM$id                                           # now get the regular inputs
          if(S$IN$Qn>0) {
-            ids[-S$IN$Qs]                                             # Remove quill ids, if any
+            ids <- ids[-S$IN$Qs]                                      # Remove quill ids, if any
          }
          for(i in 1:length(ids)) {
             if(is.null(input[[ids[i]]])) {                            # input[[id]] can be NULL for checkboxes
