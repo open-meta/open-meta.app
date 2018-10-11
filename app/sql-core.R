@@ -198,7 +198,7 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
       r = newRec(table)                                    #    return a new, empty record without an error,
       if(!return2) {                                       #    but note that newRec returns two rows;
          r = r[2,]                                         #    if there's only supposed to be one row,
-      }                                                    #    return rwo 2 as row 1 could have NAs.
+      }                                                    #    return row 2 as row 1 could have NAs.
       if(SELECT[1]!="*") {                                 # Just the columns the user asked for, though
          r = r[SELECT]
       }
