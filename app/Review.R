@@ -12,6 +12,9 @@ source("chokidar.R", local=TRUE)
 #   * if(S$P$Msg=="") the user has permission to see the page and you can render the Meat
 #   * S$P$Modify  - whether the user has permission to modify things on this page
 
+# load the inputMeta.R code (also used by other pages)
+source("inputMeta.R", local=TRUE)
+
 # Session Globals for this page
 S$REV <- list()
 S$WHERE <- tibble(c("catalogID", ">", 0))  # default WHERE
@@ -26,16 +29,6 @@ S$PGN$chunkedIDs = chunker(S$PGN$filteredIDs, S$PGN$itemsPerPage)
 S$PGN$pageCount = length(S$PGN$chunkedIDs)
 S$PGN$pointer = 1
 S$PGN$activePage = 1
-
-# Filtering Globals
-S$FIL$abstract = ""
-S$FIL$author = ""
-S$FIL$year = ""
-S$FIL$journal = ""
-S$FIL$allRnot = "all" # or "my"
-S$FIL$notRev = TRUE
-S$FIL$s1Fail = FALSE
-S$FIL$s1Pass = FALSE
 
 # Init reactive variables
 rv$render = 0        # Trigger to render page after dealing with input initializatons
@@ -136,15 +129,7 @@ no data is available for that graph at this time (no searches have been processe
                   bs4("r",
                      bs4("c9",
                         HTML("<span style='font-size: 1.25rem; color:#fff;'>Filter citations</span><br>"),
-                        ttextInput("abstract", "Phrase in title or abstract", value=S$FIL$abstract, groupClass="w-75"),
-                        bs4("r",
-                           bs4("c5",
-                              ttextInput("author", "An author", value=S$FIL$author, groupClass="w-100")),
-                           bs4("c2",
-                              ttextInput("year", "Year", value=S$FIL$year, groupClass="w-100")),
-                           bs4("c5",
-                              ttextInput("journal", "Journal", value=S$FIL$journal, groupClass="w-100"))
-                        )
+                        imForm2HTML(S$FIL$FORM)
                      ),
                      bs4("c3", class="pl-5",
                         HTML("Review status<br>"),
@@ -430,15 +415,26 @@ getChex = function() {
    }
 }
 
-# filtering
+########################################## filtering
+
+# Filtering Globals
+S$FIL$abstract = ""
+S$FIL$author = ""
+S$FIL$year = ""
+S$FIL$journal = ""
+S$FIL$allRnot = "all" # or "my"
+S$FIL$notRev = TRUE
+S$FIL$s1Fail = TRUE
+S$FIL$s1Pass = TRUE
+S$FIL$FORM = imGetFORM("Form-filterCites", "om$prime")
+
 # observeEvent(c(input$abstract, input$author, input$year, input$journal, input$allRnot,
 #                input$notRev, input$s1Fail, input$s1Pass), {
 observeEvent(rv$runFilter, {
    if(rv$runFilter>0) {
-      S$FIL$abstract <<- stripHTML(input$abstract)
-      S$FIL$author   <<- stripHTML(input$author)
-      S$FIL$year     <<- stripHTML(input$year)
-      S$FIL$journal  <<- stripHTML(input$journal)
+      for(i in 1:nrow(S$FIL$FORM)) {
+         S$FIL[[S$FIL$FORM$column[i]]] <<- S$FIL$FORM$value[i] <<- str_trim(stripHTML(input[[S$FIL$FORM$id[i]]]))
+      }
       S$FIL$allRnot  <<- ifelse(is.null(input$allRnot), "all", input$allRnot)
       S$FIL$notRev   <<- ifelse(is.null(input$notRev), TRUE, input$notRev)
       S$FIL$s1Fail   <<- ifelse(is.null(input$s1Fail), FALSE, input$s1Fail)
@@ -506,7 +502,7 @@ observeEvent(rv$runFilter, {
       if(nrow(S$PGN$FR)==0) {
          S$modal_title <<- "Nothing found"
          S$modal_text <<- HTML0("<p>No citations found by these filter settings.</p>")
-         S$modal_size <<- "s"
+         S$modal_size <<- "m"
          rv$modal_warning <- rv$modal_warning + 1
       } else {
          S$PGN$filteredIDs <<- as.integer(S$PGN$FR$catalogID)
