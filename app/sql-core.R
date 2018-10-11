@@ -152,7 +152,8 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
       } else {
          selectErrors = FALSE
       }
-      whereErrors = !(as.character(WHERE[1,]) %in% validFields)                     # Any invalid fields in WHERE?
+      if(!is.tibble(WHERE)) { stop(paste0("You forgot to tibble() your WHERE: ", paste0(WHERE, collapse="; "))) }
+      whereErrors = !(as.character(WHERE[1,]) %in% validFields)    # Any invalid fields in WHERE?
       opErrors = !(as.character(WHERE[2,]) %in% c("=", "!=", "<", ">", "<=", ">=", " IN ", "LIKE")) # Any invalid operators in WHERE?
       if(any(c(selectErrors, whereErrors, opErrors))) {
          msg = "In recGet():\n"
@@ -283,6 +284,7 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
    if(SET[[2,1]]==0) {                          # INSERT - `table`ID==0, so this is a new col
  # INSERT
       QUERY = paste0("INSERT INTO ", dbt(db, table, dbLink), " SET ", QsetQ(Qset, dbLink), ";")
+# print(QUERY)
       r = dbExecute(dbLink, QUERY)              # r is an integer
       if(r==1) {                                # number of rows updated
          r = dbGetQuery(dbLink, "SELECT LAST_INSERT_ID()")    # r is a tibble!
