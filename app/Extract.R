@@ -31,9 +31,8 @@ S$PKR$TS$activePage <- 1
 S$picoName = ""
 S$display = "add"
 
-print(paste0("At page entry, rv$limn is ", rv$limn))
-
 output$uiMeat <- renderUI({c(rv$limn); isolate({
+   print(paste0("At the start of rendering uiMeat, rv$limn is ", rv$limn))
    if(rv$limn && S$P$Msg=="") {
       switch(as.character(rv$menu1Active),
          "1" = { return(
@@ -97,6 +96,7 @@ output$pageMenu <- renderUI({c(rv$limn); isolate({
 })})
 
 output$Dashboard <- renderUI({c(rv$limn); isolate({
+   review <- updateEXtable()
    return(
       tagList(
          bs4("c12", "Dashboard Here")
@@ -107,10 +107,39 @@ output$Dashboard <- renderUI({c(rv$limn); isolate({
 output$TrialSetup <- renderUI({c(rv$limn); isolate({
    return(
       tagList(
-         bs4("c12", "Trial Setup Here")
+         bs4("c12", id="TSpickR"),
+         bs4("c12", id="TSYbox")
       )
    )
 })})
+
+output$TSpickR <- renderUI({c(rv$limn); isolate({
+   # This is probably going to require another table with catalogID and Trial Name fields. The extract table doesn't work
+   #   because it only has catalogIDs that have passed Stage 1 review, while the new table should support any catalogID.
+   # Maybe there should be another submenu here that does "author analysis". I'm thinking of somehow using dplyr to find,
+   #   for both all reports and for S1Pass+ reports, which authors are on more than report and which reports have the same
+   #   3+, 2, or 1 author. Maybe the results of this also appear in the dashboard?
+   # Perhaps the pickR here should display title and abstract?
+HTML0(
+"<p>Trial Setup will be here.</p>")
+})})
+
+output$TSYbox <- renderUI({c(rv$limn); isolate({
+   yBox <- HTML0("
+<p>So far in your project you have searched for and reviewed published <i>reports</i> of research studies. Typically there is
+a one-to-one correspondence between a study and report, but not always. Very large studies, which Open-Meta refers to as
+<i>trials</i>, may be described in several separate reports.</p>
+<p>To meet the assumptions of meta-analysis, these various reports have to be gathered together into one trial. If one of
+the individual published reports you've reviewed indicates that it is part of a larger trial, enter the name of that trial
+here. Open-Meta will search through the titles and abstracts of all your publications looking for other reports that
+include that name and allow you to gather these reports together here under the trial's name.
+   ")
+   return(tagList(
+      bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
+   ))
+
+})})
+
 
 output$PICOSetup <- renderUI({c(rv$limn); isolate({
    if(S$display=="add") {
@@ -205,7 +234,8 @@ output$picoPickR <- renderUI({c(rv$limn, rv$limnP, rv$limnI, rv$limnC, rv$limnO,
 
 picoFix <- function(x) {
    x <- x[,-2]            # delete "name" column, leave "values"
-   x[1:2,"Action"] = ""   # delete buttons from first two rows (No Response and DNMPC)
+   x[1,"Action"] = ""     # delete buttons from first row (No Response)
+   x[2,"Action"] = str_replace(x[2,"Action"], "btn-danger", "btn-danger disabled")
    return(x)
 }
 
@@ -218,7 +248,7 @@ create a category for each group here. For example, if your project allows studi
 adults, you could change <i>Eligible participant group</i> to <i>Participants younger than 18</i>
 and add a Participant group for <i>Participants 18 and older</i>. You might also need a category
 for <i>Ages combined or unspecificed</i>, depending on whether such groups meet the criteria of your project.</p>
-<p>Your Principal Investigator may have customized the interventions group form in the Members & Settings menu to collect
+<p>Your Principal Investigator may have customized the participant group form in the Members & Settings menu to collect
 additional information on each participant group.</p>"
 
          )
@@ -277,18 +307,14 @@ output$editPico <- renderUI({c(rv$limn); isolate({
    }
    if(S$P$Modify) {
       SaveBtn = HTML0(bs4("btn", id="save", n=1, q="b", "Save"))
-#      DeleteBtn = HTML0(bs4("btn", id="delete", n=1, q="r", "Delete"))
    } else {                                      # If user can't modify inputs, force View (disabled inputs)
       S$IN$FORM$disable <<- TRUE                 #    and skip the Save button
       SaveBtn = ""
-#      DeleteBtn = ""
    }
    restOfPage = tagList(
       imForm2HTML(S$IN$FORM),
       bs4("r", align="he",
           bs4("c3", bs4("btn", id="cancel", n=1, q="b", "Cancel"), SaveBtn)
-          # bs4("c3", bs4("btn", id="cancel", n=1, q="b", "Cancel"), SaveBtn),
-          # bs4("c1", DeleteBtn)
       )
    )
 })})
@@ -297,118 +323,35 @@ output$editPico <- renderUI({c(rv$limn); isolate({
 
 
 output$Extraction <- renderUI({c(rv$limn); isolate({
+   if(TRUE) {
+
+   }
+   review <- updateEXtable()
+
+   # Moving on...
+   # I think we're then ready to make a pickR from the extract table and the review decisions
+   # pickR buttons should be Extract or View
+   #
+   # EXTRACT STUDY
+   # First you get a chance to change the STUDY name; this form also gives you the STUDY bias radio buttons
+   # Under that is a pickR that allows you to create a new Arm and see exising Arms. Buttons: Edit or View
+   # After edit/view, the pickR is replaced by a FORM for the Arm.
+   # Each Arm has a specific participant group, comparison group, and time span (One way to think of this is that
+   #    within an Arm, the control group doesn't change.)
+   # Part of that is a pickR (+ add?) button for the Outcome.
+   # When you edit an outcome, first you get a dropdown for the type of data you have, which will present the correct
+   #    calculator to convert the data into an effect size in the next section.
+   # After that is a pickR + add button for the Group.
+   # The first group is the control group; there must also be at least one intervention group, but there can be multiple.
+   # You enter the data for the groups, save them, do this for all outcomes, then for all arms, then for all Trials, and you're done.
+
    return(
       tagList(
-         bs4("c12", "Extraction List Here")
+         bs4("c12", HTML("<pre>Length of review is ", nrow(review)," and it is ", review$catalogID, "</pre>"))
       )
    )
 })})
 
-
-
-
-
-# output$showOutcomes  <- renderUI({
-#    R <- getPICOname()
-#    if(R[1,1]==0) {
-#       noResultsMsg <- paste0("No ", S$IN$picoName[2], " have been added to this project yet.")
-#       tagList(
-#          bs4("r",
-#             bs4("c12", HTML0("<h5>", noResultsMsg, "</h5>")),
-#             bs4("c12", bs4("hr0", class="pb-4"))
-#          )
-#       )
-#    } else {
-#       # Set up buttons
-#       if(S$P$Modify) {                                         # Button vector construction from here...
-#          btnid = "editPico"
-#          btnq = "g"
-#          btnlabel = "Edit"
-#       } else {
-#          btnid = "viewPico"
-#          btnq = "b"
-#          btnlabel = "View"
-#       }
-#       pattern = rep("XxX", nrow(R))
-#       btn = bs4("btn", id=btnid, n="XxX", q=btnq, btnlabel)    # ... to next line
-#       R[,"btn"] = str_replace_all(btn, pattern, as.character(S$IN$CHUNKS[[S$PGN$activePage]]))   # str_replace is vectorized
-#       tagList(
-#          bs4("pgn", np=S$PGN$nPages, ap=S$PGN$activePage),
-# # This does the entire table with one vectorized paste0(). R is a tibble and its columns are vectors.
-# #    The "collapse" at the end creates one long string. R[3] is the value column and R[4] is the button column.
-# # In this particular example, there's one row with a col-11 containing all the data, using <br> to start new
-# #    lines, and col-1 for the button. Note that cites$btn isn't stored in MySQL, but is added to "cites" above.
-# HTML(paste0(
-# '<div class="row justify-content-center">
-#    <div class="col-11">
-#       ', R$value,'
-#    </div>
-#    <div class="col-1">
-#       ', R$btn, '
-#    </div>
-#    ', bs4('c12', bs4('hr')), '
-# </div>', collapse = '')),     # End of paste0()
-#          bs4("pgn", np=S$PGN$nPages, ap=S$PGN$activePage)
-#       )
-#    }
-# })  # end of render showOutcomes
-
-#          },
-#          "4" = {
-#             subMenu <- ""
-#             restOfPage = "Extraction List Here"
-#          },
-#          "10" = {                                     # edit an item
-            # S$IN$FORM <<- imGetFORM(S$IN$picoName[1])                   # Sets S$IN$FORM; S$IN$picoName[1] is set in submenu switch()
-            # if(S$recID>0) {                            # If this is an edit, get the FORM's current values; S$recID set in addPico, editPico
-            #    R <- recGet(S$db, "piconame", c("name", "value"), tibble(c(paste0("pico","NUM"), "=", imID2NUM())))
-            #    for(i in 1:nrow(S$IN$FORM)) {              # Insert values from R into form$value
-            #       S$IN$FORM$value[i] <<- R$value[R$name==S$IN$FORM$name[i]]    # In FORM, "name" is the short label
-            #    }                                                               # In R, it's the "name" of the "value"
-            # }
-            # if(S$P$Modify) {
-            #    SaveBtn = HTML0(bs4("btn", id="save", n=1, q="b", "Save"))
-            #    DeleteBtn = HTML0(bs4("btn", id="delete", n=1, q="r", "Delete"))
-            # } else {                                      # If user can't modify inputs, force View (disabled inputs)
-            #    S$IN$FORM$disable <<- TRUE                 #    and skip the Save button
-            #    SaveBtn = ""
-            #    DeleteBtn = ""
-            # }
-            # restOfPage = tagList(
-            #    imForm2HTML(S$IN$FORM),
-            #    bs4("r", bs4("c8"),
-            #        bs4("c3", bs4("btn", id="cancel", n=1, q="b", "Cancel"), SaveBtn),
-            #        bs4("c1", DeleteBtn)
-            #    )
-#                # bs4("d", class="text-right mt-3",
-#                #    bs4("btn", id="cancel", n=1, q="b", "Cancel"),
-#                #    SaveBtn
-#                # )
-#             )
-#          }
-#       )
-#
-#       pageMenu = {
-#          if(S$hideMenus) {
-#             ""
-#          } else {
-#             tagList(
-#                bs4("md", id="sub", n=1:4, active=rv$menuActive, text=c("Dashboard", "Trial Setup", "PICO(T) Setup", "Extraction List")),
-#                HTML0(subMenu),
-#                bs4("dx", style="height:1.5rem")
-#             )
-#          }
-#       }
-#       return(tagList(
-#          bs4("r", align="hc",
-#             bs4("c10", tagList(
-#                pageMenu,
-#                restOfPage
-#             ))
-#          )
-#       ))
-#    })})
-# }
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
@@ -437,22 +380,6 @@ observeEvent(input$js.omclick, {
          limnID = paste0("limn", n)         # The pickR render should respond to this rv$limn...;
          rv[[limnID]] = rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
       },
-      # "P" = {                  # Edit Button, "P" is the ID of one of the pickRs on this page; this loads the selected form
-      #    S$IN$FORMname <<- "inputForm-participant"
-      #    r <- recGet(S$db, "settings", c("name","value"), tibble(c("name", "=", S$IN$FORMname)))
-      #    f <- as.tibble(fromJSON(r$value))           # Yes, unJSONize as it's a tibble
-      #    # for(i in 1:nrow(f)) {
-      #    #    d <- recGet(S$db, "pico", c("name","value"), tibble(c("picoID", "=", n)))
-      #    #    f$value[i] f$id[i]
-      #    # }
-      #
-      #    S$IN$FORM$value <<- r$value
-      #    S$IN$FORM <<-
-      #    S$IN$flag$showAddInputButton <<- TRUE
-      #    S$display <<- "edit"
-      #    S$hideMenus <<- TRUE
-      #    rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
-      # },
       "addPico" = {
          S$recID <<- 0
          S$display <<- "edit"
@@ -525,28 +452,70 @@ observeEvent(input$js.omclick, {
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
-
-# # These two globals need to be set up before calling this function
-# #    S$IN$picoName[1] <<- "outcome"
-# getPICOname <- function() {
-# # First get all of piconameIDs for the rows that have the name to display in the scroller
-#    R <- recGet(S$db, "piconame", "piconameID", tibble(c("name", "=", S$IN$picoName[1])))
-# # If there aren't any, just set firstOne flag
-#    if(R[1,1]==0) {
-#       S$IN$flag$firstOne <<- TRUE
-#    } else {
-# # Set up Chunking and Pagination variables
-#       S$IN$flag$firstOne <<- FALSE
-#       S$IN$IDs <<- as.integer(R$piconameID)
-#       S$IN$CHUNKS <<- chunker(S$IN$IDs, S$PGN$itemsPerPage)
-#       S$PGN$nPages <<- length(S$IN$CHUNKS)
-#       if(S$PGN$activePage > S$PGN$nPages) {                              # This can happen during filtering
-#          S$PGN$activePage <<- 1
-#       }
-# # Now get the data (value field) for this chunk
-#       R = recGet(S$db, "piconame", "value", tibble(c(piconameID, " IN ",    # Get data for this chunk
-#             paste0("(", paste0(S$IN$CHUNKS[[S$PGN$activePage]], collapse=","), ")"))))
-#    }
-#    return(R)
-# }
+# This function updates the extraction table, which means it adds studies that have passed stage 1 review
+#   and deletes studies that did, but don't anymore.
+updateEXtable <- function() {
+   start.time <- Sys.time()
+   on.exit({
+      cat("### Update extraction table ###\n")
+      print(Sys.time() - start.time)
+   })
+   dbLink <- poolCheckout(shiny.pool)        # get a dbLink from the pool
+   on.exit(poolReturn(dbLink), add = TRUE)   # Have to use dbLink to use MySQL max() function
+   review <- recGet(S$db, "review", c("catalogID", "decision"), tibble(c("decision", ">", "1")))
+   extract <- recGet(S$db, "extract", "catalogID", tibble(c("extractID", ">", "0")))
+   workIDs <- setdiff(review$catalogID, extract$catalogID)
+   badIDs <- setdiff(extract$catalogID, review$catalogID)
+   progress <- Progress$new(session)         # Create a Progress object
+   progress$set(message = "Updating extraction table...", value = 0) # Set message
+   if(length(badIDs)>0 && badIDs[1]>0) {     # Length=0 when there are no differences; ID[1]=0 when extract table is empty
+      for(cID in badIDs) {                   # Delete any extract records that are no longer S1Pass+ (can happen when a user
+         r <- recGet(S$db, "extract", "extractID", tibble(c("catalogID", "=", cID)))     # edits an S1Pass+ review down)
+         for(eID in r$extractID) {           # Because there can be multiple extract records with one catalog ID
+            r <- recGet(S$db, "extract", "**", tibble(c("extractID", "=", eID)))
+            r$deleted[2] <- 1
+            r <- recSave(S$db, r)
+         }
+      }
+   }
+   if(length(workIDs)>0 && workIDs[1]>0) {   # Length=0 when there are no differnces; ID[1]=0 when review table has no S1Pass+ decisions
+      dc <- recGet(S$db, "extract", "catalogID", tibble(c("deleted", ">", "0")))  # Get IDs of deleted records in extract table
+      for(cID in workIDs) {
+         if(cID %in% dc$catalogID) {         # If catalogID is already in the extract table, undeleted those records.
+            de <- recGet(S$db, "extract", "extractID", tibble(c("catalogID", "=", cID), c("deleted", ">", "0"))) # extractIDs to undelete
+            for(eID in de$extractID) {       # If there are multiple records with the same catalogID, r$extractID is a vector.
+               r <- recGet(S$db, "extract", "**", tibble(c("extractID", "=", eID), c("deleted", ">", "0")))
+               r$deleted[2] <- 0
+               r <- recSave(S$db, r)
+            }
+         } else {                            # Otherwise, add the catalogID to the extract table
+            sNUM <- dbGetQuery(dbLink, paste0("SELECT MAX(studyNUM) FROM `", S$db, "`.`extract` WHERE `extractID`>0;"))
+               # When the extract table is empty, this returns NA; which is our signal to start at 1, er 0+1.
+            studyNUM <- ifelse(is.na(sNUM[[1,1]]), 0, sNUM[[1,1]])
+               # In case there's a comma after the name, eg "Weishaar, Tom", change it to "Weishaar  Tom" first,
+               #   then split at the first space and take the first segment of the name.
+               # This assumes last name first; once there's a database where it's not, we'll need to fix the
+               #   authors in the catalog, not here...
+            catalog <- recGet(S$db, "catalog", c("catalogID", "author", "Y"), tibble(c("catalogID", "=", cID)))
+            studyAuthor <- (str_split(str_replace(catalog$author, ",", " "), " ")[[1]][1])
+            studyName <- paste0(studyAuthor,"-",catalog$Y) # Author (before first space)-Year
+            allNames <- recGet(S$db, "extract", "studyName", tibble(c("extractID", ">", "0")))$studyName
+            i <- 2      # start with "b"; the first one has no letter at all.
+            original <- studyName
+            while(length(allNames)>0 && studyName %in% allNames) {   # make sure studyName is unique
+               studyName <- paste0(original, letters[i])
+               i <- i + 1
+            }
+         }
+         r <- recGet(S$db, "extract", SELECT="", WHERE="")           # Get a new record
+         r$catalogID[2] <- cID                                       # Save catalogID
+         r$studyName[2] <- studyName                                 #    studyName
+         r$studyNUM[2] <- as.integer(studyNUM + 1)                   #    studyNUM
+         r <- recSave(r, S$db)
+         progress$set(which(workIDs %in% cID)/length(workIDs))       # update progress
+      }
+   }
+   progress$close()
+   return(review)
+}
 
