@@ -102,24 +102,6 @@ if(S$P$Msg=="") {
                      "editMember" = {
                         restOfPage =tagList(
                            bs4("r", align="hc",
-                              bs4("c10", tagList(
-                                 bs4("d", class="card bg-warning text-dark mx-auto my-4", bs4("d", class="card-body",
-                                    bs4("d", class="card-title", h4(class='text-dark', "Roles & Permissions")),
-                                    bs4("d", class="card-text", HTML(
-"<p>Permissions work like this:",
-"<ul>",
-"<li>Non-Member: Anyone can view most pages of your project. Project members you change to Non-Member will still see your project listed on their <i>My Projects</i> page with their role as Non-Member.</li>",
-"<li>Observer: Also can see the Search Analysis page (hidden to non-members) and will receive emails you send to All Members of your project. When users join your project, they automatically get this role to start.</li>",
-"<li>Reviewer: Also can review citations to see if they meet your inclusion criteria.</li>",
-"<li>Investigator: Also can extract data from studies and enter it.</li>",
-"<li>Researcher: Also can enter searches.</li>",
-"<li>Principal Investigator, Co-Principal Investigator, and Project Administrator: Also can access your project\'s <i>Members & Settings</i> and <i>Publish</i> pages. (These roles have all project permissions.)</li>",
-"</ul></p>",
-"<p><b>Members are not automatically notified of role changes you make, however, they can see the role you've assigned them on their <i>My Projects</i> page.</b></p>",
-"<p>One to all of your members can be project contacts. A project contact receives a copy of emails sent from the project\'s <i>Contact</i> page, which non-PIs see where you see <i>Members & Settings</i>.</p>")
-                                 )))
-                           ))),
-                           bs4("r", align="hc",
                               bs4("c6", tagList(
                                  h4("Who: ", S$U1$userName),
                                  selectInput('userRole', 'Change member\'s role: ', choices=S$P$roles, selected=S$M2$role[2], selectize=FALSE),
@@ -129,8 +111,25 @@ if(S$P$Msg=="") {
                                  bs4("btn", id="return", n=1, q="b", "Cancel"),
                                  bs4("btn", id="saveMember", n=1, q="b", "Save"),
                                  HTML('</div>')
-                           )))
-                        )
+                           ))),
+                           bs4("r", align="hc",
+                              bs4("c10", tagList(
+                                 bs4("d", class="card bg-warning text-dark mx-auto my-4", bs4("d", class="card-body",
+                                    bs4("d", class="card-title", h4(class='text-dark', "Roles & Permissions")),
+                                    bs4("d", class="card-text", HTML(
+"<p>Permissions work like this:",
+"<ul>",
+"<li>Non-Member: Anyone can view most pages of your project. Project members you change to Non-Member will still see your project listed on their <i>My Projects</i> page with their role as Non-Member.</li>",
+"<li>Observer: Also will receive emails you send to All Members of your project. When users join your project, they automatically get this role to start.</li>",
+"<li>Reviewer: Also can review citations to see if they meet your inclusion criteria.</li>",
+"<li>Investigator: Also can extract data from studies and enter it.</li>",
+"<li>Researcher: Also can enter searches.</li>",
+"<li>Principal Investigator, Co-Principal Investigator, and Project Administrator: Also can access your project\'s <i>Members & Settings</i> and <i>Publish</i> pages. (These roles have all project permissions.)</li>",
+"</ul></p>",
+"<p><b>Members are not automatically notified of role changes you make, however, they can see the role you've assigned them on their <i>My Projects</i> page.</b></p>",
+"<p>One to all of your members can be project contacts. A project contact receives a copy of emails sent from the project\'s <i>Contact</i> page, which non-PIs see where you see <i>Members & Settings</i>.</p>")
+                                 )))
+                           )))                        )
                      }
                   )       # end of S$view switch
                },
