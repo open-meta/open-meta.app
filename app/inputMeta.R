@@ -8,7 +8,7 @@
 #       A FORMrow describes one input in the FORM.
 #       A "form" is a tibble that describes one input. You can also think of it as a FORM that collects the data for a FORMrow.
 #       Input "forms" are loaded into memory by input-meta.R.
-#       FORMs are JSONized and stored in the the om$prime or project settings table.
+#       FORMs are JSONized and stored in the om$prime or project "settings" table.
 #       Data collected by a FORM is stored in either a standard table or a name-value table (required for project-custom data).
 #       Each FORMrow includes "table" and "column" fields describing where that data item should be stored.
 #          (For name-value tables, the FORMrow's "name" field equates to the table's "name" field and "column" is not used.)
@@ -68,9 +68,9 @@ imGetBlankform <- function(type) {            # type refers to the type of input
 # Load a FORM from the settings file if there is one; otherwise load a FORM with the right columns but no rows.
 #    Result on return is typically saved to S$IN$FORM. Also sets S$IN$FORMname global under the assumption that
 #    only one FORM is ever open at a time.
-imGetFORM = function(FORMname) {
+imGetFORM = function(FORMname, db=S$db) {
    S$IN$FORMname <<- FORMname                     # imSaveform2FORMrow() will need this
-   r <- recGet(S$db, "settings", "value", tibble(c("name", "=", S$IN$FORMname)))
+   r <- recGet(db, "settings", "value", tibble(c("name", "=", S$IN$FORMname)))
    if(r$value=="") {                              # Did recGet return anything?
       f <- imGetBlankFORMrow("blank")[-1,]        # No, it's a new form. Build a zero-row tibble with default input parameters
    } else {
