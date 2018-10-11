@@ -239,7 +239,7 @@ bs4Quill = function(attribs, children) {
    if(is.null(attribs$value)) {
       text2edit = HTML(unlist(children))
    } else {
-      text2edit = attribs$value
+      text2edit = HTML0(attribs$value)
    }
    if(is.null(attribs$disabled) || !attribs$disabled) {
       disabled = ""
