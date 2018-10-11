@@ -336,7 +336,7 @@ saveRDS(imBlankforms, file="app/Blankforms.RDS")
 ##################################################################################
 
 
-rm(r, w, imBlankforms, imGetBlankFORMrow, imName, imLabel, imHelptext, imWidth, imOther)
+rm(r, w, imBlankforms, imGetBlankFORMrow, imName, imLabel, imHelptext, imWidth, imOther, imTable, imColumn)
 
 
 #imBlankforms <- readRDS(file="app/Blankforms.RDS")
