@@ -631,6 +631,9 @@ server <- function(input, output, session) {
 ### recSave()
    # This needs to be in the server to access session variables
    recSave = function(SET, db="om$prime", pool=shiny.pool) {
+      if(is.tibble(db)) {
+         stop("In recSave, the SET goes first, then the db. You have them reversed.")
+      }
       verUser = S$U$userName
       r = recSaveR(SET, verUser, db, pool)
       if(r$modalMsg$title!="") {
