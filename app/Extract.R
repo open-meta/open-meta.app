@@ -19,8 +19,7 @@ rv$menu1Active <- 1
 rv$menu2Active <- 1
 
 # pickR globals
-S$PKR$itemsPerPage <- 30
-#S$PKR$itemsPerPage <- 3       # For testing pagination
+# S$PKR$itemsPerPage             Now in app.R
 
 S$PKR$P$activePage <- 1
 S$PKR$I$activePage <- 1
@@ -217,6 +216,7 @@ output$picoPickR <- renderUI({c(rv$limn, rv$limnP, rv$limnI, rv$limnC, rv$limnO,
    TABLE = "pico"                                                          # The table the pickR data will come from
    SELECT = c("name","value")                                              # These are the table fields needed to build the pickR
    WHERE = tibble(c("name", "=", S$picoName[1]))
+   FilterF <- whereFilter
    HeadlineF = THRUb                                                       # THRUb returns "", as we have no headline
    if(S$P$Modify) {                                                        # View or Edit depends on permissions
      ButtonData <- list(edit=list(id=paste0("edit", ID), q="g", class="mr-2", label="Edit"),
@@ -230,7 +230,7 @@ output$picoPickR <- renderUI({c(rv$limn, rv$limnP, rv$limnI, rv$limnC, rv$limnO,
    NOtext = "Nothing here yet."
    itemsPerPage = S$PKR$itemsPerPage                                       # Modifiable pickR-by-pickR
    scroll = FALSE                                                          # Modifiable pickR-by-pickR
-   return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
+   return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
 })})
 
 picoFix <- function(x) {
@@ -329,6 +329,7 @@ output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!N
       TABLE = "extract"                                              # The table the pickR data will come from
       SELECT = c("studyName", "catalogID")                           # These are the table fields needed to build the pickR
       WHERE = tibble(c("studyName", "!=", ""))                       # This is the incoming filter
+      FilterF <- whereFilter
       HeadlineF = THRUb                                              # THRUb returns "", as we have no headline
       if(S$P$Modify) {                                               # View or Edit depends on permissions
         ButtonData <- list(extract=list(id=paste0("extractStudy"), q="g", class="mr-2", label="Extract"))
@@ -341,7 +342,7 @@ output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!N
       NOtext = "No studies found by this filter."
       itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
       scroll = FALSE                                                 # Modifiable pickR-by-pickR
-      return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
+      return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
    }
 })})
 
@@ -357,12 +358,12 @@ studyFix <- function(R) {
 
 prf_5.3.4r = function(r) {                        # Standard function for one column of data and one row of buttons
    return(paste0(
-'<div class="col-12"><div class="row">
+'<div class="row">
    <div class="col-5">', r[[1,]], '</div>
    <div class="col-3">', r[[2,]], '</div>
    <div class="col-4 text-right">', r[[3,]], '</div>',
    bs4('c12', bs4('hr0', class="py-2")), '
-</div></div>', collapse = ''))
+</div>', collapse = ''))
 }
 
 
