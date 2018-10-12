@@ -266,14 +266,16 @@ source("bs4.R", local=TRUE)
 # The ID allows you to put mulitiple pickRs on a single page.
 # It's typically the only thing in an output/renderUI.
 #    A good example of how to call it is in adminForms.R
-pickR <- function(ID, activePage, DB, TABLE, SELECT, WHERE, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF,
+pickR <- function(ID, activePage, DB, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF,
                      NOtext="Nothing Found", itemsPerPage, scroll) {
 # Get filtered (by WHERE parameter) IDs
    tableID <- paste0(TABLE,"ID")
-   R <- recGet(DB, TABLE, tableID, WHERE)
+   R <- FilterF(DB, TABLE, tableID, WHERE)
 # Flunk out if nothing returned
-   if(R[[1,1]]==0) {
-      return(HTML0("<h5>", NOtext, "</h5>"))
+   if(nrow(R)==0 || R[[1,1]]==0) {
+      return(tagList(
+         bs4("r", bs4("c12", bs4("hr", class="py-2"), HTML0("<h5>", NOtext, "</h5>")))
+      ))
    }
 # Build a headline
    Headline <- HeadlineF(R)
@@ -289,44 +291,38 @@ pickR <- function(ID, activePage, DB, TABLE, SELECT, WHERE, HeadlineF, ButtonDat
    Rx <- Rx[,-1]                                           # Drop the tableID column
 # Return formatted results
    pgnID <- paste0("pgn_", ID)
-   Headline <- ifelse(Headline=="", "", as.character(bs4("c12", HTML0(Headline))))
+   Headline <- ifelse(Headline=="", "", as.character(bs4("c12", class="mb-3", HTML0(Headline))))
    return(
       tagList(
          bs4("c12", bs4("hr0", class="pb-4")),
          HTML0(Headline),
          bs4("pgn", id=pgnID, np=pageCount, ap=activePage),       # Upper paginator
          bs4("c12", class=ifelse(scroll, "pre-scrollable", ""),
-            bs4("r",
-               HTML0(FormatF(Rx))
-            )
+            HTML0(FormatF(Rx))                                    # Each chunk should be in it's own row
          ),
          bs4("pgn", id=pgnID, np=pageCount, ap=activePage)        # Lower paginator
       )
    )
 }
 
+whereFilter <- function(DB, TABLE, tableID, WHERE) {
+   return(recGet(DB, TABLE, tableID, WHERE))
+}
+
 # Standard pickR formatting functions
 prf_1X1 = function(r) {                        # Standard function for one column of data and one row of buttons
    return(paste0(
-'<div class="col-12"><div class="row">
+'<div class="row">
    <div class="col-8">', r[[1,]], '</div>
    <div class="col-4 text-right">', r[[2,]], '</div>',
    bs4('c12', bs4('hr0', class="py-2")), '
-</div></div>', collapse = ''))
+</div>', collapse = ''))
 }
 
 # Standard pickR button-making function
 stdButtons <- function(Rx, buttons) {          # Make buttons for pickR function the standard way
    numButtons <- length(buttons)
    cnames <- c(names(Rx), "Action")
-   # if(numButtons>0) {
-   #    for(i in 1:numButtons) {                 # Add button columns to the tibble
-   #       pattern = "XxX"
-   #       btn = bs4("btn", id=buttons[[i]]$id, n=pattern, q=buttons[[i]]$q, class=buttons[[i]]$class, buttons[[i]]$label)
-   #       Rx[, ncol(Rx) + i] = str_replace_all(btn, rep(pattern, nrow(Rx)), as.character(Rx[[1]]))   # str_replace is vectorized
-   #    }
-   #    names(Rx) <- cnames
-   # }
    if(numButtons>0) {
       btn=rep("", nrow(Rx))
       for(i in 1:numButtons) {                 # Add button columns to the tibble
@@ -534,6 +530,10 @@ server <- function(input, output, session) {
    S$modal_footer <- ""
    S$modal_size <- ""
    S$hideMenus = FALSE         # TRUE to make only available choices Save and Cancel
+
+   # Pagination globals
+   S$PKR <- list()
+   S$PKR$itemsPerPage <- 30
 
    if(debugON) {
       S$sessionNum <- incSN()   # get an id number for this session
