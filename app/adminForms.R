@@ -10,8 +10,7 @@ S$P$Msg  <- ""                 # Error flag and message
 source("inputMeta.R", local=TRUE)
 
 # pickR globals
-S$PKR$itemsPerPage <- 30
-#S$PKR$itemsPerPage <- 3       # For testing pagination
+# S$PKR$itemsPerPage             Now in app.R
 S$PKR$Forms$activePage <- 1
 
 rv$menuActive = 1              # Start out on first sub-menu
@@ -106,6 +105,7 @@ output$pickR <- renderUI({c(rv$limn, rv$limnForms); isolate({              # !!!
    TABLE = "settings"                                                      # The table the pickR data will come from
    SELECT = "name"                                                         # These are the table fields needed to build the pickR
    WHERE = tibble(c("name", "LIKE", "%form%"))                             # This is the incoming filter
+   FilterF <- whereFilter                                                  # Filter function; this one just uses WHERE
    HeadlineF = THRUb                                                       # THRUb returns "", as we have no headline
    ButtonData <- list(edit=list(id=paste0("editForm"), q="g", class="mr-2", label="Edit"),
                     delete=list(id=paste0("deleteForm"), q="r", label="Delete"))
@@ -115,7 +115,7 @@ output$pickR <- renderUI({c(rv$limn, rv$limnForms); isolate({              # !!!
    NOtext = "No forms found by this filter."
    itemsPerPage = S$PKR$itemsPerPage                                       # Modifiable pickR-by-pickR
    scroll = FALSE                                                          # Modifiable pickR-by-pickR
-   return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
+   return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
 })})
 # Also needs first two items in omclick observer
 
