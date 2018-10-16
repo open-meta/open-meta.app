@@ -33,6 +33,7 @@ library(xml2)           #
 library(RCurl)
 library(rvest)
 library(RefManageR)
+library(dbplyr)
 
 library(pool)
 library(RMariaDB)
@@ -266,15 +267,16 @@ source("bs4.R", local=TRUE)
 # The ID allows you to put mulitiple pickRs on a single page.
 # It's typically the only thing in an output/renderUI.
 #    A good example of how to call it is in adminForms.R
-pickR <- function(ID, activePage, DB, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF,
-                     NOtext="Nothing Found", itemsPerPage, scroll) {
+pickR <- function(ID, DB, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                  FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll) {
 # Get filtered (by WHERE parameter) IDs
    tableID <- paste0(TABLE,"ID")
    R <- FilterF(DB, TABLE, tableID, WHERE)
 # Flunk out if nothing returned
    if(nrow(R)==0 || R[[1,1]]==0) {
       return(tagList(
-         bs4("r", bs4("c12", bs4("hr", class="py-2"), HTML0("<h5>", NOtext, "</h5>")))
+         bs4("c12", bs4("hr", class="py-2")),
+         bs4("c12", HTML0("<h5>", NOtext, "</h5>"))
       ))
    }
 # Build a headline
