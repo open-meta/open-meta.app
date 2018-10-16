@@ -501,8 +501,8 @@ imID2NUM <- function(ID, TABLE) {
       R <- recGet(S$db, TABLE, SELECT, WHERE=tibble(c(tableID, "=", ID)))
       NUM <- as.numeric(R[[SELECT]])
    } else {
-      R <- recGet(S$db, TABLE, SELECT, WHERE=tibble(c(tableID, ">", 0)))
-      if(nrow(R)!=0) {
+      R <- recGet(S$db, TABLE, SELECT, WHERE=tibble(c(tableID, ">", 0), c("deleted", ">=", "0")))  # don't duplicate a
+      if(nrow(R)!=0) {                                                                             #   deleted NUM
          NUM <- max(as.numeric(R[[SELECT]])) + 1                              # It's the max of tableNUM plus 1
       } else {
          NUM <- 1                                                             # But for first one it's 1
