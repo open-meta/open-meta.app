@@ -14,6 +14,7 @@ source("chokidar.R", local=TRUE)
 
 # load the inputMeta.R code (also used by other pages)
 source("inputMeta.R", local=TRUE)
+source("citationFiltering.R", local=TRUE)
 
 rv$menu1Active <- 1
 rv$menu2Active <- 1
@@ -27,17 +28,18 @@ S$PKR$C$activePage <- 1
 S$PKR$O$activePage <- 1
 S$PKR$TS$activePage <- 1
 
-rv$limnStudies <- 0
 S$PRK$Studies$activePage <- 1
+rv$limnStudies <- 0
 
 S$picoName = ""
 S$display = "add"
 
 output$uiMeat <- renderUI({c(rv$limn); isolate({
    if(rv$limn && S$P$Msg=="") {
+      S$E$reviews <<- updateEXtable()                    # Add/remove extraction records to match catalog$decision
       switch(as.character(rv$menu1Active),
-         "1" = { return(
-            tagList(
+         "1" = {
+            return(tagList(
                bs4("r", align="hc",
                   bs4("c10",
                   bs4("r", id="pageMenu"),
@@ -45,8 +47,8 @@ output$uiMeat <- renderUI({c(rv$limn); isolate({
                ))
             ))
          },
-         "2" = { return(
-            tagList(
+         "2" = {
+            return(tagList(
                bs4("r", align="hc",
                   bs4("c10",
                   bs4("r", id="pageMenu"),
@@ -54,8 +56,8 @@ output$uiMeat <- renderUI({c(rv$limn); isolate({
                ))
             ))
          },
-         "3" = { return(
-            tagList(
+         "3" = {
+            return(tagList(
                bs4("r", align="hc",
                   bs4("c10",
                   bs4("r", id="pageMenu"),
@@ -63,8 +65,8 @@ output$uiMeat <- renderUI({c(rv$limn); isolate({
                ))
             ))
          },
-         "4" = { return(
-            tagList(
+         "4" = {
+            return(tagList(
                bs4("r", align="hc",
                   bs4("c10",
                   bs4("r", id="pageMenu"),
@@ -97,7 +99,6 @@ output$pageMenu <- renderUI({c(rv$limn); isolate({
 })})
 
 output$Dashboard <- renderUI({c(rv$limn); isolate({
-   review <- updateEXtable()
    return(
       tagList(
          bs4("c12", "Dashboard Here")
@@ -193,7 +194,7 @@ output$picoAdd <- renderUI({c(rv$limn); isolate({
 })})
 
 # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
-output$picoPickR <- renderUI({c(rv$limn, rv$limnP, rv$limnI, rv$limnC, rv$limnO, rv$limnTS); isolate({
+output$picoPickR <- renderUI({c(rv$limn, rv$limnPico); isolate({
    switch(as.character(rv$menu2Active),
       "1" = {
          S$picoName <<- c("Participant", "PrjForm-Participant Grp")    # Name in pico table, form name in settings table
@@ -219,10 +220,10 @@ output$picoPickR <- renderUI({c(rv$limn, rv$limnP, rv$limnI, rv$limnC, rv$limnO,
    FilterF <- whereFilter
    HeadlineF = THRUb                                                       # THRUb returns "", as we have no headline
    if(S$P$Modify) {                                                        # View or Edit depends on permissions
-     ButtonData <- list(edit=list(id=paste0("edit", ID), q="g", class="mr-2", label="Edit"),
-                      delete=list(id=paste0("delete", ID), q="r", label="Delete"))
+     ButtonData <- list(edit=list(id="editPico", q="g", class="mr-2", label="Edit"),
+                      delete=list(id="deletePico", q="r", label="Delete"))
    } else {
-     ButtonData <- list(view=list(id=paste0("view",ID), q="b", label="View"))
+     ButtonData <- list(view=list(id="viewPico", q="b", label="View"))
    }
    ButtonF = stdButtons
    FixDataF = picoFix
@@ -230,7 +231,8 @@ output$picoPickR <- renderUI({c(rv$limn, rv$limnP, rv$limnI, rv$limnC, rv$limnO,
    NOtext = "Nothing here yet."
    itemsPerPage = S$PKR$itemsPerPage                                       # Modifiable pickR-by-pickR
    scroll = FALSE                                                          # Modifiable pickR-by-pickR
-   return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
+   return(pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                    FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll))
 })})
 
 picoFix <- function(x) {
@@ -299,38 +301,36 @@ additional information on each time span.</p>"
 })})
 
 output$editPico <- renderUI({c(rv$limn); isolate({
-   S$IN$FORM <<- imGetFORM(S$picoName[2])        # S$picoName is set in picoPickR
+   S$Pico$Form <<- imGetFORM(S$picoName[2])        # S$picoName is set in picoPickR
    if(S$recID>0) {                               # If this is an edit, get the FORM's current values; S$recID set in addPico, editPico
       R <- recGet(S$db, "pico", c("name", "value"), tibble(c("picoNUM", "=", imID2NUM(S$recID, "pico"))))
-      for(i in 1:nrow(S$IN$FORM)) {              # Insert values from R into form$value
-         S$IN$FORM$value[i] <<- R$value[R$name==S$IN$FORM$name[i]]    # In FORM, "name" is the short label
+      for(i in 1:nrow(S$Pico$Form)) {              # Insert values from R into form$value
+         S$Pico$Form$value[i] <<- R$value[R$name==S$Pico$Form$name[i]]    # In FORM, "name" is the short label
       }                                                               # In R, it's the "name" of the "value"
    }
    if(S$P$Modify) {
-      SaveBtn = HTML0(bs4("btn", id="save", n=1, q="b", "Save"))
+      SaveBtn = HTML0(bs4("btn", id="savePico", n=1, q="b", "Save"))
    } else {                                      # If user can't modify inputs, force View (disabled inputs)
-      S$IN$FORM$disable <<- TRUE                 #    and skip the Save button
+      S$Pico$Form$disable <<- TRUE                 #    and skip the Save button
       SaveBtn = ""
    }
    restOfPage = tagList(
-      imForm2HTML(S$IN$FORM),
+      imForm2HTML(S$Pico$Form),
       bs4("r", align="he",
-          bs4("c3", bs4("btn", id="cancel", n=1, q="b", "Cancel"), SaveBtn)
+          bs4("c3", bs4("btn", id="cancelPico", n=1, q="b", "Cancel"), SaveBtn)
       )
    )
 })})
 
 output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
    if(TRUE) {
-      S$E$reviews <<- updateEXtable()
    ###### pickR start
       ID = "Studies"                                                 # This allows multiple pickRs on a single page
-      activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
-      TABLE = "extract"                                              # The table the pickR data will come from
-      SELECT = c("studyName", "catalogID")                           # These are the table fields needed to build the pickR
-      WHERE = tibble(c("studyName", "!=", ""))                       # This is the incoming filter
-      FilterF <- whereFilter
-      HeadlineF = THRUb                                              # THRUb returns "", as we have no headline
+      TABLE = "catalog"                                              # The table the pickR data will come from
+      WHERE = "extract"                       # Special handling for citesFilter
+      FilterF = citesFilter                                                   # typically whereFilter
+      HeadlineF = citesHead                                                   # typically THRUb
+      SELECT = NULL                           # These are the table fields needed to build the pickR
       if(S$P$Modify) {                                               # View or Edit depends on permissions
         ButtonData <- list(extract=list(id=paste0("extractStudy"), q="g", class="mr-2", label="Extract"))
       } else {
@@ -340,20 +340,48 @@ output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!N
       FixDataF = studyFix
       FormatF = prf_5.3.4r
       NOtext = "No studies found by this filter."
+      activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
       itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
       scroll = FALSE                                                 # Modifiable pickR-by-pickR
-      return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
+      results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                    FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
+      restOfPage <- tagList(
+#      bs4("r", align="hc", bs4("c10",
+         bs4("r",
+            bs4("c11",
+               HTML("<span style='font-size: 1.25rem; color:#fff;'>Filter citations</span><br>"),
+               imForm2HTML(S$FIL$FORM)
+            ),
+            bs4("c1"),
+            bs4("c12", class="text-right",
+               bs4("btn", uid="filter_0", q="b", class="mr-3", "Filter")
+            ),
+            results
+         )
+ #     ))
+   )
+
    }
 })})
 
 studyFix <- function(R) {
+   # R has 30 catalogID and buttons
+   extractTBL <- tbl(shiny.pool, in_schema(S$db, "extract"))
+   catalogTBL <- tbl(shiny.pool, in_schema(S$db, "catalog"))
+   catalog <- catalogTBL %>%
+      filter(catalogID %in% R$catalogID) %>%
+      select(catalogID, reviewBest) %>%
+      collect()
    statusText=c("Not reviewed", "Stage 1 Fail", "Stage 1 Pass", "Extraction Fail", "Extraction Pass")
-   R$status <- ""
-   for(i in 1:nrow(R)) {
-      R$status[i] <- statusText[S$E$reviews$decision[R$catalogID[i]==S$E$reviews$catalogID]+1]
-   }
-   return(tibble(extractID=R$extractID, studyName=R$studyName,       # reorder columns, drop catalogID
-                    status=R$status, action=R$Action))
+   catalog$reviewBest <- statusText[catalog$reviewBest + 1]
+   R <- extractTBL %>%
+      filter(catalogID %in% R$catalogID) %>%
+      select(catalogID, studyName) %>%
+      merge(catalog, all.x=TRUE) %>%
+      merge(R, all.x=TRUE) %>%
+      as.tibble() %>%
+      collect()
+   return(R)
 }
 
 prf_5.3.4r = function(r) {                        # Standard function for one column of data and one row of buttons
@@ -406,6 +434,10 @@ observeEvent(input$js.omclick, {
          limnID = paste0("limn", n)         # The pickR render should respond to this rv$limn...;
          rv[[limnID]] <- rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
       },
+      "filter" = {
+         rv$limnStudies <- rv$limnStudies + 1
+#         rv$render = rv$render+1
+      },
       "menu1" = {
          S$hideMenus <<- FALSE
 #         S$PGN$activePage <- 1                    # When changing submenu, set scroller back to 1
@@ -442,11 +474,11 @@ observeEvent(input$js.omclick, {
          S$hideMenus <<- FALSE
          rv$limn = rv$limn+1
       },
-      "save" = {
+      "savePico" = {
          S$IN$recID <<- S$recID
          empty=0
-         for(i in which(S$IN$FORM$placeholder=="Required...")) {
-            empty <- empty + (input[[S$IN$FORM$id[i]]]=="")
+         for(i in which(S$Pico$Form$placeholder=="Required...")) {
+            empty <- empty + (input[[S$Pico$Form$id[i]]]=="")
          }
          if(empty!=0) {
             if(empty==1) {
@@ -458,40 +490,33 @@ observeEvent(input$js.omclick, {
             S$modal_size <<- "m"
             rv$modal_warning <- rv$modal_warning + 1
          } else {
+            S$IN$FORM <<- S$Pico$Form
             rv$imGetFORMData <<- rv$imGetFORMData + 1
             S$display <<- "add"
             S$hideMenus <<- FALSE
             rv$menuActive = 2
          }
       },
-      "cancel" = {
+      "cancelPico" = {
          S$display <<- "add"
          S$hideMenus <<- FALSE
          rv$menuActive = 2
          rv$limn = rv$limn+1
       },
-      "delete" = {
-#   Needs S$IN$flag$firstOne
-#         S$IN$TABLE
-#         S$recID
-         NUM <- imID2NUM(S$recID, "pico")                                # We'll need this for each row, so save in variable
-         for(i in 1:nrow(S$IN$FORM)) {                                   # Save FORM values
-            R <-  recGet(S$db, "pico", SELECT="**",
-                     WHERE=tibble(c("picoNUM", "=", NUM), c("name", "=", S$IN$FORM$name[i])))
-            R$outcomeNUM[2] = NUM                                        # While edited recs will already have NUM
-            R$name[2] = S$IN$FORM$name[i]                                #    and Name, must do this for new rows!
-            R$value[2] = S$IN$FORM$value[i]
-            R <- recSave(R, S$db)
+      "deletePico" = {
+         NUM <- imID2NUM(n, "pico")                                         # Get the NUM for this picoID
+         picoTBL <- tbl(shiny.pool, in_schema(S$db, "pico"))                # Now get ALL the picoIDs for this NUM
+         picoids <- picoTBL %>% filter(picoNUM==NUM) %>% select(picoID) %>% collect()
+         for(id in picoids$picoID) {                                        # For each ID, delete the record
+            r <- recGet(S$db, "pico", "**", tibble(c("picoID", "=", id)))
+            r$deleted[2] <- 1
+            recSave(r, S$db)
          }
-         S$hideMenus <<- FALSE
-         rv$menuActive = 2
-         rv$limn = rv$limn+1
+         rv$limnPico = rv$limnPico + 1
       },
-      # "view" = {
-      #    S$modal_title <<- "Under Construction."
-      #    S$modal_text <<- HTML("<p>Sorry, this feature isn't available yet.</p>")
-      #    rv$modal_warning <- rv$modal_warning + 1
-      # },
+      "extractStudy" = {
+
+      },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
