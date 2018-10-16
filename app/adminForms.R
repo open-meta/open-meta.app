@@ -115,7 +115,8 @@ output$pickR <- renderUI({c(rv$limn, rv$limnForms); isolate({              # !!!
    NOtext = "No forms found by this filter."
    itemsPerPage = S$PKR$itemsPerPage                                       # Modifiable pickR-by-pickR
    scroll = FALSE                                                          # Modifiable pickR-by-pickR
-   return(pickR(ID, activePage, S$db, TABLE, SELECT, WHERE, FilterF, HeadlineF, ButtonData, ButtonF, FixDataF, FormatF, NOtext, itemsPerPage, scroll))
+   return(pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                    FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll))
 })})
 # Also needs first two items in omclick observer
 
