@@ -439,7 +439,7 @@ citeTable = function(r, db, id) {
 #      * In this case, SELECT is a string vector of desired columns, but just "*" is all columns
 #      * WHERE describes the desired records, however:
 #         * no WHERE returns all active records
-#         * to get deleted records, you MUST include "deleted=0" (for deleted only) or "deleted>=0"
+#         * to get deleted records, you MUST include "deleted=1" (for deleted only) or "deleted>=0"
 #         *   (for all records) in WHERE; otherwise the code defaults to Active records only, no Deleted.
 #      * Returns a tibble of SELECTed columns and 1 row for each selected record.
 #      * If nothing is found, returns an empty row with selected fields.
