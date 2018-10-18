@@ -50,10 +50,11 @@ citesFilter <- function(DB, TABLE, tableID, WHERE) {   # these aren't actually u
       qabs = dbQuoteString(shiny.pool, paste0("%", f$abstract, "%"))
       wherePairs = paste0(wherePairs, " AND (`abstract` LIKE ", qabs, " OR `title` LIKE ", qabs, ")")
    }
-   selects = dbQuoteIdentifier(shiny.pool, c("catalogID", "reviewBest"))
+   selects = dbQuoteIdentifier(shiny.pool, c("catalogID", "reviewBest", "Y", "author"))
    selects = paste0(selects, collapse=",")
    QUERY = paste0("SELECT ", selects, " FROM ", dbt(S$db, "catalog", shiny.pool), " WHERE ", wherePairs, ";")
    r <- as.tibble(dbGetQuery(shiny.pool, QUERY))                      # perform raw SQL Query
+   r <- r %>% arrange(Y, author) %>% select(catalogID, reviewBest)    # We sort twice, once here for entire vector of filteredIDs
 ###
    if(f$allRnot=="my") {                                              # Skip this for All Reviews
       myReviews <- recGet(S$db, "review", c("catalogID", "decision"), tibble(c("verUser", "=", S$U$userName)))
