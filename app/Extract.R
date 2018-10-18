@@ -22,59 +22,93 @@ rv$menu2Active <- 1
 # pickR globals
 # S$PKR$itemsPerPage             Now in app.R
 
-S$PKR$P$activePage <- 1
-S$PKR$I$activePage <- 1
-S$PKR$C$activePage <- 1
-S$PKR$O$activePage <- 1
-S$PKR$TS$activePage <- 1
+# S$PKR$P$activePage <- 1        These aren't being used but does pagination work for picos?
+# S$PKR$I$activePage <- 1
+# S$PKR$C$activePage <- 1
+# S$PKR$O$activePage <- 1
+# S$PKR$TS$activePage <- 1
 
 S$PRK$Studies$activePage <- 1
 rv$limnStudies <- 0
+rv$limnviewStudy <- 0
+rv$limnEditArm <- 0
+rv$limnEditOutcome <- 0
+rv$limnEditGroup <- 0
+rv$limnEditInterventionGroup <- 0
 
 S$picoName = ""
-S$display = "add"
+S$picoDisplay = "add"
+S$studyDisplay="pickStudy"
+
+S$NUMs = list()
+S$NUMs$catalogID <- 0
+S$NUMs$studyNUM <- 0
+S$NUMs$armNUM <- 0
+S$NUMs$outcomeNUM <- 0
+S$NUMs$groupNUM <- 0
+
+S$Names = list()
+S$Names$Trial <- ""
+
+
+S$extractTBL <- tbl(shiny.pool, in_schema(S$db, "extract"))
+S$catalogTBL <- tbl(shiny.pool, in_schema(S$db, "catalog"))
+S$picoTBL <- tbl(shiny.pool, in_schema(S$db, "pico"))
+
+S$editFORM <- FALSE
+
+
 
 output$uiMeat <- renderUI({c(rv$limn); isolate({
    if(rv$limn && S$P$Msg=="") {
       S$E$reviews <<- updateEXtable()                    # Add/remove extraction records to match catalog$decision
-      switch(as.character(rv$menu1Active),
-         "1" = {
-            return(tagList(
-               bs4("r", align="hc",
-                  bs4("c10",
-                  bs4("r", id="pageMenu"),
-                  bs4("r", id="Dashboard")
-               ))
+      if(S$editFORM && S$P$Modify) {
+         return(tagList(
+            bs4("r", align="hc",
+               bs4("c10",
+               bs4("r", id="editForm")
             ))
-         },
-         "2" = {
-            return(tagList(
-               bs4("r", align="hc",
-                  bs4("c10",
-                  bs4("r", id="pageMenu"),
-                  bs4("r", id="TrialSetup")
+         ))
+      } else {
+         switch(as.character(rv$menu1Active),
+            "1" = {
+               return(tagList(
+                  bs4("r", align="hc",
+                     bs4("c10",
+                     bs4("r", id="pageMenu"),
+                     bs4("r", id="Dashboard")
+                  ))
                ))
-            ))
-         },
-         "3" = {
-            return(tagList(
-               bs4("r", align="hc",
-                  bs4("c10",
-                  bs4("r", id="pageMenu"),
-                  bs4("r", id="PICOSetup")
+            },
+            "2" = {
+               return(tagList(
+                  bs4("r", align="hc",
+                     bs4("c10",
+                     bs4("r", id="pageMenu"),
+                     bs4("r", id="TrialSetup")
+                  ))
                ))
-            ))
-         },
-         "4" = {
-            return(tagList(
-               bs4("r", align="hc",
-                  bs4("c10",
-                  bs4("r", id="pageMenu"),
-                  bs4("r", id="Extraction")
+            },
+            "3" = {
+               return(tagList(
+                  bs4("r", align="hc",
+                     bs4("c10",
+                     bs4("r", id="pageMenu"),
+                     bs4("r", id="PICOSetup")
+                  ))
                ))
-            ))
-         }
-      )
+            },
+            "4" = {
+               return(tagList(
+                  bs4("r", align="hc",
+                     bs4("c10",
+                     bs4("r", id="pageMenu"),
+                     bs4("r", id="Extraction")
+                  ))
+               ))
+            }
+         )
+      }
    }
 })})
 
@@ -96,6 +130,18 @@ output$pageMenu <- renderUI({c(rv$limn); isolate({
          )
       }
    )
+})})
+
+output$editForm <- renderUI({c(rv$limn); isolate({
+   S$IN$FORM <<- imGetFORM(S$IN$FORMname)                         # S$IN$FORMname is the only input here
+   S$IN$FORM <<- imGetFORMvalues(S$IN$FORM)                       # Heavily uses inputMeta.R functions
+   return(tagList(                                                # Save will use rv$imGetFORMData, which
+      imForm2HTML(S$IN$FORM),                                     #   needs S$IN$FORM, which is set up here
+      bs4("c12", class="text-right",
+         bs4("btn", uid="cancelForm_0", q="b", class="mr-3", "Cancel"),
+         bs4("btn", uid="saveForm_0", q="b", class="mr-3", "Save")
+      )
+   ))
 })})
 
 output$Dashboard <- renderUI({c(rv$limn); isolate({
@@ -144,7 +190,7 @@ include that name and allow you to gather these reports together here under the 
 
 
 output$PICOSetup <- renderUI({c(rv$limn); isolate({
-   if(S$display=="add") {
+   if(S$picoDisplay=="add") {
       return(
          tagList(
             bs4("c12", id="picoAdd"),
@@ -153,7 +199,7 @@ output$PICOSetup <- renderUI({c(rv$limn); isolate({
          )
       )
    }
-   if(S$display=="edit") {
+   if(S$picoDisplay=="edit") {
       return(
          tagList(
             bs4("c12", id="editPico"),
@@ -322,7 +368,85 @@ output$editPico <- renderUI({c(rv$limn); isolate({
    )
 })})
 
-output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
+output$Extraction <- renderUI({c(rv$limn, rv$limnStudies); isolate({
+   switch(S$studyDisplay,
+      "pickStudy" = {
+         return(
+            tagList(
+               bs4("c12", id="pickStudy")
+            )
+         )
+      },
+      "viewStudy" = {
+         return(
+            tagList(
+               bs4("c12", id="viewStudy"),
+               bs4("c12", id="studyYbox")
+            )
+         )
+      },
+      "editArm" = {
+         return(
+            tagList(
+               bs4("c12", id="editArm"),
+               bs4("c12", id="ArmYbox")
+            )
+         )
+      },
+      "editOutcome" = {
+         return(
+            tagList(
+               bs4("c12", id="editOutcome"),
+               bs4("c12", id="OutcomeYbox")
+            )
+         )
+      },
+      "editGroup" = {
+         return(
+            tagList(
+               bs4("c12", id="editGroup"),
+               bs4("c12", id="GroupYbox")
+            )
+         )
+      },
+      "editInterventionGroup" = {
+         return(
+            tagList(
+               bs4("c12", id="editInterventionGroup"),
+               bs4("c12", id="InterventionGroupYbox")
+            )
+         )
+      }
+   )
+})})
+
+
+
+   # Moving on...
+   # I think we're then ready to make a pickR from the extract table and the review decisions
+   # pickR buttons should be Extract or View
+   #
+   # EXTRACT STUDY
+   # First you get a chance to change the STUDY name; this form also gives you the STUDY bias radio buttons
+   # Under that is a pickR that allows you to create a new Arm and see exising Arms. Buttons: Edit or View
+   # After edit/view, the pickR is replaced by a FORM for the Arm.
+   # Each Arm has a specific participant group, comparison group, and time span (One way to think of this is that
+   #    within an Arm, the control group doesn't change.)
+   # Part of that is a pickR (+ add?) button for the Outcome.
+   # When you edit an outcome, first you get a dropdown for the type of data you have, which will present the correct
+   #    calculator to convert the data into an effect size in the next section.
+   # After that is a pickR + add button for the Group.
+   # The first group is the control group; there must also be at least one intervention group, but there can be multiple.
+   # You enter the data for the groups, save them, do this for all outcomes, then for all arms, then for all Trials, and you're done.
+
+#    return(
+#       tagList(
+#          bs4("c12", HTML("<pre>Length of review is ", nrow(review)," and it is ", review$catalogID, "</pre>"))
+#       )
+#    )
+# })})
+
+output$pickStudy <- renderUI({c(rv$limn, rv$limnStudies); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
    if(TRUE) {
    ###### pickR start
       ID = "Studies"                                                 # This allows multiple pickRs on a single page
@@ -332,7 +456,7 @@ output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!N
       HeadlineF = citesHead                                                   # typically THRUb
       SELECT = NULL                           # These are the table fields needed to build the pickR
       if(S$P$Modify) {                                               # View or Edit depends on permissions
-        ButtonData <- list(extract=list(id=paste0("extractStudy"), q="g", class="mr-2", label="Extract"))
+        ButtonData <- list(extract=list(id=paste0("viewStudy"), q="g", class="mr-2", label="Extract"))
       } else {
         ButtonData <- list(view=list(id=paste0("viewStudy"), q="b", label="View"))
       }
@@ -366,22 +490,24 @@ output$Extraction <- renderUI({c(rv$limn, rv[["limnStudies"]]); isolate({ # !!!N
 
 studyFix <- function(R) {
    # R has 30 catalogID and buttons
-   extractTBL <- tbl(shiny.pool, in_schema(S$db, "extract"))
-   catalogTBL <- tbl(shiny.pool, in_schema(S$db, "catalog"))
-   catalog <- catalogTBL %>%
+   # extractTBL <- tbl(shiny.pool, in_schema(S$db, "extract"))
+   # catalogTBL <- tbl(shiny.pool, in_schema(S$db, "catalog"))
+   catalog <- S$catalogTBL %>%
       filter(catalogID %in% R$catalogID) %>%
-      select(catalogID, reviewBest) %>%
+      select(catalogID, reviewBest, Y, author) %>%
       collect()
    statusText=c("Not reviewed", "Stage 1 Fail", "Stage 1 Pass", "Extraction Fail", "Extraction Pass")
    catalog$reviewBest <- statusText[catalog$reviewBest + 1]
-   R <- extractTBL %>%
-      filter(catalogID %in% R$catalogID) %>%
-      select(catalogID, studyName) %>%
-      merge(catalog, all.x=TRUE) %>%
-      merge(R, all.x=TRUE) %>%
-      as.tibble() %>%
-      collect()
-   return(R)
+   Rx <- S$extractTBL %>%
+      filter(catalogID %in% R$catalogID & name=="Trial") %>%         # filter extract table; these should be unique
+      select(catalogID, value) %>%                               # just need Trial
+      merge(catalog, all.x=TRUE) %>%                                 # add reviewBest, Y, author
+      merge(R, all.x=TRUE) %>%                                       # add buttons
+      arrange(Y, author) %>%                                         # sort
+      select(-Y, -author) %>%                                        # remove Y, author
+      collect() %>%
+      as.tibble()
+   return(Rx)
 }
 
 prf_5.3.4r = function(r) {                        # Standard function for one column of data and one row of buttons
@@ -394,31 +520,100 @@ prf_5.3.4r = function(r) {                        # Standard function for one co
 </div>', collapse = ''))
 }
 
+output$viewStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
+   r <- S$extractTBL %>%
+         filter(catalogID == S$NUMs$catalogID & name=="Trial") %>%  # All we have now is the catalogID
+         select(studyNUM, value) %>%                                # Get studyNUM too
+         collect()
+   S$NUMs$studyNUM <<- r$studyNUM                                   # Memorize studyNUM and study name
+   S$Names$Trial <<- r$value
 
-   # Moving on...
-   # I think we're then ready to make a pickR from the extract table and the review decisions
-   # pickR buttons should be Extract or View
-   #
-   # EXTRACT STUDY
-   # First you get a chance to change the STUDY name; this form also gives you the STUDY bias radio buttons
-   # Under that is a pickR that allows you to create a new Arm and see exising Arms. Buttons: Edit or View
-   # After edit/view, the pickR is replaced by a FORM for the Arm.
-   # Each Arm has a specific participant group, comparison group, and time span (One way to think of this is that
-   #    within an Arm, the control group doesn't change.)
-   # Part of that is a pickR (+ add?) button for the Outcome.
-   # When you edit an outcome, first you get a dropdown for the type of data you have, which will present the correct
-   #    calculator to convert the data into an effect size in the next section.
-   # After that is a pickR + add button for the Group.
-   # The first group is the control group; there must also be at least one intervention group, but there can be multiple.
-   # You enter the data for the groups, save them, do this for all outcomes, then for all arms, then for all Trials, and you're done.
+   f <- "prjForm-Trial"                                             # FORM name
+   FORM <- imGetFORM(f, S$db)
+   FORM <- imGetFORMvalues(FORM)
+   FORM$disabled <- TRUE                                            # Disable the FORM for now
+   if(S$P$Modify) {                                                 #   but provide a button for editing it
+      buttons <- tagList(
+         bs4("btn", uid=paste0("editForm_", f), q="g", class="mr-3", "Edit Study-Level Data")
+      )
+   }
 
-#    return(
-#       tagList(
-#          bs4("c12", HTML("<pre>Length of review is ", nrow(review)," and it is ", review$catalogID, "</pre>"))
-#       )
-#    )
-# })})
+###### pickR start
+   ID = "viewStudy"                                                 # This allows multiple pickRs on a single page
+   return(tagList(
+      imForm2HTML(FORM),
+      bs4("c12", class="text-right", buttons)
+   ))
+})})
 
+output$editArm <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditArm); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
+###### pickR start
+   ID = "EditArm"                                                 # This allows multiple pickRs on a single page
+   return(ID)
+})})
+
+output$editOutcome <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditOutcome); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
+###### pickR start
+   ID = "EditOutcome"                                                 # This allows multiple pickRs on a single page
+   return(ID)
+})})
+
+output$editGroup <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditGroup); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
+###### pickR start
+   ID = "EditGroup"                                                 # This allows multiple pickRs on a single page
+   return(ID)
+})})
+
+output$editInterventionGroup <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditInterventionGroup); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
+###### pickR start
+   ID = "EditInterventionGroup"                                                 # This allows multiple pickRs on a single page
+   return(ID)
+})})
+
+output$studyYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewStudy); isolate({
+   yBox = HTML0("
+<p>Study</p>
+")
+   return(tagList(
+      bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
+   ))
+})})
+
+output$ArmYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditArm); isolate({
+   yBox = HTML0("
+<p>Arm</p>
+")
+   return(tagList(
+      bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
+   ))
+})})
+
+output$OutcomeYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditOutcome); isolate({
+   yBox = HTML0("
+<p>Outcome</p>
+")
+   return(tagList(
+      bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
+   ))
+})})
+
+output$GroupYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditGroup); isolate({
+   yBox = HTML0("
+<p>Group</p>
+")
+   return(tagList(
+      bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
+   ))
+})})
+
+output$InterventionGroupYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnEditInterventionGroup); isolate({
+   yBox = HTML0("
+<p>Intervention Group</p>
+")
+   return(tagList(
+      bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
+   ))
+})})
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
@@ -446,7 +641,7 @@ observeEvent(input$js.omclick, {
       },
       "menu2" = {
          S$hideMenus <<- FALSE
-         S$display <<- "add"
+         S$picoDisplay <<- "add"
 #         S$PGN$activePage <- 1                    # When changing submenu, set scroller back to 1
          rv$menu2Active = n
          rv$limn = rv$limn+1
@@ -458,19 +653,19 @@ observeEvent(input$js.omclick, {
       },
       "addPico" = {
          S$recID <<- 0
-         S$display <<- "edit"
+         S$picoDisplay <<- "edit"
          S$hideMenus <<- TRUE
          rv$limn = rv$limn+1
       },
       "editPico" = {
          S$recID <<- n
-         S$display <<- "edit"
+         S$picoDisplay <<- "edit"
          S$hideMenus <<- TRUE
          rv$limn = rv$limn+1
       },
       "viewPico" = {
          S$recID <<- n
-         S$display <<- "edit"
+         S$picoDisplay <<- "edit"
          S$hideMenus <<- FALSE
          rv$limn = rv$limn+1
       },
@@ -492,21 +687,20 @@ observeEvent(input$js.omclick, {
          } else {
             S$IN$FORM <<- S$Pico$Form
             rv$imGetFORMData <<- rv$imGetFORMData + 1
-            S$display <<- "add"
+            S$picoDisplay <<- "add"
             S$hideMenus <<- FALSE
             rv$menuActive = 2
          }
       },
       "cancelPico" = {
-         S$display <<- "add"
+         S$picoDisplay <<- "add"
          S$hideMenus <<- FALSE
          rv$menuActive = 2
          rv$limn = rv$limn+1
       },
       "deletePico" = {
          NUM <- imID2NUM(n, "pico")                                         # Get the NUM for this picoID
-         picoTBL <- tbl(shiny.pool, in_schema(S$db, "pico"))                # Now get ALL the picoIDs for this NUM
-         picoids <- picoTBL %>% filter(picoNUM==NUM) %>% select(picoID) %>% collect()
+         picoids <- S$picoTBL %>% filter(picoNUM==NUM) %>% select(picoID) %>% collect()
          for(id in picoids$picoID) {                                        # For each ID, delete the record
             r <- recGet(S$db, "pico", "**", tibble(c("picoID", "=", id)))
             r$deleted[2] <- 1
@@ -514,8 +708,32 @@ observeEvent(input$js.omclick, {
          }
          rv$limnPico = rv$limnPico + 1
       },
-      "extractStudy" = {
-
+      "viewStudy" = {
+         S$NUMs$catalogID <<- n
+         S$NUMs$studyNUM <<- 0
+         S$NUMs$armNUM <<- 0
+         S$NUMs$outcomeNUM <<- 0
+         S$NUMs$groupNUM <<- 0
+         S$studyDisplay <<- "viewStudy"
+         S$hideMenus <<- FALSE
+         rv$limn = rv$limn+1
+      },
+      "editForm" = {
+         S$editFORM <<- TRUE
+         S$IN$FORMname <<- n
+         S$hideMenus <<- TRUE
+         rv$limn <- rv$limn + 1
+      },
+      "saveForm" = {
+         S$editFORM <<- FALSE
+         S$hideMenus <<- FALSE
+         rv$imGetFORMData <- rv$imGetFORMData + 1
+      },
+      "cancelForm" = {
+         S$editFORM <<- FALSE
+#         S$studyDisplay <<- "pickStudy"
+         S$hideMenus <<- FALSE
+         rv$limn <- rv$limn + 1
       },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
@@ -526,8 +744,9 @@ observeEvent(input$js.omclick, {
 updateEXtable <- function() {
    start.time <- Sys.time()
    on.exit({
-      cat("### Update extraction table ###\n")
+      cat("\n### Update extraction table ###\n")
       print(Sys.time() - start.time)
+      cat("\n")
    })
    dbLink <- poolCheckout(shiny.pool)        # get a dbLink from the pool
    on.exit(poolReturn(dbLink), add = TRUE)   # Have to use dbLink to use MySQL max() function
@@ -567,18 +786,19 @@ updateEXtable <- function() {
                #   authors in the catalog, not here...
             catalog <- recGet(S$db, "catalog", c("catalogID", "author", "Y"), tibble(c("catalogID", "=", cID)))
             studyAuthor <- (str_split(str_replace(catalog$author, ",", " "), " ")[[1]][1])
-            studyName <- paste0(studyAuthor,"-",catalog$Y) # Author (before first space)-Year
-            allNames <- recGet(S$db, "extract", "studyName", tibble(c("extractID", ">", "0")))$studyName
+            Trial <- paste0(studyAuthor,"-",catalog$Y) # Author (before first space)-Year
+            allNames <- S$extractTBL %>% filter(name=="Trial") %>% pull(value)
             i <- 2      # start with "b"; the first one has no letter at all.
-            original <- studyName
-            while(length(allNames)>0 && studyName %in% allNames) {   # make sure studyName is unique
-               studyName <- paste0(original, letters[i])
+            original <- Trial
+            while(length(allNames)>0 && Trial %in% allNames) {   # make sure Trial is unique
+               Trial <- paste0(original, letters[i])
                i <- i + 1
             }
          }
          r <- recGet(S$db, "extract", SELECT="", WHERE="")           # Get a new record
          r$catalogID[2] <- cID                                       # Save catalogID
-         r$studyName[2] <- studyName                                 #    studyName
+         r$name[2] <- "Trial"                                 #    Trial
+         r$value[2] <- Trial                                 #    Trial
          r$studyNUM[2] <- as.integer(studyNUM + 1)                   #    studyNUM
          r <- recSave(r, S$db)
          progress$set(which(workIDs %in% cID)/length(workIDs))       # update progress
