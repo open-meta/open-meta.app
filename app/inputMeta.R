@@ -512,6 +512,7 @@ imID2NUM <- function(ID, TABLE) {
 }
 
 # Run imGetFORMData by incrementing rv$imGetFORMData
+# This gets data from inputs, not from server; see imGetFORMvalues()
 # First saves values of inputs into $values column of S$IN$FORM, then into proper type of SQL table
 S$IN$flag$imSAVE <- "start"
 observeEvent(c(input$js.editorText, rv$imGetFORMData), {
@@ -555,14 +556,28 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
       #   either a name-value table or a standard row-column table. Then we throw the FORM away as saving it
       #   would change the FORM's default values!
       dataTable <- S$IN$FORM[[1,"table"]]                             # Name of SQL table is stored in FORM$Table
-      if(dataTable %in% c("settings", "pico")) {                      # If it's a name-value table with one NUM field
+      if(dataTable=="extract") {                                      # More NUM fields to fill out
+         WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
+                      s=c("studyNUM", "=", S$NUMs$studyNUM),
+                      a=c("armNUM", "=", S$NUMs$armNUM),
+                      o=c("outcomeNUM", "=", S$NUMs$outcomeNUM),
+                      g=c("groupNUM", "=", S$NUMs$groupNUM))
+         for(i in 1:nrow(S$IN$FORM)) {                                # Save FORM values
+            WHERE$n = c("name", "=", S$IN$FORM$name[i])
+            R <-  recGet(S$db, dataTable, SELECT="**", WHERE=WHERE)
+            R$catalogID[2] <- S$NUMs$catalogID                        # While edited recs will already have NUMs
+            R$studyNUM[2] <- S$NUMs$studyNUM                          #    and Name, must do this for new rows!
+            R$armNUM[2] <- S$NUMs$armNUM
+            R$outcomeNUM[2] <- S$NUMs$outcomeNUM
+            R$groupNUM[2] <- S$NUMs$groupNUM
+            R$name[2] = S$IN$FORM$name[i]
+            R$value[2] = S$IN$FORM$value[i]
+            R <- recSave(R, S$db)                                     # There's a save on each loop
+         }
+      }
+      if(dataTable %in% c("settings", "pico")) {
          NUM <- imID2NUM(S$IN$recID, dataTable)                       #    We'll need this for each row, so save in variable
          tableNUM <- paste0(dataTable,"NUM")
-      }
-      if(dataTable=="extract") {                                      # More NUM fields to fill out
-          warning("At the bottom of inputMeta.R, the code for filling out the extra NUM fields in an Extract table is incomplete.")
-      }
-      if(dataTable %in% c("settings", "extract", "pico")) {
          for(i in 1:nrow(S$IN$FORM)) {                                # Save FORM values
             R <-  recGet(S$db, dataTable, SELECT="**",
                      WHERE=tibble(c(paste0(dataTable, "NUM"), "=", NUM), c("name", "=", S$IN$FORM$name[i])))
@@ -571,7 +586,8 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
             R$value[2] = S$IN$FORM$value[i]
             R <- recSave(R, S$db)                                     # There's a save on each loop
          }
-      } else {                                                        # It's a standard table
+      }
+      if(!dataTable %in% c("extract", "settings", "pico")) {          # It's a standard table
          warning("At the bottom of inputMeta.R, the code for saving FORM data into a standard table is incomplete.")
          R <-  recGet(S$db, dataTable, SELECT="**", WHERE=tibble(c(paste0(dataTable, "ID"), "=", S$IN$recID)))
          for(i in 1:nrow(S$IN$FORM)) {
@@ -582,4 +598,28 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
       rv$limn = rv$limn+1                                             # Re-render
    }
 })
+
+imGetFORMvalues <- function (FORM) {
+   switch(FORM$table[1],                                              # Get SQL table name from FORM
+      "extract" = {                                                   # This section is for an extract table
+         names <- pull(FORM, name)                                    # Will need to use FORM's names a couple of times
+         v <- S$extractTBL %>%                                        # Using current NUMs and names in FORM
+                  filter(catalogID==S$NUMs$catalogID &                #   get name-value pairs
+                         studyNUM==S$NUMs$studyNUM &
+                         armNUM==S$NUMs$armNUM &
+                         outcomeNUM==S$NUMs$outcomeNUM &
+                         groupNUM==S$NUMs$groupNUM &
+                         name %in% names) %>%
+                  select(name, value) %>%
+                  collect()
+         for(i in 1:length(names)) {                                  # Move name-value pairs into FORM, but skip (ie,
+            if(names[i] %in% v$name) {                                #    leave FORM default) if nothing there yet
+               FORM$value[i] <- v$value[which(v$name %in% names[i])]
+            }
+         }
+      },
+      warning(paste0("In imGetFORMvalues(), no handler for ", FORM$table[1], " table."))
+      )
+   return(FORM)
+}
 
