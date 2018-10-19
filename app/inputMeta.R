@@ -555,21 +555,25 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
       #   is not what we want here. Instead, we now save the FORM values in the appropriate table, which can be
       #   either a name-value table or a standard row-column table. Then we throw the FORM away as saving it
       #   would change the FORM's default values!
-      dataTable <- S$IN$FORM[[1,"table"]]                             # Name of SQL table is stored in FORM$Table
-      if(dataTable=="extract") {                                      # More NUM fields to fill out
+      dataTable <- S$IN$FORM$table[1]                                 # Name of SQL table is stored in FORM$Table
+      if(dataTable=="extract") {
+         NUMS <- unlist(str_split(S$IN$FORM$column[1], fixed(",")))          # Column field of table lets us know which
+         armNUM <- ifelse(NUMS[1]==0, 0, S$NUMs$armNUM)               #    NUMs should always be 0. For example,
+         outcomeNUM <- ifelse(NUMS[2]==0, 0, S$NUMs$outcomeNUM)       #    when saving study-level data, arm, oucome
+         groupNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$groupNUM)           #    and group NUMs have to be zero.
          WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
                       s=c("studyNUM", "=", S$NUMs$studyNUM),
-                      a=c("armNUM", "=", S$NUMs$armNUM),
-                      o=c("outcomeNUM", "=", S$NUMs$outcomeNUM),
-                      g=c("groupNUM", "=", S$NUMs$groupNUM))
+                      a=c("armNUM", "=", armNUM),
+                      o=c("outcomeNUM", "=", outcomeNUM),
+                      g=c("groupNUM", "=", groupNUM))
          for(i in 1:nrow(S$IN$FORM)) {                                # Save FORM values
             WHERE$n = c("name", "=", S$IN$FORM$name[i])
             R <-  recGet(S$db, dataTable, SELECT="**", WHERE=WHERE)
             R$catalogID[2] <- S$NUMs$catalogID                        # While edited recs will already have NUMs
             R$studyNUM[2] <- S$NUMs$studyNUM                          #    and Name, must do this for new rows!
-            R$armNUM[2] <- S$NUMs$armNUM
-            R$outcomeNUM[2] <- S$NUMs$outcomeNUM
-            R$groupNUM[2] <- S$NUMs$groupNUM
+            R$armNUM[2] <- armNUM
+            R$outcomeNUM[2] <- outcomeNUM
+            R$groupNUM[2] <- groupNUM
             R$name[2] = S$IN$FORM$name[i]
             R$value[2] = S$IN$FORM$value[i]
             R <- recSave(R, S$db)                                     # There's a save on each loop
@@ -602,19 +606,24 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
 imGetFORMvalues <- function (FORM) {
    switch(FORM$table[1],                                              # Get SQL table name from FORM
       "extract" = {                                                   # This section is for an extract table
+         NUMS <- unlist(str_split(FORM$column[1], fixed(",")))        # Column field of table lets us know which
+         armNUM <- ifelse(NUMS[1]==0, 0, S$NUMs$armNUM)               #    NUMs are always be 0. For example,
+         outcomeNUM <- ifelse(NUMS[2]==0, 0, S$NUMs$outcomeNUM)       #    when getting study-level data, arm, oucome
+         groupNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$groupNUM)           #    and group NUMs have to be zero.
+
          names <- pull(FORM, name)                                    # Will need to use FORM's names a couple of times
          v <- S$extractTBL %>%                                        # Using current NUMs and names in FORM
                   filter(catalogID==S$NUMs$catalogID &                #   get name-value pairs
                          studyNUM==S$NUMs$studyNUM &
-                         armNUM==S$NUMs$armNUM &
-                         outcomeNUM==S$NUMs$outcomeNUM &
-                         groupNUM==S$NUMs$groupNUM &
+                         armNUM==armNUM &
+                         outcomeNUM==outcomeNUM &
+                         groupNUM==groupNUM &
                          name %in% names) %>%
                   select(name, value) %>%
                   collect()
          for(i in 1:length(names)) {                                  # Move name-value pairs into FORM, but skip (ie,
             if(names[i] %in% v$name) {                                #    leave FORM default) if nothing there yet
-               FORM$value[i] <- v$value[which(v$name %in% names[i])]
+               FORM$value[i] <- v$value[v$name %in% names[i]]
             }
          }
       },
