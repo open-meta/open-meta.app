@@ -69,8 +69,8 @@ imGetBlankform <- function(type) {            # type refers to the type of input
 #    Result on return is typically saved to S$IN$FORM. Also sets S$IN$FORMname global under the assumption that
 #    only one FORM is ever open at a time.
 imGetFORM = function(FORMname, db=S$db) {
-   S$IN$FORMname <<- FORMname                     # imSaveform2FORMrow() will need this
-   r <- recGet(db, "settings", "value", tibble(c("name", "=", S$IN$FORMname)))
+ #  S$IN$FORMname <<- FORMname                     # imSaveform2FORMrow() will need this
+   r <- recGet(db, "settings", "value", tibble(c("name", "=", FORMname)))
    if(r$value=="") {                              # Did recGet return anything?
       f <- imGetBlankFORMrow("blank")[-1,]        # No, it's a new form. Build a zero-row tibble with default input parameters
    } else {
@@ -607,22 +607,31 @@ imGetFORMvalues <- function (FORM) {
    switch(FORM$table[1],                                              # Get SQL table name from FORM
       "extract" = {                                                   # This section is for an extract table
          NUMS <- unlist(str_split(FORM$column[1], fixed(",")))        # Column field of table lets us know which
-         armNUM <- ifelse(NUMS[1]==0, 0, S$NUMs$armNUM)               #    NUMs are always be 0. For example,
-         outcomeNUM <- ifelse(NUMS[2]==0, 0, S$NUMs$outcomeNUM)       #    when getting study-level data, arm, oucome
-         groupNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$groupNUM)           #    and group NUMs have to be zero.
+         FarmNUM <- ifelse(NUMS[1]==0, 0, S$NUMs$armNUM)               #    NUMs are always be 0. For example,
+         print(paste0("In imGetFormvalues, FarmNUM: ", FarmNUM))
+         FoutcomeNUM <- ifelse(NUMS[2]==0, 0, S$NUMs$outcomeNUM)       #    when getting study-level data, arm, oucome
+         FgroupNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$groupNUM)           #    and group NUMs have to be zero.
 
          names <- pull(FORM, name)                                    # Will need to use FORM's names a couple of times
+         options <- pull(FORM, options)
          v <- S$extractTBL %>%                                        # Using current NUMs and names in FORM
                   filter(catalogID==S$NUMs$catalogID &                #   get name-value pairs
                          studyNUM==S$NUMs$studyNUM &
-                         armNUM==armNUM &
-                         outcomeNUM==outcomeNUM &
-                         groupNUM==groupNUM &
+                         armNUM==FarmNUM &
+                         outcomeNUM==FoutcomeNUM &
+                         groupNUM==FgroupNUM &
                          name %in% names) %>%
                   select(name, value) %>%
                   collect()
          for(i in 1:length(names)) {                                  # Move name-value pairs into FORM, but skip (ie,
-            if(names[i] %in% v$name) {                                #    leave FORM default) if nothing there yet
+            if(str_sub(options[i],1,6)=="pico::") {                   # The picoName needs to be the string after
+               picoName <- unlist(str_split(options[i], fixed("::"))) #    "pico::" but before ";(No response)"
+               picoName <- unlist(str_split(picoName[2], fixed(";")))
+               choices = recGet(S$db, "pico", "value", tibble(c("name", "=", picoName[1]))) # Get the select options from
+               FORM$options[i] <- paste0(choices$value, collapse=";") #    the pico table and put them in expected format
+            }
+            if(names[i] %in% v$name) {                                #    leave FORM's default value if nothing found on server
+               print(paste0("In imGetFORMvalues, next value is: ", v$value[v$name %in% names[i]]))
                FORM$value[i] <- v$value[v$name %in% names[i]]
             }
          }
