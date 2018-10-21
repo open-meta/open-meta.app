@@ -557,15 +557,19 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
       #   would change the FORM's default values!
       dataTable <- S$IN$FORM$table[1]                                 # Name of SQL table is stored in FORM$Table
       if(dataTable=="extract") {
-         NUMS <- unlist(str_split(S$IN$FORM$column[1], fixed(",")))          # Column field of table lets us know which
+         NUMS <- unlist(str_split(S$IN$FORM$column[1], fixed(",")))   # Column field of table lets us know which
+#         print(paste0("in imGetFORMData, NUMS:", NUMS))
          armNUM <- ifelse(NUMS[1]==0, 0, S$NUMs$armNUM)               #    NUMs should always be 0. For example,
          outcomeNUM <- ifelse(NUMS[2]==0, 0, S$NUMs$outcomeNUM)       #    when saving study-level data, arm, oucome
-         groupNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$groupNUM)           #    and group NUMs have to be zero.
+         intervNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$intervNUM)         #    interv and group NUMs have to be zero.
+         groupNUM <- ifelse(NUMS[4]==0, 0, S$NUMs$groupNUM)
          WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
                       s=c("studyNUM", "=", S$NUMs$studyNUM),
                       a=c("armNUM", "=", armNUM),
                       o=c("outcomeNUM", "=", outcomeNUM),
+                      i=c("intervNUM", "=", intervNUM),
                       g=c("groupNUM", "=", groupNUM))
+#         print(WHERE)
          for(i in 1:nrow(S$IN$FORM)) {                                # Save FORM values
             WHERE$n = c("name", "=", S$IN$FORM$name[i])
             R <-  recGet(S$db, dataTable, SELECT="**", WHERE=WHERE)
@@ -573,6 +577,7 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
             R$studyNUM[2] <- S$NUMs$studyNUM                          #    and Name, must do this for new rows!
             R$armNUM[2] <- armNUM
             R$outcomeNUM[2] <- outcomeNUM
+            R$intervNUM[2] <- intervNUM
             R$groupNUM[2] <- groupNUM
             R$name[2] = S$IN$FORM$name[i]
             R$value[2] = S$IN$FORM$value[i]
@@ -607,10 +612,11 @@ imGetFORMvalues <- function (FORM) {
    switch(FORM$table[1],                                              # Get SQL table name from FORM
       "extract" = {                                                   # This section is for an extract table
          NUMS <- unlist(str_split(FORM$column[1], fixed(",")))        # Column field of table lets us know which
-         FarmNUM <- ifelse(NUMS[1]==0, 0, S$NUMs$armNUM)               #    NUMs are always be 0. For example,
-         print(paste0("In imGetFormvalues, FarmNUM: ", FarmNUM))
-         FoutcomeNUM <- ifelse(NUMS[2]==0, 0, S$NUMs$outcomeNUM)       #    when getting study-level data, arm, oucome
-         FgroupNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$groupNUM)           #    and group NUMs have to be zero.
+         FarmNUM <- ifelse(NUMS[1]==0, 0, S$NUMs$armNUM)              #    NUMs are always be 0. For example,
+         FoutcomeNUM <- ifelse(NUMS[2]==0, 0, S$NUMs$outcomeNUM)      #    when getting study-level data, arm, oucome
+         FintervNUM <- ifelse(NUMS[3]==0, 0, S$NUMs$intervNUM)        #    and group NUMs have to be zero.
+         FgroupNUM <- ifelse(NUMS[4]==0, 0, S$NUMs$groupNUM)
+ #        print(paste0("In imGetFormvalues, FintervNUM: ", FintervNUM))
 
          names <- pull(FORM, name)                                    # Will need to use FORM's names a couple of times
          options <- pull(FORM, options)
@@ -619,8 +625,10 @@ imGetFORMvalues <- function (FORM) {
                          studyNUM==S$NUMs$studyNUM &
                          armNUM==FarmNUM &
                          outcomeNUM==FoutcomeNUM &
+                         intervNUM==FintervNUM &
                          groupNUM==FgroupNUM &
-                         name %in% names) %>%
+                         name %in% names &
+                         deleted==0) %>%
                   select(name, value) %>%
                   collect()
          for(i in 1:length(names)) {                                  # Move name-value pairs into FORM, but skip (ie,
@@ -631,7 +639,7 @@ imGetFORMvalues <- function (FORM) {
                FORM$options[i] <- paste0(choices$value, collapse=";") #    the pico table and put them in expected format
             }
             if(names[i] %in% v$name) {                                #    leave FORM's default value if nothing found on server
-               print(paste0("In imGetFORMvalues, next value is: ", v$value[v$name %in% names[i]]))
+  #             print(paste0("In imGetFORMvalues, next value is: ", v$value[v$name %in% names[i]]))
                FORM$value[i] <- v$value[v$name %in% names[i]]
             }
          }

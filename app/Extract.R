@@ -29,12 +29,12 @@ rv$menu2Active <- 1
 # S$PKR$TS$activePage <- 1
 
 S$PRK$Studies$activePage <- 1
-rv$limnStudies <- 0
+rv$limnExtraction <- 0
 rv$limnviewStudy <- 0
 rv$limnviewArm <- 0
 rv$limnviewOutcome <- 0
+rv$limnviewInterv <- 0
 rv$limnviewGroup <- 0
-rv$limnviewInterventionGroup <- 0
 
 S$picoName = ""
 S$picoDisplay = "add"
@@ -44,7 +44,15 @@ S$NUMs$catalogID <- 0
 S$NUMs$studyNUM <- 0
 S$NUMs$armNUM <- 0
 S$NUMs$outcomeNUM <- 0
+S$NUMs$intervNUM <- 0
 S$NUMs$groupNUM <- 0
+
+S$NUMs$armNUMnext <- 0
+S$NUMs$outcomeNUMnext <- 0
+S$NUMs$intervNUMnext <- 0
+S$NUMs$groupNUMnext <- 0
+
+
 
 S$Names = list()
 S$Names$Trial <- ""
@@ -367,7 +375,7 @@ output$editPico <- renderUI({c(rv$limn); isolate({
    )
 })})
 
-output$Extraction <- renderUI({c(rv$limn, rv$limnStudies); isolate({
+output$Extraction <- renderUI({c(rv$limn, rv$limnExtraction); isolate({
    return(
       tagList(
          bs4("c12", id="pickStudy"),
@@ -376,11 +384,10 @@ output$Extraction <- renderUI({c(rv$limn, rv$limnStudies); isolate({
          bs4("c12", id="viewArm"),
 #         bs4("c12", id="ArmYbox"),
          bs4("c12", id="viewOutcome"),
+         bs4("c12", id="viewInterv"),
 #         bs4("c12", id="OutcomeYbox"),
-         bs4("c12", id="viewGroup"),
+         bs4("c12", id="viewGroup")
 #         bs4("c12", id="GroupYbox"),
-         bs4("c12", id="viewInterventionGroup")
-#         bs4("c12", id="InterventionGroupYbox")
       )
    )
 })})
@@ -411,8 +418,8 @@ output$Extraction <- renderUI({c(rv$limn, rv$limnStudies); isolate({
 #    )
 # })})
 
-output$pickStudy <- renderUI({c(rv$limn, rv$limnStudies); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
-   print("Running output$pickStudy")
+output$pickStudy <- renderUI({c(rv$limn, rv$limnExtraction); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
+#   print("Running output$pickStudy")
    if(S$NUMs$catalogID>0) {
       return("")
    } else {
@@ -485,8 +492,8 @@ prf_5.3.4r = function(r) {                        # Standard function for one co
 </div>', collapse = ''))
 }
 
-output$viewStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
-   print("Running output$viewStudy")
+output$viewStudy <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewStudy); isolate({
+#   print("Running output$viewStudy")
    if(S$NUMs$catalogID==0) {
       return("")
    } else {
@@ -496,60 +503,84 @@ output$viewStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
             collect()
       S$NUMs$studyNUM <<- r$studyNUM                                   # Memorize studyNUM and study name
       S$Names$Trial <<- r$value
-
-      f <- "prjForm-Trial"                                             # FORM name
-      FORM <- imGetFORM(f, S$db)
+      FORM <- imGetFORM("PrjForm-Trial", S$db)
       FORM <- imGetFORMvalues(FORM)
       FORM$disabled <- TRUE                                            # Disable the FORM for now
       if(S$P$Modify) {                                                 #   but provide a button for editing it
          editStudyBtn <- tagList(
             bs4("c12", class="text-right",
-                bs4("btn", uid=paste0("editForm_", f), q="g", class="mr-3", "Edit Study-Level Data")))
-         newArmBtn <- tagList(
-            bs4("c12", bs4("btn", uid="addForm_prjForm-Arm", q="g", class="mr-3", "Add a New Arm")))
-         otherArmBtn <- tagList(
-            bs4("c12", class="pl-0 pb-2", bs4("btn", uid="otherArm_0", q="b", class="mr-3", "Select a Different Arm")))
-      }
-
-      if(S$NUMs$armNUM>0) {
-         btnNresults = otherArmBtn
+                bs4("btn", uid="editForm_PrjForm-Trial", q="g", class="mr-3", "Edit Study-Level Data")))
       } else {
-         ID = "viewStudy"                                                 # This allows multiple pickRs on a single page
-         TABLE = "extract"                                              # The table the pickR data will come from
-         WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
-                      s=c("studyNUM", "=", S$NUMs$studyNUM),
-               #       a=c("armNUM", "=", "0"),
-                      o=c("outcomeNUM", "=", "0"),
-                      g=c("groupNUM", "=", "0"),
-                      n=c("name", "=", "armName"))
-         FilterF = whereFilter                                                   # typically whereFilter
-         HeadlineF = THRUb                                                   # typically THRUb
-         SELECT = "value"                           # These are the table fields needed to build the pickR
-         if(S$P$Modify) {                                               # View or Edit depends on permissions
-           ButtonData <- list(edit=list(id=paste0("viewArm"), q="b", class="mr-2", label="View Arm"),
-                              delete=list(id=paste0("deleteArm"), q="r", class="mr-2", label="Delete"))
-         } else {
-           ButtonData <- list(view=list(id=paste0("viewArm"), q="b", label="View"))
-         }
-         ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
-         FixDataF = THRU
-         FormatF = prf_arm
-         NOtext = "No arms have been created yet."
-         activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
-         itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
-         scroll = FALSE                                                 # Modifiable pickR-by-pickR
-         results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
-                       FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
-         btnNresults <- tagList(
-            newArmBtn,
-            results
-         )
+         editStudyBtn <- ""
       }
       return(tagList(
          bs4("c12", class="pl-0 pb-2", bs4("btn", uid="menu1_4", q="b", class="mr-3", "Select a Different Study")),
          imForm2HTML(FORM),
-         editStudyBtn,
-         btnNresults
+         editStudyBtn
+      ))
+   }
+})})
+
+output$viewArm <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm); isolate({
+#   print(paste0("Running output$viewArm; armNUM: ", S$NUMs$armNUM))
+   if(S$NUMs$studyNUM==0) {
+      return("")
+   }
+   r = recGet(S$db, "extract", "armNUM", tibble(
+                        d = c("deleted", ">=", "0"),
+                        c = c("catalogID", "=", S$NUMs$catalogID)))
+   S$NUMs$armNUMnext <<- max(r$armNUM) + 1
+   if(S$P$Modify) {                                                 #   but provide a button for editing it
+      newArmBtn <- tagList(
+         bs4("c12", bs4("btn", uid="addForm_PrjForm-Arm", q="g", class="mr-3", "Add a New Arm")))
+      editArmBtn <- tagList(
+         bs4("c12", class="text-right", bs4("btn", uid="editForm_PrjForm-Arm", q="g", class="mr-3", "Edit Arm-Level Data")))
+   } else {
+      newArmBtn <- editArmBtn <- ""
+   }
+   if(S$NUMs$armNUM>0) {
+      FORM <- imGetFORM("PrjForm-Arm", S$db)
+      FORM <- imGetFORMvalues(FORM)
+      FORM$disabled <- TRUE                                            # Disable the FORM for now
+      otherArmBtn <- tagList(
+         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="otherArm_0", q="b", class="mr-3", "Select a Different Arm")))
+      return(tagList(
+         otherArmBtn,
+         imForm2HTML(FORM),
+         editArmBtn
+      ))
+   }
+   if(S$NUMs$armNUM==0) {
+      ID = "viewArm"                                                 # This allows multiple pickRs on a single page
+      TABLE = "extract"                                              # The table the pickR data will come from
+      WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
+                   s=c("studyNUM", "=", S$NUMs$studyNUM),
+            #       a=c("armNUM", "=", "0"),
+                   o=c("outcomeNUM", "=", "0"),
+                   i=c("intervNUM", "=", "0"),
+                   g=c("groupNUM", "=", "0"),
+                   n=c("name", "=", "armName"))
+      FilterF = whereFilter                                                   # typically whereFilter
+      HeadlineF = THRUb                                                   # typically THRUb
+      SELECT = "value"                           # These are the table fields needed to build the pickR
+      if(S$P$Modify) {                                               # View or Edit depends on permissions
+        ButtonData <- list(edit=list(id=paste0("viewArm"), q="b", class="mr-2", label="View Arm"),
+                           delete=list(id=paste0("deleteX"), q="r", class="mr-2", label="Delete"))
+      } else {
+        ButtonData <- list(view=list(id=paste0("viewArm"), q="b", label="View"))
+      }
+      ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
+      FixDataF = THRU
+      FormatF = prf_arm
+      NOtext = "No arms have been created yet."
+      activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
+      itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
+      scroll = FALSE                                                 # Modifiable pickR-by-pickR
+      results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                    FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
+      return(tagList(
+         newArmBtn,
+         results
       ))
    }
 })})
@@ -565,141 +596,238 @@ prf_arm = function(r) {                        # Standard function for one colum
 </div>', collapse = ''))
 }
 
-output$viewArm <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewArm); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
-   print("Running output$viewArm")
+output$viewOutcome <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewOutcome); isolate({
+#   print(paste0("Running output$viewoutcome; outcomeNUM: ", S$NUMs$outcomeNUM))
    if(S$NUMs$armNUM==0) {
       return("")
+   }
+   r = recGet(S$db, "extract", "outcomeNUM", tibble(
+                        d = c("deleted", ">=", "0"),
+                        c = c("catalogID", "=", S$NUMs$catalogID),
+                        a = c("armNUM", "=", S$NUMs$armNUM)))
+   S$NUMs$outcomeNUMnext <<- max(r$outcomeNUM) + 1
+   if(S$P$Modify) {                                                 #   but provide a button for editing it
+      newOutcomeBtn <- tagList(
+         bs4("c12", bs4("btn", uid="addForm_PrjForm-OutcomeData", q="g", class="mr-3", "Add a New Outcome")))
+      editOutcomeBtn <- tagList(
+         bs4("c12", class="text-right", bs4("btn", uid="editForm_PrjForm-OutcomeData", q="g", class="mr-3", "Edit Outcome-Level Data")))
    } else {
-      f <- "prjForm-Arm"                                               # FORM name
-      FORM <- imGetFORM(f, S$db)
+      newOutcomeBtn <- editOutcomeBtn <- ""
+   }
+   if(S$NUMs$outcomeNUM>0) {
+      FORM <- imGetFORM("PrjForm-OutcomeData", S$db)
       FORM <- imGetFORMvalues(FORM)
       FORM$disabled <- TRUE                                            # Disable the FORM for now
-      if(S$P$Modify) {                                                 #   but provide a button for editing it
-         editArmBtn <- tagList(
-            bs4("c12", class="text-right", bs4("btn", uid=paste0("editForm_", f), q="g", class="mr-3", "Edit Arm-Level Data")))
-         newOutcomeBtn <- tagList(
-            bs4("c12", class="pl-0 pb-2", bs4("btn", uid="addForm_prjForm-OutcomeData", q="g", class="mr-3", "Add a New Outcome")))
-         otherOutcomeBtn <- tagList(
-            bs4("c12", class="pl-0 pb-2", bs4("btn", uid="otherOutcome_0", q="b", class="mr-3", "Select a Different Outcome")))
-      }
-      if(S$NUMs$outcomeNUM>0) {
-         btnNresults = otherOutcomeBtn
-      } else {
-         ID = "viewArm"                                                 # This allows multiple pickRs on a single page
-         TABLE = "extract"                                              # The table the pickR data will come from
-         WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
-                      s=c("studyNUM", "=", S$NUMs$studyNUM),
-                      a=c("armNUM", "=", S$NUMs$armNUM),
-               #       o=c("outcomeNUM", "=", "0"),
-                      g=c("groupNUM", "=", "0"),
-                      n=c("name", "=", "outcomeName"))
-         FilterF = whereFilter                                                   # typically whereFilter
-         HeadlineF = THRUb                                                   # typically THRUb
-         SELECT = "value"                           # These are the table fields needed to build the pickR
-         if(S$P$Modify) {                                               # View or Edit depends on permissions
-           ButtonData <- list(edit=list(id=paste0("viewOutcome"), q="b", class="mr-2", label="View Outcome"),
-                              delete=list(id=paste0("deleteOutcome"), q="r", class="mr-2", label="Delete"))
-         } else {
-           ButtonData <- list(view=list(id=paste0("viewOutcome"), q="b", label="View"))
-         }
-         ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
-         FixDataF = THRU
-         FormatF = prf_arm
-         NOtext = "For this Arm, no Outcomes have been created yet."
-         activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
-         itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
-         scroll = FALSE                                                 # Modifiable pickR-by-pickR
-         results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
-                       FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
-         btnNresults <- tagList(
-            newOutcomeBtn,
-            results
-         )
-      }
+      otherOutcomeBtn <- tagList(
+         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="otherOutcome_0", q="b", class="mr-3", "Select a Different Outcome")))
       return(tagList(
+         otherOutcomeBtn,
          imForm2HTML(FORM),
-         editArmBtn,
-         btnNresults
+         editOutcomeBtn
+      ))
+   }
+   if(S$NUMs$outcomeNUM==0) {
+      ID = "viewOutcome"                                                 # This allows multiple pickRs on a single page
+      TABLE = "extract"                                              # The table the pickR data will come from
+      WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
+                   s=c("studyNUM", "=", S$NUMs$studyNUM),
+                   a=c("armNUM", "=", S$NUMs$armNUM),
+            #       o=c("outcomeNUM", "=", "0"),
+                   i=c("intervNUM", "=", "0"),
+                   g=c("groupNUM", "=", "0"),
+                   n=c("name", "=", "OutcomeName"))
+      FilterF = whereFilter                                                   # typically whereFilter
+      HeadlineF = THRUb                                                   # typically THRUb
+      SELECT = "value"                           # These are the table fields needed to build the pickR
+      if(S$P$Modify) {                                               # View or Edit depends on permissions
+        ButtonData <- list(edit=list(id=paste0("viewOutcome"), q="b", class="mr-2", label="View Outcome"),
+                           delete=list(id=paste0("deleteX"), q="r", class="mr-2", label="Delete"))
+      } else {
+        ButtonData <- list(view=list(id=paste0("viewOutcome"), q="b", label="View"))
+      }
+      ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
+      FixDataF = THRU
+      FormatF = prf_outcome
+      NOtext = "For this Arm, no Outcomes have been created yet."
+      activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
+      itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
+      scroll = FALSE                                                 # Modifiable pickR-by-pickR
+      results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                    FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
+      return(tagList(
+         newOutcomeBtn,
+         results
       ))
    }
 })})
 
-output$viewOutcome <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewOutcome); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
-   print("Running output$viewOutcome")
+# Standard pickR formatting functions
+prf_outcome = function(r) {                        # Standard function for one column of data and one row of buttons
+   return(paste0(
+'<div class="row">
+   <div class="col-4">', r[[1,]], '</div>
+   <div class="col-4 text-right">', r[[2,]], '</div>',
+#   <div class="col-5></div>',
+   bs4('c12', bs4('hr0', class="py-2")), '
+</div>', collapse = ''))
+}
+
+output$viewInterv <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewOutcome,
+                                 rv$limnviewInterv); isolate({
+  print(paste0("Running output$viewInterv; intervNUM: ", S$NUMs$intervNUM))
    if(S$NUMs$outcomeNUM==0) {
       return("")
+   }
+   r = recGet(S$db, "extract", "intervNUM", tibble(
+                        d = c("deleted", ">=", "0"),
+                        c = c("catalogID", "=", S$NUMs$catalogID),
+                        a = c("armNUM", "=", S$NUMs$armNUM),
+                        o = c("outcomeNUM", "=", S$NUMs$outcomeNUM)))
+   S$NUMs$intervNUMnext <<- max(r$intervNUM) + 1
+   if(S$P$Modify) {                                                 #   but provide a button for editing it
+      newIntervBtn <- tagList(
+         bs4("c12", bs4("btn", uid="addForm_PrjForm-IntervData", q="g", class="mr-3", "Add a New Intervention")))
+      editIntervBtn <- tagList(
+         bs4("c12", class="text-right", bs4("btn", uid="editForm_PrjForm-IntervData", q="g", class="mr-3", "Edit Intervention-Level Data")))
    } else {
-      f <- "prjForm-OutcomeData"                                               # FORM name
-      FORM <- imGetFORM(f, S$db)
+      newIntervBtn <- editIntervBtn <- ""
+   }
+   if(S$NUMs$intervNUM>0) {
+      FORM <- imGetFORM("PrjForm-IntervData", S$db)
       FORM <- imGetFORMvalues(FORM)
       FORM$disabled <- TRUE                                            # Disable the FORM for now
-      if(S$P$Modify) {                                                 #   but provide a button for editing it
-         editArmBtn <- tagList(
-            bs4("c12", class="text-right", bs4("btn", uid=paste0("editForm_", f), q="g", class="mr-3", "Edit Outcome-Level Data")))
-         newOutcomeBtn <- tagList(
-            bs4("c12", class="pl-0 pb-2", bs4("btn", uid="addForm_prjForm-InterventionData", q="g", class="mr-3", "Add a New Intervention")))
-      }
-      if(S$NUMs$outcomeNUM>0) {
-         btnNresults = ""
-      } else {
-         ID = "viewOutcome"                                                 # This allows multiple pickRs on a single page
-         TABLE = "extract"                                              # The table the pickR data will come from
-         WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
-                      s=c("studyNUM", "=", S$NUMs$studyNUM),
-                      a=c("armNUM", "=", S$NUMs$armNUM),
-                      o=c("outcomeNUM", "=", S$NUMs$outcomeNUM),
-#                      g=c("groupNUM", "=", "0"),
-                      n=c("name", "=", "outcomeName"))
-         FilterF = whereFilter                                                   # typically whereFilter
-         HeadlineF = THRUb                                                   # typically THRUb
-         SELECT = "value"                           # These are the table fields needed to build the pickR
-         if(S$P$Modify) {                                               # View or Edit depends on permissions
-           ButtonData <- list(edit=list(id=paste0("viewOutcome"), q="b", class="mr-2", label="View Outcome"),
-                              delete=list(id=paste0("deleteOutcome"), q="r", class="mr-2", label="Delete"))
-         } else {
-           ButtonData <- list(view=list(id=paste0("viewOutcome"), q="b", label="View"))
-         }
-         ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
-         FixDataF = THRU
-         FormatF = prf_arm
-         NOtext = "No Interventions have been created yet."
-         activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
-         itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
-         scroll = FALSE                                                 # Modifiable pickR-by-pickR
-         results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
-                       FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
-         btnNresults <- tagList(
-            newOutcomeBtn,
-            results
-         )
-      }
+      otherIntervBtn <- tagList(
+         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="otherInterv_0", q="b", class="mr-3", "Select a Different Intervention")))
       return(tagList(
+         otherIntervBtn,
          imForm2HTML(FORM),
-         editArmBtn,
-         btnNresults
+         editIntervBtn
+      ))
+   }
+   if(S$NUMs$intervNUM==0) {
+      ID = "viewInterv"                                                 # This allows multiple pickRs on a single page
+      TABLE = "extract"                                              # The table the pickR data will come from
+      WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
+                   s=c("studyNUM", "=", S$NUMs$studyNUM),
+                   a=c("armNUM", "=", S$NUMs$armNUM),
+                   o=c("outcomeNUM", "=", S$NUMs$outcomeNUM),
+            #       i=c("intervNUM", "=", "0"),
+                   g=c("groupNUM", "=", "0"),
+                   n=c("name", "=", "IntervName"))
+      FilterF = whereFilter                                                   # typically whereFilter
+      HeadlineF = THRUb                                                   # typically THRUb
+      SELECT = "value"                           # These are the table fields needed to build the pickR
+      if(S$P$Modify) {                                               # View or Edit depends on permissions
+        ButtonData <- list(edit=list(id=paste0("viewInterv"), q="b", class="mr-2", label="View Intervention"),
+                           delete=list(id=paste0("deleteX"), q="r", class="mr-2", label="Delete"))
+      } else {
+        ButtonData <- list(view=list(id=paste0("viewInterv"), q="b", label="View"))
+      }
+      ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
+      FixDataF = THRU
+      FormatF = prf_interv
+      NOtext = "For this Outcome, no Interventions have been created yet."
+      activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
+      itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
+      scroll = FALSE                                                 # Modifiable pickR-by-pickR
+      results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                    FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
+      return(tagList(
+         newIntervBtn,
+         results
       ))
    }
 })})
 
-output$viewGroup <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewGroup); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
-   print("Running output$viewGroup")
-   if(S$NUMs$groupNUM==0) {
+prf_interv = function(r) {
+   return(paste0(
+'<div class="row">
+   <div class="col-4">', r[[1,]], '</div>
+   <div class="col-4 text-right">', r[[2,]], '</div>',
+#   <div class="col-5></div>',
+   bs4('c12', bs4('hr0', class="py-2")), '
+</div>', collapse = ''))
+}
+
+output$viewGroup <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewOutcome,
+                                 rv$limnviewInterv, rv$limnviewGroup); isolate({
+#   print(paste0("Running output$viewGroup; groupNUM: ", S$NUMs$groupNUM))
+   if(S$NUMs$intervNUM==0) {
       return("")
+   }
+   r = recGet(S$db, "extract", "groupNUM", tibble(
+                        d = c("deleted", ">=", "0"),
+                        c = c("catalogID", "=", S$NUMs$catalogID),
+                        a = c("armNUM", "=", S$NUMs$armNUM),
+                        o = c("outcomeNUM", "=", S$NUMs$outcomeNUM),
+                        i = c("intervNUM", "=", S$NUMs$intervNUM)))
+   S$NUMs$groupNUMnext <<- max(r$groupNUM) + 1
+   if(S$P$Modify) {                                                 #   but provide a button for editing it
+      newGroupBtn <- tagList(
+         bs4("c12", bs4("btn", uid="addForm_PrjForm-GroupData", q="g", class="mr-3", "Add a New Group")))
+      editGroupBtn <- tagList(
+         bs4("c12", class="text-right", bs4("btn", uid="editForm_PrjForm-GroupData", q="g", class="mr-3", "Edit Group-Level Data")))
    } else {
-   ###### pickR start
+      newGroupBtn <- editGroupBtn <- ""
+   }
+   if(S$NUMs$groupNUM>0) {
+      FORM <- imGetFORM("PrjForm-GroupData", S$db)
+      FORM <- imGetFORMvalues(FORM)
+      FORM$disabled <- TRUE                                            # Disable the FORM for now
+      otherGroupBtn <- tagList(
+         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="otherGroup_0", q="b", class="mr-3", "Select a Different Group")))
+      return(tagList(
+         otherGroupBtn,
+         imForm2HTML(FORM),
+         editGroupBtn
+      ))
+   }
+   if(S$NUMs$groupNUM==0) {
       ID = "viewGroup"                                                 # This allows multiple pickRs on a single page
-      return(ID)
+      TABLE = "extract"                                              # The table the pickR data will come from
+      WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
+                   s=c("studyNUM", "=", S$NUMs$studyNUM),
+                   a=c("armNUM", "=", S$NUMs$armNUM),
+                   o=c("outcomeNUM", "=", S$NUMs$outcomeNUM),
+                   i=c("intervNUM", "=", S$NUMs$intervNUM),
+            #       g=c("groupNUM", "=", "0"),
+                   n=c("name", "=", "GroupName"))
+      FilterF = whereFilter                                                   # typically whereFilter
+      HeadlineF = THRUb                                                   # typically THRUb
+      SELECT = "value"                           # These are the table fields needed to build the pickR
+      if(S$P$Modify) {                                               # View or Edit depends on permissions
+        ButtonData <- list(edit=list(id=paste0("viewGroup"), q="b", class="mr-2", label="View Group"),
+                           delete=list(id=paste0("deleteX"), q="r", class="mr-2", label="Delete"))
+      } else {
+        ButtonData <- list(view=list(id=paste0("viewGroup"), q="b", label="View"))
+      }
+      ButtonF = stdButtons                                           # use just the function name; no quotes, no ()
+      FixDataF = THRU
+      FormatF = prf_group
+      NOtext = "For this Intervention, no Groups have been created yet."
+      activePage = ifelse(is.null(S$PKR[[ID]]$activePage), 1, S$PKR[[ID]]$activePage)
+      itemsPerPage = S$PKR$itemsPerPage                              # Modifiable pickR-by-pickR
+      scroll = FALSE                                                 # Modifiable pickR-by-pickR
+      results <- pickR(ID, S$db, TABLE, WHERE, FilterF, HeadlineF, SELECT, ButtonData, ButtonF,
+                    FixDataF, FormatF, NOtext, activePage, itemsPerPage, scroll)
+      return(tagList(
+         newGroupBtn,
+         results
+      ))
    }
 })})
 
-output$viewInterventionGroup <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewInterventionGroup); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
-   print("Running output$viewInterventionGroup")
-###### pickR start
-   ID = "viewInterventionGroup"                                                 # This allows multiple pickRs on a single page
-   return("")
-})})
+prf_group = function(r) {
+   return(paste0(
+'<div class="row">
+   <div class="col-4">', r[[1,]], '</div>
+   <div class="col-4 text-right">', r[[2,]], '</div>',
+#   <div class="col-5></div>',
+   bs4('c12', bs4('hr0', class="py-2")), '
+</div>', collapse = ''))
+}
 
-output$studyYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewStudy); isolate({
+output$studyYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewStudy); isolate({
    if(S$NUM$armNUM>0) {
       return("")
    } else {
@@ -712,7 +840,7 @@ output$studyYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewStudy); isol
    }
 })})
 
-output$ArmYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewArm); isolate({
+output$ArmYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm); isolate({
    if(S$NUM$outcomeNUM>0) {
       return("")
    } else {
@@ -725,7 +853,7 @@ output$ArmYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewArm); isolate(
    }
 })})
 
-output$OutcomeYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewOutcome); isolate({
+output$OutcomeYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewOutcome); isolate({
    if(S$NUM$groupNUM>0) {
       return("")
    } else {
@@ -738,7 +866,7 @@ output$OutcomeYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewOutcome); 
    }
 })})
 
-output$GroupYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewGroup); isolate({
+output$GroupYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewGroup); isolate({
    return(HTML0("<p>Group yBox</p>"))
 #    if(S$NUM$NUM>0) {
 #       return("")
@@ -750,16 +878,6 @@ output$GroupYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewGroup); isol
 #          bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
 #       ))
 #    }
-})})
-
-output$InterventionGroupYbox <- renderUI({c(rv$limn, rv$limnStudies, rv$limnviewInterventionGroup); isolate({
-   return(HTML0("<p>Intervention Group yBox</p>"))
-#    yBox = HTML0("
-# <p>Intervention Group</p>
-# ")
-#    return(tagList(
-#       bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
-#    ))
 })})
 
 ### observer for omclick
@@ -777,7 +895,7 @@ observeEvent(input$js.omclick, {
          rv[[limnID]] <- rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
       },
       "filter" = {
-         rv$limnStudies <- rv$limnStudies + 1
+         rv$limnExtraction <- rv$limnExtraction + 1
 #         rv$render = rv$render+1
       },
       "menu1" = {
@@ -789,6 +907,7 @@ observeEvent(input$js.omclick, {
             S$NUMs$studyNUM <<- 0
             S$NUMs$armNUM <<- 0
             S$NUMs$outcomeNUM <<- 0
+            S$NUMs$intervNUM <<- 0
             S$NUMs$groupNUM <<- 0
             S$hideMenus <<- FALSE
          }
@@ -868,6 +987,7 @@ observeEvent(input$js.omclick, {
          S$NUMs$studyNUM <<- 0
          S$NUMs$armNUM <<- 0
          S$NUMs$outcomeNUM <<- 0
+         S$NUMs$intervNUM <<- 0
          S$NUMs$groupNUM <<- 0
          S$hideMenus <<- FALSE
          rv$limn = rv$limn+1
@@ -876,65 +996,112 @@ observeEvent(input$js.omclick, {
          r <- recGet(S$db, "extract", "armNUM", tibble(c("extractID", "=", n)))
          S$NUMs$armNUM <<- r$armNUM
          S$NUMs$outcomeNUM <<- 0
+         S$NUMs$intervNUM <<- 0
          S$NUMs$groupNUM <<- 0
          S$hideMenus <<- FALSE
-         rv$limnviewStudy <- rv$limnviewStudy + 1    # Needed to erase Arms pickR
          rv$limnviewArm <- rv$limnviewArm+1          # Needed to show Arm data
       },
       "otherArm" = {
          S$NUMs$armNUM <<- 0
          S$NUMs$outcomeNUM <<- 0
+         S$NUMs$intervNUM <<- 0
          S$NUMs$groupNUM <<- 0
          S$hideMenus <<- FALSE
-         rv$limnviewStudy <- rv$limnviewStudy + 1
          rv$limnviewArm <- rv$limnviewArm+1
       },
       "viewOutcome" = {
          r <- recGet(S$db, "extract", "outcomeNUM", tibble(c("extractID", "=", n)))
          S$NUMs$outcomeNUM <<- r$outcomeNUM
+         S$NUMs$intervNUM <<- 0
          S$NUMs$groupNUM <<- 0
          S$hideMenus <<- FALSE
-#         rv$limnviewStudy <- rv$limnviewStudy + 1    # Needed to erase Arms pickR
-         rv$limnviewArm <- rv$limnviewArm+1           # Needed to erase Outcome pickR
          rv$limnviewOutcome <- rv$limnviewOutcome + 1
       },
       "otherOutcome" = {
          S$NUMs$outcomeNUM <<- 0
+         S$NUMs$intervNUM <<- 0
          S$NUMs$groupNUM <<- 0
          S$hideMenus <<- FALSE
-#         rv$limnviewStudy <- rv$limnviewStudy + 1
-         rv$limnviewArm <- rv$limnviewArm+1
          rv$limnviewOutcome <- rv$limnviewOutcome + 1
+      },
+      "viewInterv" = {
+         r <- recGet(S$db, "extract", "intervNUM", tibble(c("extractID", "=", n)))
+#         print(r)
+         S$NUMs$intervNUM <<- r$intervNUM
+         S$NUMs$groupNUM <<- 0
+         S$hideMenus <<- FALSE
+         # print(paste0("in viewInterv - arm,outcome,interv,group NUMs: ",
+         #     S$NUMs$armNUM, " ",
+         #     S$NUMs$outcomeNUM, " ",
+         #     S$NUMs$intervNUM, " ",
+         #     S$NUMs$groupNUM, " "
+         #     ))
+         rv$limnviewInterv <- rv$limnviewInterv + 1
+      },
+      "otherInterv" = {
+         S$NUMs$intervNUM <<- 0
+         S$NUMs$groupNUM <<- 0
+         S$hideMenus <<- FALSE
+         rv$limnviewInterv <- rv$limnviewInterv + 1
+      },
+      "viewGroup" = {
+         r <- recGet(S$db, "extract", "groupNUM", tibble(c("extractID", "=", n)))
+         S$NUMs$groupNUM <<- r$groupNUM
+         S$hideMenus <<- FALSE
+         rv$limnviewGroup <- rv$limnviewGroup + 1
+      },
+      "otherGroup" = {
+         S$NUMs$groupNUM <<- 0
+         S$hideMenus <<- FALSE
+         rv$limnviewGroup <- rv$limnviewGroup + 1
+      },
+      "deleteX" = {
+         r <- recGet(S$db, "extract", c("catalogID", "armNUM", "outcomeNUM", "intervNUM", "groupNUM"),
+                     tibble(c("extractID", "=", n)))
+         WHERE <- tibble(
+            c = c("catalogID", "=", r$catalogID),
+            a = c("armNUM", "=", r$armNUM))
+         if(r$outcomeNUM > 0) {
+            WHERE$o = c("outcomeNUM", "=", r$outcomeNUM)
+            if(r$intervNUM>0) {
+               WHERE$i = c("intervNUM", "=", r$intervNUM)
+            }
+               if(r$groupNUM>0) {
+                  WHERE$g = c("groupNUM", "=", r$groupNUM)
+               }
+         }
+         r <- recGet(S$db, "extract", "extractID", WHERE)
+         for(id in r$extractID) {
+            rX <-recGet(S$db, "extract", "**", tibble(c("extractID", "=", id)))
+            rX$deleted[2] <- 1
+            rx <- recSave(rX, S$db)
+         }
+         rv$limnviewArm = rv$limnviewArm + 1
       },
       "addForm" = {
          S$editFORM <<- TRUE
          S$IN$FORMname <<- n
          switch(n,
-            "prjForm-Arm" = {
-               vec <- S$extractTBL %>%
-                        filter(studyNUM==S$NUMs$studyNUM) %>%
-                        select(armNUM) %>% collect() %>% pull(armNUM)
-               S$NUMs$armNUM <<- max(vec) + 1
+            "PrjForm-Arm" = {
+               S$NUMs$armNUM <<- S$NUMs$armNUMnext
             },
-            "prjForm-OutcomeData" = {
-               vec <- S$extractTBL %>%
-                        filter(studyNUM==S$NUMs$studyNUM) %>%
-                        filter(armNUM==S$NUMs$armNUM) %>%
-                        select(outcomeNUM) %>% collect() %>% pull(outcomeNUM)
-               S$NUMs$outcomeNUM <<- max(vec) + 1
+            "PrjForm-OutcomeData" = {
+               S$NUMs$outcomeNUM <<- S$NUMs$outcomeNUMnext
             },
-            "prjForm-InterventionData" = {
-               vec <- S$extractTBL %>%
-                        filter(studyNUM==S$NUMs$studyNUM) %>%
-                        filter(armNUM==S$NUMs$armNUM) %>%
-                        filter(outcomeNUM==S$NUMs$outcomeNUM) %>%
-                        select(groupNUM) %>% collect() %>% pull(groupNUM)
-               S$NUMs$groupNUM <<- max(vec) + 1
+            "PrjForm-IntervData" = {
+               S$NUMs$intervNUM <<- S$NUMs$intervNUMnext
             },
-            "prjForm-GroupData" = {
+            "PrjForm-GroupData" = {
+               S$NUMs$groupNUM <<- S$NUMs$groupNUMnext
             },
             warning(paste0("in editForm, no handler for ", n))
          )
+         # print(paste0("in addForm - arm,outcome,interv,group NUMs: ",
+         #     S$NUMs$armNUM, " ",
+         #     S$NUMs$outcomeNUM, " ",
+         #     S$NUMs$intervNUM, " ",
+         #     S$NUMs$groupNUM, " "
+         #     ))
          S$hideMenus <<- TRUE
          rv$limn <- rv$limn + 1
       },
@@ -945,11 +1112,38 @@ observeEvent(input$js.omclick, {
          rv$limn <- rv$limn + 1
       },
       "saveForm" = {
+         # print(paste0("in saveForm - arm,outcome,interv,group NUMs: ",
+         #              S$NUMs$armNUM, " ",
+         #              S$NUMs$outcomeNUM, " ",
+         #              S$NUMs$intervNUM, " ",
+         #              S$NUMs$groupNUM, " "
+         #              ))
          S$editFORM <<- FALSE
          S$hideMenus <<- FALSE
          rv$imGetFORMData <- rv$imGetFORMData + 1
       },
       "cancelForm" = {
+         switch(S$IN$FORMname,
+            "PrjForm-Arm" = {
+               S$NUMs$armNUM <<- 0
+            },
+            "PrjForm-OutcomeData" = {
+               S$NUMs$outcomeNUM <<- 0
+            },
+            "PrjForm-IntervData" = {
+               S$NUMs$intervNUM <<- 0
+            },
+            "PrjForm-GroupData" = {
+               S$NUMs$groupNUM <<- 0
+            },
+            warning(paste0("in editForm, no handler for ", n))
+         )
+         # print(paste0("in cancelForm - arm,outcome,interv,group NUMs: ",
+         #              S$NUMs$armNUM, " ",
+         #              S$NUMs$outcomeNUM, " ",
+         #              S$NUMs$intervNUM, " ",
+         #              S$NUMs$groupNUM, " "
+         #              ))
          S$editFORM <<- FALSE
          S$hideMenus <<- FALSE
          rv$limn <- rv$limn + 1
