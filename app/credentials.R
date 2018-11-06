@@ -12,26 +12,36 @@ if(admin_password=="admin.pw") {
    stop("You need to add four passwords to credentials.R to get started.")
 }
 
-# You can work on code development without Amazon Simple Email Service credentials.
+### You can work on code development without Amazon Simple Email Service credentials.
 #   In that case noEmail will be set to TRUE and sent emails will appear in a modal
 #   dialog so you can see the subject and body. No email will actually be sent.
 #   However, in some places (e.g. trying to contact a  project's leaders), sending
 #   email is immediately followed by a redirect to a different page. The redirect
 #   erases the modal dialog before you can see it.
 
-### For sending email with the Amazon Simple Email Service api.
-#    For details on how to obtain the needed credentials see:
-#    http://www.open-meta.org//
+### To send email with the Amazon Simple Email Service api.
+#   To obtain the needed credentials, log into the AWS console. In "AWS services" choose
+#   Identity and Access Management (IAM). In the vertical menu at the left, pick "Users".
+#   In the screen that appears, pick "Add User". Give this user a name like "SESapi" and
+#   for Access Type pick "Programmatic access". Click "Next: Permissions" and on that page
+#   pick the box for "Attach Existing Policies Directly". In "Filter policies" enter "SES".
+#   This will show you two permission policies for SES, one for Full Access and one for
+#   read-only access. Since you have to POST (ie, write) to send email, check the box on
+#   the Full Access line and click Next: Review. On the review page, click Create User.
+#   You now get your one and only chance to download the key and secret you need here as
+#   a .csv file.
+
 SESkey <- ""
 SESsecret <- ""
 SESregion <- ""            # The region of your SES server (us-east-1, us-west-2, or eu-west-1)
-SESname <- ""              # Default "From" name and address. Must be AWS verified.
-SESfrom <- ""
+SESfromName <- ""
+SESfromAdr <- ""           # Default "From" name and address. Address must be AWS verified.
+SESdelay <- 75             # ~ 14 emails per second max
 
-if(SESkey=="") {           # When noEmail is TRUE, in some places (e.g. trying to contact a project's
-   noEmail = TRUE          #   leaders), sending email is immediately followed by a redirect to a
-} else {                   #   different page. The redirect erases the modal dialog before you can see it.
-   noEmail = FALSE
+if(SESkey=="") {
+   noEmail = TRUE          # Email appears in a modal dialog
+} else {
+   noEmail = FALSE         # Email is sent using AWS-SES api
 }
 
 ### MySQL credentials
