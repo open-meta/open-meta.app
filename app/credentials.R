@@ -28,8 +28,10 @@ if(admin_password=="admin.pw") {
 #   This will show you two permission policies for SES, one for Full Access and one for
 #   read-only access. Since you have to POST (ie, write) to send email, check the box on
 #   the Full Access line and click Next: Review. On the review page, click Create User.
-#   You now get your one and only chance to download the key and secret you need here as
-#   a .csv file.
+#   You now get your one and only chance to download the key and secret you need as a .csv
+#   file. If you miss that chance, or if your key and secret become compromised, you can
+#   click on the SESapi user in the Users menu, then click on the Security Credentials tab.
+#   From there you can create new Access Key and Secret pairs and inactivate old pairs.
 
 SESkey <- ""
 SESsecret <- ""
