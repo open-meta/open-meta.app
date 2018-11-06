@@ -4,20 +4,7 @@
 # v0.2 - Added "noEmail" flag to put send emails in a modal dialog; this makes it possible to run the app
 #    on a development system without needing an email host.
 
-# More info on email setup at:
-#   http://www.open-meta.org/technology/how-to-send-email-from-r-with-the-help-of-amazon-ses-and-mailr/
-
-# As of today, Amazon SES requires both FROM and REPLY-TO addresses to be AWS-verified.
-# While all addresses on the open-meta.org domain are domain-verified, verifying user addresses would
-#    involve the user responding to an email from AWS, which seems a little out of the question.
-#    If any address could be a REPLY-TO, we could send emails FROM open-meta.org with the Reply-To
-#    set to the user who sent the message. But we can't so we use the "mindless robot" nonsense.
-#    See: https://forums.aws.amazon.com/thread.jspa?threadID=59110
-
-# If AWS changes its policy, we could add REPLY-TO addresses to this code, but for now it's just redundant.
-#    BTW, all email sent to open-meta.org, including bounces, etc., now goes to openmeta.org@gmail.com
-
-# v0.3 - Nov 2018 - Email now uses the AWS SES api rather than SMTP.
+# v0.3 - Nov 2018 - Email now uses the AWS SES api rather than SMTP & mailR.
 
 # Initialize
 rv$sendEmail <- 0           # buzzer for sending email asynchronously
@@ -26,7 +13,6 @@ S$emailName <- S$emailAdr <- S$emailSubject <- S$emailText <- character(0)
 S$emailFromName <- S$emailFromAdr <- S$emailReplytoName <- S$emailReplytoAdr <- character(0)
 
 ### sendEmail
-# This observer uses the mailR package and Smtp variables from credentials
 observeEvent(rv$sendEmail, {
    if(rv$sendEmail) {
       if(noEmail) {
@@ -44,24 +30,26 @@ observeEvent(rv$sendEmail, {
          if(length(S$emailFromName)==0) S$emailFromName <<- SESfromName
          if(length(S$emailFromAdr)==0) S$emailFromAdr <<- SESfromAdr
          S$emailSubject = paste0("[", site_name, "] ", S$emailSubject)
-         # Check SES limit of 50 to addresses
+
+         # SES emails have a limit of 50 addresses; if more, we'll re-run observer with remainder
          to.name <- S$emailName[1:50]                        # Grab the first 50 for now
-         to.name <- to.name[!is.na(to.name)]                 # Delete the extras, which are NA
+         to.name <- to.name[!is.na(to.name)]                 # Delete any extras, which are NA
          S$emailName <<- S$emailName[-50:-1]                 # Delete this group from global
          to.adr <- S$emailAdr[1:50]                          #   same
-         to.adr <- to.adr[!is.na(to.adr)]                    # Delete the extras, which are NA
+         to.adr <- to.adr[!is.na(to.adr)]                    #   same
          S$emailAdr <<- S$emailAdr[-50:-1]                   #   same
+
          r <- SESemail(
             from = paste0(S$emailFromName, " <", S$emailFromAdr, ">"),
-            to = paste0(to.name, " <", to.adr, ">"),         # Note these are the groups of 1 to 50
+            to = paste0(to.name, " <", to.adr, ">"),         # Note these are the groups of 1 to 50 & a vector is ok
             replyTo = paste0(S$emailReplytoName, " <", S$emailReplytoAdr, ">"),
             subject = S$emailSubject,
             message = S$emailText)
          if(r!="Success: (200) OK") {
-            print(paste0("\nEMAIL SEND FAILURE: ", r, "\n\n"))
+            warning(paste0("\nEMAIL SEND FAILURE: ", r, "\n\n"))
          }
          if(length(S$emailName>0)) {
-            return(invalidateLater(75))                      # If there are more than 50 addresses, come back for the rest
+            return(invalidateLater(75))                      # If there are more than 50 addresses, re-run observer
          }
       }
       # Re-initialize S$email variables...
@@ -130,12 +118,9 @@ SESemail <- function(message,
                      cc = NULL,
                      bcc = NULL,
                      replyto = NULL,
-                     charset.subject = NULL,
-                     charset.message = NULL,
-                     charset.html = NULL,
-                     # charset.subject = "UTF-8",
-                     # charset.message = "UTF-8",
-                     # charset.html = "UTF-8",
+                     charset.subject = "UTF-8",
+                     charset.message = "UTF-8",
+                     charset.html = "UTF-8",
                      key = SESkey,
                      secret = SESsecret,
                      region = SESregion,
@@ -185,15 +170,13 @@ SESemail <- function(message,
      names(replyto) <- paste0("ReplyToAddresses.member.", seq_along(replyto))
      query <- c(query, replyto)
    }
-   # if (!is.null(returnpath)) {
-   #   query[["ReturnPath"]] <- returnpath
-   # }
+
+   # result of combining with http.R
    body = query
    query = list()
    headers = list()
    verbose = getOption("verbose", FALSE)
 
-   # result of combining with http.R
    # generate request signature
    uri <- paste0("https://email.",region,".amazonaws.com")
    d_timestamp <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
@@ -214,32 +197,14 @@ SESemail <- function(message,
         request_body = body_to_sign,
         key = key,
         secret = secret,
-   #          session_token = session_token,
         verbose = verbose)
+
    # setup request headers
    headers[["x-amz-date"]] <- d_timestamp
    headers[["x-amz-content-sha256"]] <- Sig$BodyHash
    headers[["Authorization"]] <- Sig[["SignatureHeader"]]
-   # if (!is.null(session_token) && session_token != "") {
-   #     headers[["x-amz-security-token"]] <- session_token
-   # }
    H <- do.call(httr::add_headers, headers)
-
-   # execute request
-   # if (length(query)) {
-   #   if (!is.null(body)) {
-   #       r <- httr::POST(uri, H, query = query, body = body, encode = "form", ...)
-   #   } else {
-   #       r <- httr::POST(uri, H, query = query, ...)
-   #   }
-   # } else {
-   #   if (!is.null(body)) {
-         r <- httr::POST(uri, H, body = body, encode = "form", ...)
-   #   } else {
-   #       r <- httr::POST(uri, H, ...)
-   #   }
-   # }
-
+   r <- httr::POST(uri, H, body = body, encode = "form", ...)
    return(httr::http_status(r$status_code)$message)
 }
 
