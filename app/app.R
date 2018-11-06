@@ -18,6 +18,8 @@ if(file.exists("../om2_credentials.R")) {
 }
 if(debugON) { print("Credentials loaded...") }
 
+noEmail = FALSE         # See credentials.R for usage
+
 ### LIBRARIES
 library(shiny)
 library(htmltools)
@@ -37,11 +39,26 @@ library(dbplyr)
 
 library(pool)
 library(RMariaDB)
-library(mailR)
+library(aws.signature)
+# library(mailR)
 library(bcrypt)         # password encryption
 library(DT)             # JavaScript tables
 
+###  APP GLOBAL VARIABLES
+#    Most global variables are Session-Global rather than App-Global, but there are a few in this category:
+
+AppGlobal <- list()
+AppGlobal$PM_lastTime <- now()   # Used to space out PubMed Searches
+AppGlobal$SES_lastTime <- now()  # Used to space out Email sends
+AppGlobal$sessionNum <- 0        # Used to identify specific sessions in the debugging output
+
 ###  GLOBAL FUNCTIONS
+
+incSN = function() {
+   AppGlobal$sessionNum <<- AppGlobal$sessionNum + 1
+   return(AppGlobal$sessionNum)
+}
+
 # Time Functions (way up here because sTime() is needed by sql-initialization)
 # Use sTime() to put the current time on the server. bTime() is inside server function.
 # Details: http://www.open-meta.org/technology/r-time-to-our-time-in-multi-user-shiny-web-applications/
@@ -480,13 +497,6 @@ slimHead <- tagList(
       bs4("ca", class="ml-auto", id="menuHead")
    )
 )
-
-sessionNum = 0   # This app-global variable allows us to identify a session in the debugging output
-
-incSN = function() {
-   sessionNum <<- sessionNum + 1
-   return(sessionNum)
-}
 
 # this is a tibble of all pages; this can be shared by all sessions, so we'll load it here
 allPages = pageGet(c("pageName", "spReq"), tibble(c("deleted", "=", 0)))
