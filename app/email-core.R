@@ -17,6 +17,8 @@
 # If AWS changes its policy, we could add REPLY-TO addresses to this code, but for now it's just redundant.
 #    BTW, all email sent to open-meta.org, including bounces, etc., now goes to openmeta.org@gmail.com
 
+# v0.3 - Nov 2018 - Email now uses the AWS SES api rather than SMTP.
+
 # Initialize
 rv$sendEmail <- 0           # buzzer for sending email asynchronously
 
@@ -34,38 +36,33 @@ observeEvent(rv$sendEmail, {
          S$modal_size <<- "l"
          rv$modal_warning <- rv$modal_warning + 1
       } else {
-         withProgress(min=.3, max=1, message="Sending...", {   # Added progress bar because mailR takes so long
-            if(length(S$emailFromName)==0) S$emailFromName <<- SmtpName
-            if(length(S$emailFromAdr)==0) S$emailFromAdr <<- SmtpAdr
-            # if(length(S$emailReplytoName)==0) S$emailReplytoName <<-
-            # if(length(S$emailReplytoAdr)==0) S$emailReplytoAdr <<-
-            S$emailSubject = paste0("[", site_name, "] ", S$emailSubject)
-            # allow a vector of names/adrs in to.adr
-            if(length(names(S$emailName)!=0)) {                # If this isn't empty it's in the single-to format
-               names(S$emailAdr) <- S$emailName                # Convert to the multi-to format for FOR
-            }
-            adr.vec = S$emailAdr
-            names = names(adr.vec)
-            n = length(adr.vec)
-            for(i in 1:n) {                                    # Send multiple TO addresses one at a time
-               incProgress(1/n/3)
-               to.name = names[i]
-               to.adr = adr.vec[i]
-               send.mail(
-                  from = paste0(S$emailFromName, " <", S$emailFromAdr, ">"),
-                  to = paste0(to.name, " <", to.adr, ">"),
-   #               replyTo = paste0(S$emailReplytoName, " <", S$emailReplytoAdr, ">"),
-                  subject = S$emailSubject,
-                  body = S$emailText,
-                  smtp = list(host.name = SmtpServer,
-                              port = SmtpPort,
-                              user.name = SmtpUsername,
-                              passwd = SmtpPassword,
-                              ssl = TRUE),
-                  authenticate = TRUE,
-                  send = TRUE)
-            }
-         })
+         pauseFor <- SESdelay - (seconds(now()-AppGlobal$SES_lastTime)*1000)
+         if(pauseFor > 0) {                                  # Pausing so other code gets a shot at the processor
+            return(invalidateLater(max(c(75,pauseFor))))     #    and to honor SES 14 emails per second limit
+         }
+         AppGlobal$SES_lastTime <<- now()                    # Note end time of search execution
+         if(length(S$emailFromName)==0) S$emailFromName <<- SESfromName
+         if(length(S$emailFromAdr)==0) S$emailFromAdr <<- SESfromAdr
+         S$emailSubject = paste0("[", site_name, "] ", S$emailSubject)
+         # Check SES limit of 50 to addresses
+         to.name <- S$emailName[1:50]                        # Grab the first 50 for now
+         to.name <- to.name[!is.na(to.name)]                 # Delete the extras, which are NA
+         S$emailName <<- S$emailName[-50:-1]                 # Delete this group from global
+         to.adr <- S$emailAdr[1:50]                          #   same
+         to.adr <- to.adr[!is.na(to.adr)]                    # Delete the extras, which are NA
+         S$emailAdr <<- S$emailAdr[-50:-1]                   #   same
+         r <- SESemail(
+            from = paste0(S$emailFromName, " <", S$emailFromAdr, ">"),
+            to = paste0(to.name, " <", to.adr, ">"),         # Note these are the groups of 1 to 50
+            replyTo = paste0(S$emailReplytoName, " <", S$emailReplytoAdr, ">"),
+            subject = S$emailSubject,
+            message = S$emailText)
+         if(r!="Success: (200) OK") {
+            print(paste0("\nEMAIL SEND FAILURE: ", r, "\n\n"))
+         }
+         if(length(S$emailName>0)) {
+            return(invalidateLater(75))                      # If there are more than 50 addresses, come back for the rest
+         }
       }
       # Re-initialize S$email variables...
       S$emailName <- S$emailAdr <- S$emailSubject <- S$emailText <- character(0)
@@ -122,6 +119,133 @@ emailCheck = function(loggedIn = TRUE) {
       return(msg=="")  # No message = TRUE = proceed with sending email
 }
 
+# email.aws.R
+# code from aws.ses package, modified by TomW Nov 2018
+
+SESemail <- function(message,
+                     html,
+                     subject,
+                     from,
+                     to = NULL,
+                     cc = NULL,
+                     bcc = NULL,
+                     replyto = NULL,
+                     charset.subject = NULL,
+                     charset.message = NULL,
+                     charset.html = NULL,
+                     # charset.subject = "UTF-8",
+                     # charset.message = "UTF-8",
+                     # charset.html = "UTF-8",
+                     key = SESkey,
+                     secret = SESsecret,
+                     region = SESregion,
+                     ...) {
+
+   query <- list(Source = from)
+
+   # configure message body and subject
+   query[["Action"]] <- "SendEmail"
+   if (missing(message) & missing(html)) {
+      stop("Must specify 'message', 'html', or both of them.")
+   }
+   if (!missing(message)) {
+      query[["Message.Body.Text.Data"]] <- message
+      if (!is.null(charset.message)) {
+          query[["Message.Message.Charset"]] <- charset.message
+      }
+   }
+   if (!missing(html)) {
+      query[["Message.Body.Html.Data"]] <- html
+      if (!is.null(charset.html)) {
+          query[["Message.Body.Html.Charset"]] <- charset.html
+      }
+   }
+   query[["Message.Subject.Data"]] <- subject
+   if (!is.null(charset.subject)) {
+      query[["Message.Subject.Charset"]] <- charset.subject
+   }
+
+   # configure recipients
+   if (length(c(to,cc,bcc)) > 50L) {
+     stop("The total number of recipients cannot exceed 50.")
+   }
+   if (!is.null(to)) {
+     names(to) <- paste0("Destination.ToAddresses.member.", seq_along(to))
+     query <- c(query, to)
+   }
+   if (!is.null(cc)) {
+     names(cc) <- paste0("Destination.CcAddresses.member.", seq_along(cc))
+     query <- c(query, cc)
+   }
+   if (!is.null(bcc)) {
+     names(bcc) <- paste0("Destination.BccAddresses.member.", seq_along(bcc))
+     query <- c(query, bcc)
+   }
+   if (!is.null(replyto)) {
+     names(replyto) <- paste0("ReplyToAddresses.member.", seq_along(replyto))
+     query <- c(query, replyto)
+   }
+   # if (!is.null(returnpath)) {
+   #   query[["ReturnPath"]] <- returnpath
+   # }
+   body = query
+   query = list()
+   headers = list()
+   verbose = getOption("verbose", FALSE)
+
+   # result of combining with http.R
+   # generate request signature
+   uri <- paste0("https://email.",region,".amazonaws.com")
+   d_timestamp <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
+   body_to_sign <- if (is.null(body)) {
+     ""
+   } else {
+     paste0(names(body), "=", sapply(unname(body), utils::URLencode, reserved = TRUE), collapse = "&")
+   }
+   Sig <- aws.signature::signature_v4_auth(
+        datetime = d_timestamp,
+        region = region,
+        service = "email",
+        verb = "POST",
+        action = "/",
+        query_args = query,
+        canonical_headers = list(host = paste0("email.",region,".amazonaws.com"),
+                                 `x-amz-date` = d_timestamp),
+        request_body = body_to_sign,
+        key = key,
+        secret = secret,
+   #          session_token = session_token,
+        verbose = verbose)
+   # setup request headers
+   headers[["x-amz-date"]] <- d_timestamp
+   headers[["x-amz-content-sha256"]] <- Sig$BodyHash
+   headers[["Authorization"]] <- Sig[["SignatureHeader"]]
+   # if (!is.null(session_token) && session_token != "") {
+   #     headers[["x-amz-security-token"]] <- session_token
+   # }
+   H <- do.call(httr::add_headers, headers)
+
+   # execute request
+   # if (length(query)) {
+   #   if (!is.null(body)) {
+   #       r <- httr::POST(uri, H, query = query, body = body, encode = "form", ...)
+   #   } else {
+   #       r <- httr::POST(uri, H, query = query, ...)
+   #   }
+   # } else {
+   #   if (!is.null(body)) {
+         r <- httr::POST(uri, H, body = body, encode = "form", ...)
+   #   } else {
+   #       r <- httr::POST(uri, H, ...)
+   #   }
+   # }
+
+   return(httr::http_status(r$status_code)$message)
+}
+
+
+
+
 # Sample bs4 code for emailWriter
 
 # output$uiMeat <- renderUI({rv$limn; isolate({
@@ -137,48 +261,4 @@ emailCheck = function(loggedIn = TRUE) {
 #       )))
 #    ))
 # })})
-
-# Sample button click handler
-
-### observer for omclick
-# observeEvent(input$js.omclick, {
-#    if(debugON) {
-#       cat(paste0("\nClick on ", input$js.omclick, "\n"))
-#    }
-#    uid = str_split(input$js.omclick, "_")
-#    id = uid[[1]][1]        # We don't care about the value of uid[[1]][3]; it's just there
-#    n  = uid[[1]][2]        #   to guarantee Shiny.onInputChange sees something new and returns it.
-#    switch(id,
-#       "sendEmail" = {
-#          if(emailCheck(S$U$sPowers > 0)) {
-#             uA = userGet(c("userName", "email"), tibble(c("userID", "=", 1))) # userID = 1 is Admin
-#             S$emailName <<- uA$userName
-#             S$emailAdr <<- uA$email
-#             S$emailSubject <<- esc(input$emailSubject)
-#             S$emailText <<- paste0(esc(input$emailFromAdr), " left a message for you on Open-Meta.org\n\n-----\n\n", esc(input$emailText))
-#             S$emailFromName <<- "Open-Meta Email Robot"
-#             S$emailFromAdr <<- "email.robot@open-meta.org"
-#             rv$sendEmail = rv$sendEmail + 1
-#             js$redirect("?prjActive")
-#          }
-#       },
-#       "cancel" = {
-#          js$redirect("?prjActive")
-#       },
-#       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
-#    )
-# }, ignoreNULL = TRUE, ignoreInit = TRUE)
-
-# At one time I used this to make the progress bar bigger, but it doesn't seem to work anymore.
-   # .shiny-notification {
-   #  width: 200%;
-   #  height: 100px;
-   #  margin-left: auto;
-   #  margin-right: auto;
-   # }
-   # .shiny-progress-notification .progress {
-   #  margin-top: 20px;
-   #  height: 25px;
-   #  width: 90%;
-   # }
 

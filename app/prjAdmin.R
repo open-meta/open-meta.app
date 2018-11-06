@@ -370,17 +370,20 @@ observeEvent(input$js.omclick, {
          if(emailCheck()) {         # send email
             allIDs = membershipGet("userID", tibble(c("projectID", "=", S$PRJ$projectID), c("role", "!=", "Non-Member")))    # Get all userIDs of members
             allAdrs = userGet(c("userName", "email"), tibble(c("userID", " IN ", paste0("(", paste0(allIDs$userID, collapse=","), ")"))))
-            emails = character(0)
-            for(n in allAdrs$userName) {       # This will work whether the project has one or multiple email allAdrs
-               emails[n] =  allAdrs[allAdrs$userName == n, "email"]  # makes a "named" vector, with userNames as names
-            }
-            S$emailName <<- ""                 # Allowed when S$emailAdr is a named vector, as above
-            S$emailAdr <<- emails
-            S$emailSubject <<- esc(input$emailSubject)
-            S$emailText <<- paste0("To: All members of the Open-Meta.org project: ", S$PRJ$projectName, "\n\n",
-                                   "From: ", S$U$email, "\n\nReply to that email address, not to me, I\'m just a mindless robot.\n\n-----\n\n", esc(input$emailText))
+            # emails = character(0)
+            # for(n in allAdrs$userName) {       # This will work whether the project has one or multiple email allAdrs
+            #    emails[n] =  allAdrs[allAdrs$userName == n, "email"]  # makes a "named" vector, with userNames as names
+            # }
+            # S$emailName <<- ""                 # Allowed when S$emailAdr is a named vector, as above
+            # S$emailAdr <<- emails
+            S$emailName <<- allAdrs$userName
+            S$emailAdr <<- allAdrs$email
+            S$emailSubject <<- escHTML(input$emailSubject)
+            S$emailText <<- paste0("To: All members of the Open-Meta.org project: ", S$PRJ$projectName, "\n\n", escHTML(input$emailText))
             S$emailFromName <<- "Open-Meta Email Robot"
             S$emailFromAdr <<- "email.robot@open-meta.org"
+            S$emailReplytoName <<- S$U$userName
+            S$emailReplytoAdr <<- S$U$email
             rv$sendEmail = rv$sendEmail + 1
             S$view <<- "memberList"
             rv$limn = rv$limn + 1
@@ -390,11 +393,12 @@ observeEvent(input$js.omclick, {
          if(emailCheck()) {         # send email
             S$emailName <<- S$U1$userName       # Got S$U1 on way to emailWrite; this is the TO address
             S$emailAdr <<- S$U1$email
-            S$emailSubject <<- esc(input$emailSubject)
-            S$emailText <<- paste0("Re: Project: ", S$PRJ$projectName, "\n\n",
-                                   "From: ", S$U$email, "\n\nReply to that email address, not to me, I\'m just a mindless robot.\n\n-----\n\n", esc(input$emailText))
+            S$emailSubject <<- escHTML(input$emailSubject)
+            S$emailText <<- paste0("Re: Project: ", S$PRJ$projectName, "\n\n", escHTML(input$emailText))
             S$emailFromName <<- "Open-Meta Email Robot"
             S$emailFromAdr <<- "email.robot@open-meta.org"
+            S$emailReplytoName <<- S$U$userName
+            S$emailReplytoAdr <<- S$U$email
             rv$sendEmail = rv$sendEmail + 1
             S$view <<- "memberList"
             rv$limn = rv$limn + 1
@@ -402,20 +406,23 @@ observeEvent(input$js.omclick, {
       },
       "email2contacts" = {
          if(emailCheck()) {         # send email
-            emailFrom = S$U$email   # user must be logged in to get here; we already have that reply-to email address
+            # emailFrom = S$U$email   # user must be logged in to get here; we already have that reply-to email address
             contactIDs = membershipGet("userID", tibble(c("projectID", "=", S$PRJ$projectID),c("contact", "=", 1))) # Get contactIDs
             contacts = userGet(c("userName", "email"), tibble(c("userID", " IN ", paste0("(", paste0(contactIDs$userID, collapse=","), ")"))))
-            emails = character(0)
-            for(n in contacts$userName) {       # This will work whether the project has one or multiple email contacts
-               emails[n] =  contacts[contacts$userName == n, "email"]  # makes a "named" vector, with userNames as names
-            }
-            S$emailName <<- ""                  # Allowed when S$emailAdr is a named vector, as above
-            S$emailAdr <<- emails
-            S$emailSubject <<- esc(input$emailSubject)
-            S$emailText <<- paste0("To: Contacts of Project: ", S$PRJ$projectName, "\n\n",
-                                   "From: ", S$U$email, "\n\nReply to that email address, not to me, I\'m just a mindless robot.\n\n-----\n\n", esc(input$emailText))
+            # emails = character(0)
+            # for(n in contacts$userName) {       # This will work whether the project has one or multiple email contacts
+            #    emails[n] =  contacts[contacts$userName == n, "email"]  # makes a "named" vector, with userNames as names
+            # }
+            # S$emailName <<- ""                  # Allowed when S$emailAdr is a named vector, as above
+            # S$emailAdr <<- emails
+            S$emailName <<- contacts$userName
+            S$emailAdr <<- contacts$email
+            S$emailSubject <<- escHTML(input$emailSubject)
+            S$emailText <<- paste0("To: Contacts of Project: ", S$PRJ$projectName, "\n\n", escHTML(input$emailText))
             S$emailFromName <<- "Open-Meta Email Robot"
             S$emailFromAdr <<- "email.robot@open-meta.org"
+            S$emailReplytoName <<- S$U$userName
+            S$emailReplytoAdr <<- S$U$email
             rv$sendEmail = rv$sendEmail + 1
             js$redirect(paste0("?Protocol&prj=", S$PRJ$projectID))
          }
