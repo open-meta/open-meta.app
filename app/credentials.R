@@ -33,6 +33,12 @@ if(admin_password=="admin.pw") {
 #   click on the SESapi user in the Users menu, then click on the Security Credentials tab.
 #   From there you can create new Access Key and Secret pairs and inactivate old pairs.
 
+#   If you don't know the region of your AWS-SES server, go back to "AWS services" and
+#   search for "Simple Email Service." At the upper right on the screen that appears, between
+#   your name and the word "Support", is a dropdown that lets you select the region you want
+#   to use. Note that you have to mentally convert the region names in the console to one of
+#   the acceptable strings shown in the SESregion comment below.
+
 SESkey <- ""
 SESsecret <- ""
 SESregion <- ""            # The region of your SES server (us-east-1, us-west-2, or eu-west-1)
