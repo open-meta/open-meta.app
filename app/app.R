@@ -31,16 +31,15 @@ library(lubridate)      #    For details, see:
 library(magrittr)       # http://www.open-meta.org/all/r-packages-attached-vs-loaded-all-about-those-doublecolons/
 library(stringi)        #
 library(xml2)           #
-
-library(RCurl)
-library(rvest)
-library(RefManageR)
-library(dbplyr)
+library(dbplyr)         #
 
 library(pool)
 library(RMariaDB)
+library(RCurl)
+library(rvest)
+
+library(RefManageR)     # BibTeX stuff
 library(aws.signature)
-# library(mailR)
 library(bcrypt)         # password encryption
 library(DT)             # JavaScript tables
 
@@ -51,6 +50,8 @@ AppGlobal <- list()
 AppGlobal$PM_lastTime <- now()   # Used to space out PubMed Searches
 AppGlobal$SES_lastTime <- now()  # Used to space out Email sends
 AppGlobal$sessionNum <- 0        # Used to identify specific sessions in the debugging output
+AppGlobal$FORMfromDisk <- TRUE   # FALSE gets FORMs from SQL
+AppGlobal$FORMtoDisk <-TRUE      # TRUE saves to both Disk and SQL; FALSE to SQL only
 
 ###  GLOBAL FUNCTIONS
 
