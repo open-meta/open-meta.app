@@ -87,7 +87,7 @@ if(S$P$Msg=="") {
                         h4text = paste0("Sending email to ", S$U1$userName, " (", S$U1$email, ")")
                         restOfPage =
                            bs4("r", align="hc",
-                              bs4("c7", tagList(
+                              bs4("c9", tagList(
                                  emailWrite(h4text, sendID="email2member", cancelID="return")
                            )))
                      },
@@ -95,7 +95,7 @@ if(S$P$Msg=="") {
                         h4text="Email all project members."
                         restOfPage =
                            bs4("r", align="hc",
-                              bs4("c7", tagList(
+                              bs4("c9", tagList(
                                  emailWrite(h4text, sendID="email2All", cancelID="return")
                            )))
                      },
@@ -258,7 +258,7 @@ value of this data to your project actually worth all the extra work for your re
                h4text=paste0("Email the project\'s sponsors")
                return(tagList(
                   bs4("r", align="hc",
-                     bs4("c7", tagList(
+                     bs4("c9", tagList(
                         emailWrite(h4text, sendID="email2contacts")
                   )))
                ))
@@ -460,28 +460,32 @@ observeEvent(input$js.omclick, {
          S$view <<- "memberList"
          rv$limn = rv$limn + 1
       },
-      "addInput" = {                                                     # This is the big green Add button
-         S$IN$flag$showAddInputButton <<- FALSE
-         S$hideMenus <<- TRUE
-         S$IN$flag$editingForm <<- FALSE
-         S$IN$FORMrow <<- imGetBlankFORMrow(S$IN$codeTypes[S$IN$inputType])
-         S$IN$FORMrowform <<- imGetBlankform(S$IN$codeTypes[S$IN$inputType])
-         S$IN$FORMrowform$order <<- 1:nrow(S$IN$FORMrowform)
-         rv$limn = rv$limn + 1
+      "inputAdd" = {                                                     # This is the big green Add button
+         if(S$P$Modify) {
+            S$IN$flag$showAddInputButton <<- FALSE
+            S$hideMenus <<- TRUE
+            S$IN$flag$oldInput <<- FALSE
+            S$IN$inputNUM <<- 0
+            S$IN$FORMrow <<- imGetBlankFORMrow(S$IN$codeTypes[S$IN$inputType])
+            S$IN$FORMrowform <<- imGetBlankform(S$IN$codeTypes[S$IN$inputType])
+            S$IN$FORMrowform$order <<- 1:nrow(S$IN$FORMrowform)
+            rv$limn = rv$limn + 1
+         }
       },
-      "editMe" = {                                                       # This is the green Edit button
+      "inputEdit" = {                                                    # This is the green Edit button
          if(S$P$SA || (S$P$Modify && !S$IN$FORM[[n, "locked"]])) {
             S$IN$flag$showAddInputButton <<- FALSE
             S$hideMenus <<- TRUE
-            S$IN$flag$editingForm <<- TRUE                                       # disable selector, among other things
+            S$IN$flag$oldInput <<- TRUE                                  # disable selector, among other things
+            S$IN$inputNUM <<- as.numeric(n)
             S$IN$FORMrow <<- S$IN$FORM[n,]
             S$IN$FORMrowform <<- imFORMrow2form(S$IN$FORMrow)                    # expand form row into a form
             S$IN$inputType <<- which(S$IN$codeTypes %in% S$IN$FORM[[n,"type"]])  # get type of input for selector
             rv$limn = rv$limn + 1
          }
       },
-      "saveInput" = {                                                    # This button is on the output$modifyAnInput screen
-         if(S$P$Modify && imFormValidates()) {
+      "inputSave" = {                                                    # This button is on the output$modifyAnInput screen
+         if(S$P$Modify && imInputValidates()) {
             imSaveform2FORMrow()
             S$IN$flag$showAddInputButton <<- TRUE
             S$hideMenus <<- FALSE
@@ -497,12 +501,12 @@ observeEvent(input$js.omclick, {
             rv$limn = rv$limn + 1
          }
       },
-      "cancelInput" = {                                                  # This button is on the output$modifyAnInput screen
+      "inputCancel" = {                                                  # This button is on the output$modifyAnInput screen
          S$IN$flag$showAddInputButton <<- TRUE
          S$hideMenus <<- FALSE
          rv$limn = rv$limn + 1
       },
-      "deleteMe" = {
+      "inputDelete" = {
          if(S$P$Modify && !S$IN$FORM[[n,"locked"]]) {
             dbLink <- poolCheckout(shiny.pool)                              # When deleting an input, we also need to delete
             on.exit(poolReturn(dbLink), add = TRUE)                         #   its id from the ids table
@@ -512,14 +516,14 @@ observeEvent(input$js.omclick, {
             rv$limn = rv$limn + 1
          }
       },
-      "upMe" = {
+      "inputUp" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] - 1.5
             imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
             rv$limn = rv$limn + 1
          }
       },
-      "downMe" = {
+      "inputDown" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] + 1.5
             imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
@@ -535,7 +539,7 @@ source("inputMeta.R", local=TRUE)
 
 ### flags
 # S$IN$flag$showAddInputButton
-# S$IN$flag$editingForm
+# S$IN$flag$oldInput
 
 ### inputMeta.r functions used in this file
 # imGetBlankform
@@ -543,7 +547,7 @@ source("inputMeta.R", local=TRUE)
 # imFORMrow2form
 # imModifyInputs
 # imShowInputs
-# imFormValidates
+# imInputValidates
 # imSaveform2FORMrow
 # imFixOrder
 # imSaveFORM

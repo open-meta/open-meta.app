@@ -18,7 +18,7 @@ output$uiMeat <- renderUI({rv$limn; isolate({
    h4text="Email me your questions and comments"
    return(tagList(
       bs4("r", align="hc",
-         bs4("c7", tagList(
+         bs4("c9", tagList(
             bs4("d", class="card bg-warning text-dark mx-auto my-4", bs4("d", class="card-body",
                bs4("d", class="card-title", h4(class='text-dark', "Help / Contact")),
                bs4("d", class="card-text", "Hi, I\'m Tom Weishaar, the post-retirement Heatlh Education doctoral student who is building Open-Meta.org. At the moment there are no help files, but I'm happy to answer any questions, eager to receive comments, and delighted with bug reports. You can contact me using the form below.")

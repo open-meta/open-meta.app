@@ -64,7 +64,7 @@ output$uiMeat <- renderUI({rv$limn; isolate({
          h4text = paste0("Sending email to ", S$ux$userName, " (", S$ux$email, ")")
          return(tagList(
             bs4("r", align="hc",
-               bs4("c7",
+               bs4("c9",
                   emailWrite(h4text)
             ))
          ))
