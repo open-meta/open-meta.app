@@ -7,7 +7,7 @@ S$P$Modify <- S$P$SA           # Flag for whether the user can edit on this page
 S$P$Msg  <- ""                 # Error flag and message
 
 # load the inputMeta.R code (also used by other pages)
-source("inputMeta.R", local=TRUE)
+source("inputMeta2.R", local=TRUE)
 
 # pickR globals
 # S$PKR$itemsPerPage             Now in app.R
@@ -17,12 +17,9 @@ rv$menuActive = 1              # Start out on first sub-menu
 rv$limnForms = 1
 
 S$db = "om$prime"
-S$display = "open"
+S$display = "open"             # open, newForm, editForm
 S$IN$flag$showAddInputButton <- TRUE
 S$IN$view <- "Look and Feel"
-
-# load the inputMeta.R code (also used by other pages)
-source("inputMeta.R", local=TRUE)
 
 output$uiHead <- renderUI({rv$limn; isolate({
    if(rv$limn) {
@@ -145,13 +142,13 @@ output$newForm <- renderUI({rv$limn; isolate({
 output$editForm <- renderUI({rv$limn; isolate({
    BackBtn <- ""
    if(S$IN$flag$showAddInputButton) {                                      # Only show the back button if not editing an input.
-      BackBtn <- bs4("btn", id="cancelAdd", n=2, q="b", "Back to List of Forms")
+      BackBtn <- bs4("btn", id="cancelAdd", n=2, q="b", "Cancel (Back to List of Forms)")
    }
    return(
       tagList(
          bs4("c12",
             bs4("hr"),
-            HTML0('<h5 class="mb-4">Edit System-Wide Forms</h5>'),
+            HTML0('<h5 class="mb-4">Edit System-Wide Form: ', S$IN$FORMname, '</h5>'),
             output$modifyInputs <- renderUI(imModifyInputs()),
             output$showInputs   <- renderUI(imShowInputs()),
             BackBtn
@@ -195,21 +192,32 @@ observeEvent(input$js.omclick, {
          rv[[limnID]] = rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
       },
       "newForm" = {
-         S$IN$flag$showAddInputButton <<- TRUE
-         S$display <<- "newForm"
-         S$hideMenus <<- TRUE
-         rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
+         if(S$P$Modify) {
+            S$IN$flag$showAddInputButton <<- TRUE
+            S$display <<- "newForm"
+            S$hideMenus <<- TRUE
+            rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
+         }
       },
-      "editForm" = {                  # Edit Button, "Forms" is the ID of one of the pickRs on this page; this loads the selected form
-         # This doesn't use imGetForm because at this point we have the form's ID rather than its name.
-         r <-recGet(S$db, "settings", c("name","value"), tibble(c("settingsID", "=", n)))
-         S$IN$FORMname <<- r$name
-         S$IN$FORM <<- as.tibble(fromJSON(r$value))           # Yes, unJSONize as it's a tibble
-         S$IN$flag$showAddInputButton <<- TRUE
-         S$IN$flag$editingForm <<- FALSE                      # Need this for the Look and Feel item-disabling if()
-         S$display <<- "editForm"
-         S$hideMenus <<- TRUE
-         rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
+      "editForm" = {               # This doesn't use imGetForm because at this point we have the form's ID rather than its name.
+         if(S$P$Modify) {
+            r <-recGet("om$prime", "settings", c("name","value"), tibble(c("settingsID", "=", n)))
+            S$IN$FORMname <<- r$name
+            fileName <- paste0("FORMs/", S$IN$FORMname, ".csv")
+            if(AppGlobal$FORMfromDisk && file.exists(fileName)) {
+               print("Loading file...")
+               S$IN$FORM <<- read_csv(fileName, na=character(), col_types="ccccccccccccccccccclllln")
+            } else {
+               print("Loading from SQL...")
+               S$IN$FORM <<- as.tibble(fromJSON(r$value))           # Yes, unJSONize as it's a tibble
+            }
+   #         View(S$IN$FORM)
+            S$IN$flag$showAddInputButton <<- TRUE
+            S$IN$flag$oldInput <<- FALSE                      # Need this for the Look and Feel item-disabling if()
+            S$display <<- "editForm"
+            S$hideMenus <<- TRUE
+            rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
+         }
       },
       "deleteForm" = {
          if(S$P$Modify) {
@@ -225,29 +233,30 @@ observeEvent(input$js.omclick, {
          }
       },
       "saveAdd" = {
-         f = str_trim(stripHTML(input[[S$newFormNameID]]))
-         if(str_sub(f, 1, 5)=="Form-" || str_sub(f, 1, 8)=="PrjForm-" || str_sub(f, 1, 10)=="inputForm-") {
-            r = recGet(S$db, "settings", "**", tibble(c("name", "=", f)))
-               if(r[[1,1]]==0) {
-                  r$name[2] <- f
-                  r$value[2] <- toJSON(imGetBlankFORMrow("blank")[-1,])
-                  r = recSave(r)
-                  S$display <<- "open"
-                  S$hideMenus <<- FALSE
-                  rv$limn <- rv$limn +1   # Need to limn at this level to un-hideMenus, also to display added Form
-               } else {
-                  S$modal_title <<- "Whoops"
-                  S$modal_text <<- HTML0("<p>That name is taken.</p>")
-                  S$modal_size <<- "s"
-                  rv$modal_warning <- rv$modal_warning + 1
-               }
-         } else {
-            S$modal_title <<- "Whoops"
-            S$modal_text <<- HTML0("<p>Form names MUST begin with either <i>PrjForm-</i> (for a project's ",
-                                  "customizable forms), <i>Form-</i> for system-wide forms, or <i>inputForm-</i>",
-                                  "for inputMeta's own input forms.</p>")
-            S$modal_size <<- "m"
-            rv$modal_warning <- rv$modal_warning + 1
+         if(S$P$Modify) {
+            f = str_trim(stripHTML(input[[S$newFormNameID]]))
+            if(str_sub(f, 1, 5)=="Form-" || str_sub(f, 1, 8)=="PrjForm-") {
+               r = recGet(om$prime, "settings", "**", tibble(c("name", "=", f)))   # all forms are in om$prime but not in S$db
+                  if(r[[1,1]]==0) {
+                     r$name[2] <- f
+                     r$value[2] <- toJSON(imGetBlankFORMrow("blank")[-1,])
+                     r = recSave(r)
+                     S$display <<- "open"
+                     S$hideMenus <<- FALSE
+                     rv$limn <- rv$limn +1   # Need to limn at this level to un-hideMenus, also to display added Form
+                  } else {
+                     S$modal_title <<- "Whoops"
+                     S$modal_text <<- HTML0("<p>That name is taken.</p>")
+                     S$modal_size <<- "s"
+                     rv$modal_warning <- rv$modal_warning + 1
+                  }
+            } else {
+               S$modal_title <<- "Whoops"
+               S$modal_text <<- HTML0("<p>Form names MUST begin with either <i>PrjForm-</i> (for a project's ",
+                                     "customizable forms) or <i>Form-</i> for system-wide forms.</p>")
+               S$modal_size <<- "m"
+               rv$modal_warning <- rv$modal_warning + 1
+            }
          }
       },
       "cancelAdd" = {
@@ -255,46 +264,47 @@ observeEvent(input$js.omclick, {
          S$hideMenus <<- FALSE
          rv$limn <- rv$limn +1      # Need to limn at this level to un-hideMenus
       },
-      "saveEdit" = {
-         S$IN$flag$showAddInputButton <<- TRUE
-
-      },
-      "addInput" = {                # This is the big green Add button
-         S$IN$flag$showAddInputButton <<- FALSE
-         S$hideMenus <<- TRUE
-         S$IN$flag$editingForm <<- FALSE
-         S$IN$FORMrow <<- imGetBlankFORMrow(S$IN$codeTypes[S$IN$inputType])
-         S$IN$FORMrowform <<- imGetBlankform(S$IN$codeTypes[S$IN$inputType])
-         S$IN$FORMrowform$order <<- 1:nrow(S$IN$FORMrowform)
-         rv$limn = rv$limn + 1
-      },
-      "editMe" = {               # This is the green Edit button
+      "inputAdd" = {                # This is the big green Add button
          if(S$P$Modify) {
             S$IN$flag$showAddInputButton <<- FALSE
             S$hideMenus <<- TRUE
-            S$IN$flag$editingForm <<- TRUE                                       # disable selector, among other things
+            S$IN$flag$oldInput <<- FALSE
+            S$IN$inputNUM <<- 0
+            S$IN$FORMrow <<- imGetBlankFORMrow(S$IN$codeTypes[S$IN$inputType])
+            S$IN$FORMrowform <<- imGetBlankform(S$IN$codeTypes[S$IN$inputType])
+            S$IN$FORMrowform$order <<- 1:nrow(S$IN$FORMrowform)
+            rv$limn = rv$limn + 1
+         }
+      },
+      "inputEdit" = {               # This is the green Edit button
+         if(S$P$Modify) {
+            S$IN$flag$showAddInputButton <<- FALSE
+            S$hideMenus <<- TRUE
+            S$IN$flag$oldInput <<- TRUE                                          # disable selector, among other things
+            S$IN$inputNUM <<- as.numeric(n)
             S$IN$FORMrow <<- S$IN$FORM[n,]
             S$IN$FORMrowform <<- imFORMrow2form(S$IN$FORMrow)                    # expand form row into a form
             S$IN$inputType <<- which(S$IN$codeTypes %in% S$IN$FORM[[n,"type"]])  # get type of input for selector
             rv$limn = rv$limn + 1
          }
       },
-      "saveInput" = {               # This button is on the output$modifyAnInput screen
-         if(S$P$Modify && imFormValidates()) {
+      "inputSave" = {               # This button is on the output$modifyAnInput screen
+         if(S$P$Modify && imInputValidates()) {
 #            S$IN$TABLE <<- "pico"
             imSaveform2FORMrow()
+#            View(S$IN$FORM)
             S$IN$flag$showAddInputButton <<- TRUE
-            S$IN$settingsName
-            saveDB <- S$db
+            # S$IN$settingsName
+            # saveDB <- S$db
             imSaveFORM()
             rv$limn = rv$limn + 1
          }
       },
-      "cancelInput" = {             # This button is on the output$modifyAnInput screen
+      "inputCancel" = {             # This button is on the output$modifyAnInput screen
          S$IN$flag$showAddInputButton <<- TRUE
          rv$limn = rv$limn + 1
       },
-      "deleteMe" = {
+      "inputDelete" = {
          if(S$P$Modify) {
             dbLink <- poolCheckout(shiny.pool)                              # When deleting an input, we also need to delete
             on.exit(poolReturn(dbLink), add = TRUE)                         #   its id from the ids table
@@ -304,14 +314,14 @@ observeEvent(input$js.omclick, {
             rv$limn = rv$limn + 1
          }
       },
-      "upMe" = {
+      "inputUp" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] - 1.5
             imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
             rv$limn = rv$limn + 1
          }
       },
-      "downMe" = {
+      "inputDown" = {
          if(S$P$Modify) {
             S$IN$FORM[n,"order"] <<- S$IN$FORM[n,"order"] + 1.5
             imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
