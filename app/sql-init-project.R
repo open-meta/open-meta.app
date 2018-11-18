@@ -29,7 +29,7 @@ initProject = function(projectID, projectName, pool) {
    r = dbExecute(dbLink, createTable(S$db, "pico"))
    r = dbExecute(dbLink, createTable(S$db, "extract"))
    r = dbExecute(dbLink, createTable(S$db, "ids"))
-   r = dbExecute(dbLink, createTable(S$db, "trial"))
+   r = dbExecute(dbLink, createTable(S$db, "result"))
 
 ### Membership table is done by caller on both new installs and new projects
 
