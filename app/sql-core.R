@@ -7,6 +7,9 @@
 
 #  This function builds a 2-row (empty) tibble based on the given definition.
 newRec = function(table, dict=table.definition.list) {
+   if(!(table %in% names(table.definition.list))) {
+      stop(paste0("In newRec() there is no table named ", table, "."))
+   }
    dict.def <- dict[[table]]
    r = list()
    for(i in 1:nrow(dict.def)) {
@@ -146,6 +149,9 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
    }
 # Do some error checking
    if(debugON) {
+      if(!(table %in% names(table.definition.list))) {
+         stop(paste0("In recGet() there is no table named ", table, "."))
+      }
       validFields = table.definition.list[[table]]$Name            # Valid fields for this table
       if(SELECT[1]!="*") {
          selectErrors = !(SELECT %in% validFields)                 # Any invalid fields in SELECT?
@@ -243,6 +249,9 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
  # Do some error checking before save
    sacredFields = c("verNum", "verUser", "verTime", "clash", "clashFacts", "deleted") # Never-drop columns
    if(debugON) {
+      if(!(table %in% names(table.definition.list))) {                     # Check for valid table name
+         stop(paste0("In recSaveR() there is no table named ", table, "."))
+      }
       validFields = table.definition.list[[table]]$Name                    # Names of valid fields for this table
       if(str_sub(setFields[1], nchar(setFields[1])-1, -1)!="ID") {
          stop("In recSave(), the first field of the SET must be `table`ID.")
