@@ -7,7 +7,7 @@ S$P$Modify <- S$P$SA           # Flag for whether the user can edit on this page
 S$P$Msg  <- ""                 # Error flag and message
 
 # load the inputMeta.R code (also used by other pages)
-source("inputMeta2.R", local=TRUE)
+source("inputMeta.R", local=TRUE)
 
 # pickR globals
 # S$PKR$itemsPerPage             Now in app.R
