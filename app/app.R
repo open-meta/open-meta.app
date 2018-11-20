@@ -38,8 +38,9 @@ library(RMariaDB)
 library(RCurl)
 library(rvest)
 
-library(RefManageR)     # BibTeX stuff
 library(aws.signature)
+library(RefManageR)     # BibTeX stuff
+library(esc)
 library(bcrypt)         # password encryption
 library(DT)             # JavaScript tables
 
