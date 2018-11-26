@@ -441,10 +441,9 @@ output$pickStudy <- renderUI({c(rv$limn, rv$limnExtraction); isolate({ # !!!Note
                HTML("<span style='font-size: 1.25rem; color:#fff;'>Filter citations</span><br>"),
                imForm2HTML(S$FIL$FORM)
             ),
-            # bs4("c1"),
-            # bs4("c12", class="text-right",
-            #    bs4("btn", uid="filter_0", q="b", class="mr-3", "Filter")
-            # ),
+            bs4("c8", class="text-right",
+               bs4("btn", uid="filter_0", q="b", class="mr-3", "Filter")
+            ),
             results
          )
       )
