@@ -377,11 +377,11 @@ output$citationPickR <- renderUI({c(rv$limn, rv$render, rv[["limnCites"]]); isol
    restOfPage <- tagList(
       bs4("r", align="hc", bs4("c10",
          bs4("r",
-            bs4("c9",
+            bs4("c8",
                HTML("<span style='font-size: 1.25rem; color:#fff;'>Filter citations</span><br>"),
                imForm2HTML(S$FIL$FORM)
             ),
-            bs4("c3", class="pl-5",
+            bs4("c4", class="pl-5",
                HTML("Review status<br>"),
                bs4("d", class="pl-1", radioButtons("allRnot", "",
                                                    c("All Reviews" = "all", "My Reviews" = "my"),

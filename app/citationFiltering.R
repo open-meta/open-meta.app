@@ -6,6 +6,10 @@
 # Filtering Globals
 S$FIL$FORM <- imGetFORM("Form-filterCites", "om$prime")
 S$FIL$slimFORM <- S$FIL$FORM[S$FIL$FORM$id!="",]           # The slim FORM drops rows with blank IDs
+S$FIL$notRev <- FALSE
+S$FIL$s1Fail <- FALSE
+S$FIL$s1Pass <- FALSE
+
 # S$PKR$filteredIDs used by prevCite() and nextCite()
 
 citesFilter <- function(DB, TABLE, tableID, WHERE) {       # these aren't actually used in this filter, but they are passed...
@@ -78,6 +82,9 @@ citesFilter <- function(DB, TABLE, tableID, WHERE) {       # these aren't actual
       r <- r[Keepers,]
    }
    S$PKR$filteredIDs <<- as.integer(r$catalogID)                        # prevCite(), nextCite() needs this
+   S$FIL$notRev <<- f$notRev
+   S$FIL$s1Fail <<- f$s1Fail
+   S$FIL$s1Pass <<- f$s1Pass
    return(r)
 }
 
