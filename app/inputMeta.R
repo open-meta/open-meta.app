@@ -61,43 +61,14 @@ S$IN$inputNUM <- 0
 
 rv$imGetFORMData <- 0
 
-S$IN$userTypes <- c("Simple text", "Text editor", "Numeric", "Select (dropdown)", "Radio buttons", "Checkboxes", "Spacer", "Hidden", "Button")
-S$IN$codeTypes <- c("text", "quill", "number", "select", "radio", "checkbox", "spacer", "hidden", "button")
+S$IN$userTypes <- c("Simple text", "Text editor", "Numeric", "Select (dropdown)", "Radio buttons", "Checkboxes", "Spacer", "Hidden")
+S$IN$codeTypes <- c("text", "quill", "number", "select", "radio", "checkbox", "spacer", "hidden")
 
-### Defines the columns in a form or FORM tibble
-imGetBlankFORMrow = function(type) {
-   return(tibble(
-      type=type,                # see S$IN$codeTypes
-      formname="",
-      id="",                    # identifies one of these parameters for Forms; otherwise the input name
-      name="",                  #    a short identifier for tables and figures (must be unique)
-      table="",                 # Table the data collected by this input is stored in
-      column="",                # Column that data collected by this input is stored in
-      color="",
-      label="",
-      helptext="",
-      width="",                 # for width the possible options are 25%-50%-75%-100% or in rems
-      value="",                 # selected option(s) for select-radio-checkbox; otherwise current value
-      placeholder="",
-      maxlength="",             # Number of characters accepted
-      min="",                   # These three are for the numeric input type
-      max="",                   #  ...the value of these numbers will be in strings, however
-      step="",
-      btnsize="",
-      btnshape="",
-      options="",               # all the options for select-radio-checkbox, separated by ";"
-                                # for "form", the possible options are: inline, sameline, disabled, and locked
-      inline=TRUE,              # whether radio buttons and checkboxes are inline or in a column
-      sameline=FALSE,           # whether the current input should be on the same line as the previous input (if it would fit)
-      disabled=FALSE,           # whether this input should be disabled
-      locked=FALSE,             # whether this FORMrow should be locked
-      order=999                 # used to reorder the inputs
-   ))
-}
+source("imGetBlankFORMrow.R", local=TRUE)  # load the shared imGetBlankFORMrow function
 
 # Load the list of form defintions into memory.
 # This list is created by the STAND-ALONE-CREATE-Blankforms-list.R file,
-imBlankforms <- readRDS(file="Blankforms2.RDS")
+imBlankforms <- readRDS(file="Blankforms.RDS")
 
 # These forms are essentially FORMs describing the inputs needed to collect the data for one input, except they are memory-based
 #   and never saved by inputMeta.R. To edit them, use STAND-ALONE-CREATE-Blankforms-list.R
@@ -669,6 +640,9 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
             } else {
                rawI <- str_trim(stripHTML(as.character(input[[ids[i]]]))) # trim and strip HTML from input$
             }
+            if(length(rawI)>1) {                                      # collapse vectors (multiple checkboxes)
+               rawI <- paste0(rawI, collapse=";")
+            }
             S$IN$FORM$value[i] <<- ifelse(is.na(rawI), "", rawI)      # NA happens when a numeric input is empty
          }
       }
@@ -759,3 +733,71 @@ imGetFORMvalues <- function (FORM) {
    # View(FORM)
    return(FORM)
 }
+
+# Load the list of calculator definitions into memory. This list is created by the
+#   STAND-ALONE-CREATE-calculators-list.R file, and makeAcalc uses it heavily.
+#   Done this way so that the list can be updated without restarting the app.
+CC <- readRDS(file="Calculators.RDS")
+
+makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
+   # build a FORM for a calculator
+   # Gather data needed later
+   OisOptions <- names(CC$C)                           # Options for Ois and Cis selectors
+   CisOptions <- names(CC$C[[Ois]])                    #    Outcome is handled in caller, which already has the info.
+   if(!Cis %in% CisOptions) { Cis <- CisOptions[1] }   #    Use first Cis as the default when user switches Ois
+   tsVec <- S$Arm$FORM %>% filter(id=="idArmTS") %>% pull(value)  # Get Time Spans and Interventions checked in
+   tsVec <- unlist(str_split(tsVec, fixed(";")))                  #   Arm form
+   iVec <- S$Arm$FORM %>% filter(id=="idArmI") %>% pull(value)
+   iVec <- unlist(str_split(iVec, fixed(";")))
+   # Top rows of FORM
+   # Visually this is two rows
+   # Formally it's the Outcome selector, the Outcome is (Ois) selector, and the CalculatorIs (Cis) selector
+   r <- CC$top
+   r$options[2] <- paste0(OisOptions, collapse=";")    # Insert options and values for the Ois and Cis selectors
+   r$value[2] <- Ois
+   r$options[3] <- paste0(CisOptions, collapse=";")
+   r$value[3] <- Cis
+   r$min[1]   <- length(tsVec)                         # Save length of these vectors in min/max of 1st row
+   r$max[1]   <- length(iVec)
+   # Time Spans
+   # visually this is one row
+   #    FORMally, first the spacer row
+   #       and add a text-disabled row for each time span
+   s <- CC$ts1                                          # Get time span rows from CC$
+   for(i in 1:length(tsVec)) {
+      x <- CC$ts2
+      x$value <- ifelse(x$type=="text", tsVec[i], "")
+      s <- bind_rows(s, x)
+   }
+   # Control Group - visually one row
+   #    FORMally, text-disabled row naming "Control Group"
+   #    next, add a set of rows specific to CalcType; one set for each time span
+   c <- CC$group
+   for(j in 1:length(tsVec)) {
+      x <- CC$C[[Ois]][[Cis]][["cRow"]]
+      x$id <- ifelse(x$name!="", paste0(x$name,".0.",j), "")        # add id, but skip if no name, eg, spacers
+      c <- bind_rows(c, x)
+   }
+   # Intervention - visually one row per intervention
+   #    FORMally, text-disabled row naming this Intervention
+   #    next, add a set for rows specific to CalcType; one set for each time span
+   #      ...repeat for each intervention
+   v <- CC$group
+   v$value = iVec[1]
+   for(i in 1:length(iVec)) {
+      if(i>1) {
+         x = CC$group
+         x$value <- ifelse(x$type=="text", iVec[i], "")
+         v = bind_rows(v, x)
+      }
+      for(j in 1:length(tsVec)) {
+         x <- CC$C[[Ois]][[Cis]][["iRow"]]
+         x$id <- ifelse(x$name!="", paste0(x$name,".",i,".",j), "") # add id, but skip if no name, eg, spacers
+         v <- bind_rows(v, x)
+      }
+   }
+   r <- bind_rows(r,s,c,v)
+   r$order <- 1:nrow(r)                                # Fix order column
+   return(r)
+}
+
