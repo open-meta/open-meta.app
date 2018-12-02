@@ -41,6 +41,8 @@ library(rvest)
 library(aws.signature)
 library(RefManageR)     # BibTeX stuff
 library(esc)
+library(metafor)
+library(robumeta)
 library(bcrypt)         # password encryption
 library(DT)             # JavaScript tables
 
