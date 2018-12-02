@@ -55,8 +55,6 @@ S$Arm$lastWasNULL <- FALSE
 S$Names = list()
 S$Names$Trial <- ""
 
-print(S$db)
-
 S$extractTBL <- tbl(shiny.pool, in_schema(S$db, "extract"))
 S$catalogTBL <- tbl(shiny.pool, in_schema(S$db, "catalog"))
 S$picoTBL <- tbl(shiny.pool, in_schema(S$db, "pico"))
@@ -353,8 +351,11 @@ additional information on each time span.</p>"
 
 output$editPico <- renderUI({c(rv$limn); isolate({
    S$Pico$Form <<- imGetFORM(S$picoName[2])        # S$picoName is set in picoPickR
+   View(S$Pico$Form)
    if(S$recID>0) {                               # If this is an edit, get the FORM's current values; S$recID set in addPico, editPico
       R <- recGet(S$db, "pico", c("name", "value"), tibble(c("picoNUM", "=", imID2NUM(S$recID, "pico"))))
+      View(R)
+
       for(i in 1:nrow(S$Pico$Form)) {              # Insert values from R into form$value
          S$Pico$Form$value[i] <<- R$value[R$name==S$Pico$Form$name[i]]    # In FORM, "name" is the short label
       }                                                               # In R, it's the "name" of the "value"
@@ -384,6 +385,7 @@ output$Extraction <- renderUI({c(rv$limn, rv$limnExtraction); isolate({
          bs4("c12", id="viewCalculator"),
          bs4("c12", id="CalculatorYbox"),
          bs4("c12", id="viewResults"),
+#         bs4("c12", plotOutput('viewResults')),
          bs4("c12", id="ResultsYbox")
 #         bs4("c12", id="viewGroup")
 #         bs4("c12", id="GroupYbox"),
@@ -653,8 +655,6 @@ output$viewCalculator <- renderUI({c(rv$limnviewCalculator, input$OutcomePICO, i
       if(r$value!="") {                      #    on the server, use it.
          FORM <- fromJSON(r$value)
       } else {                               # No saved Calculator for this Outcome, use default
-#         FORM <- imGetFORM("Form-ES-d", "om$prime")
-#         FORM <- imGetFORM("Form-ESC-Mean&SE", "om$prime")
          FORM <- makeAcalc("Continuous", "Means & SEs")
       }
    } else {                                  # Not first time; check inputs
@@ -664,9 +664,9 @@ output$viewCalculator <- renderUI({c(rv$limnviewCalculator, input$OutcomePICO, i
          fCis <- FORM %>% filter(id=="Cis") %>% pull(value)
          if(fOis!=input$Ois || fCis!= input$Cis) {      # Does saved form have right Ois/Cis?
             FORM <- makeAcalc(input$Ois, input$Cis)     #    No; find the right form
+         } else {
+            FORM <- calcCheck(FORM)          # Does the saved form have the right Time Spans and Interventions?
          }
-         # Does the saved form have the right Time Spans and Interventions?
-         # If not, create a new form, then copy over the data from the old form...
       } else {
          FORM <- makeAcalc(input$Ois, input$Cis)        # Nothing saved ; find the right form
       }
@@ -688,12 +688,79 @@ output$viewCalculator <- renderUI({c(rv$limnviewCalculator, input$OutcomePICO, i
    ))
 })})
 
-output$viewResults <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewCalculator,
-                                 rv$limnviewResults); isolate({
+#output$viewResults <- renderPlot({c(rv$limnviewCalculator); isolate({
+output$viewResults <- renderUI({c(rv$limnviewCalculator); isolate({
    if(S$NUMs$armNUM==0) {
       return("")
    }
-   return(HTML("Results go here."))
+   r <- recGet(S$db, "result", SELECT="*", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
+                                                         c("armNUM", "=", S$NUMs$armNUM)))
+
+   r <- r %>% arrange(O,I,TS)
+   omf <- function(n) { format(as.numeric(n), digits=3, scientific=FALSE) }
+   omES <- function(i) {
+      paste0(omf(r$es[i]), " (", omf(r$ci.lo[i]), ", ", omf(r$ci.hi[i]), ")")
+   }
+   rowz = O = I = TS = ""
+   for(i in 1:nrow(r)) {
+      if(r$O[i]!=O) {       # Do we need an Outcome header?
+         O <- r$O[i]
+         rowz <- paste0(rowz,
+            bs4("d", class="fr",
+               bs4("d", class="fc", style="width:40rem;min-width:40rem;", "Outcome: ", r$O[i])
+            )
+         )
+      }
+      if(r$I[i]!=I) {       # Do we need an Intervention header?
+         I <- r$I[i]
+         rowz <- paste0(rowz,
+            bs4("d", class="fr",
+               bs4("d", class="fc", style="width:5rem;min-width:5rem;"),    # Indent 5rem
+               bs4("d", class="fc", style="width:40rem;min-width:40rem;", "Intervention: ", r$I[i])
+            )
+         )
+      }
+      rowz <- paste0(rowz,
+         bs4("d", class="fr",
+            bs4("d", class="fc", style="width:10rem;min-width:10rem;"),    # Indent 10rem
+            bs4("d", class="fc", style="width:15rem;min-width:15rem;", "Time Span: ", r$TS[i]),
+            bs4("d", class="fc", style="width:20rem;min-width:20rem;", "Effect size: ", omES(i))
+         )
+      )
+   }
+   results <-  tagList(
+      bs4("d", class="f",
+         bs4("d", class="fr",
+            bs4("d", class="fc", HTML0("Participant Group:")),
+            bs4("d", class="fc", r$P[1])
+         ),
+         bs4("d", class="fr",
+            bs4("d", class="fc", HTML0("Comparison:")),
+            bs4("d", class="fc", r$C[1])
+         ),
+         HTML(rowz)
+      )
+   )
+   return(results)
+   # r$P <- paste0(r$P, r$C, r$O, r$I, r$TS, sep="::")
+   # label <- paste0("X", 1:6)
+   # mean  <- c(1.29,0.76,2.43,1.68,1.22,1.7)
+   # lower <- c(0.84,0.50,1.58,1.1,0.8,1.11)
+   # upper <- c(1.95,1.16,3.67,2.54,1.85,2.56)
+   #
+   # df <- data.frame(label, mean, lower, upper)
+   #
+   # # reverses the factor level ordering for labels after coord_flip()
+   # df$label <- factor(df$label, levels=rev(df$label))
+
+   # library(ggplot2)
+   # fp <- ggplot(data=r, aes(x=P, y=es, ymin=ci.lo, ymax=ci.hi)) +
+   #         geom_pointrange() +
+   #         geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+   #         coord_flip() +  # flip coordinates (puts labels on y axis)
+   #         xlab("Label") + ylab("Cohen's d (95% CI)") +
+   #         theme_dark()
+   # return(fp)
 })})
 
 output$studyYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewStudy); isolate({
@@ -723,14 +790,12 @@ output$ArmYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm); isola
 })})
 
 output$CalculatorYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewCalculator); isolate({
+   return("")
    if(S$NUM$armNUM==0) {
       return("")
    } else {
       yBox = HTML0("
-<p>Move pbr to means.<br>
-Multiple Time spans<br>
-Multiple Interventions<br>
-Display results</p>
+<p>Display results</p>
 ")
       return(tagList(
          bs4("r", class="mt-3", bs4("c12", bs4("cd", q="y", bs4("cdb", bs4("cdt", yBox)))))
@@ -740,6 +805,7 @@ Display results</p>
 
 output$ResultsYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewCalculator,
                                  rv$limnviewResults); isolate({
+   return("")
    if(S$NUM$armNUM==0) {
       return("")
    } else {
@@ -1022,6 +1088,74 @@ updateEXtable <- function() {
    return(review)
 }
 
+# Load the list of calculator definitions into memory. This list is created by the
+#   STAND-ALONE-CREATE-calculators-list.R file, and makeAcalc uses it heavily.
+#   Done this way so that the list can be updated without restarting the app.
+CC <- readRDS(file="Calculators.RDS")
+
+makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
+   # build a FORM for a calculator
+   # Gather data needed later
+   OisOptions <- names(CC$C)                           # Options for Ois and Cis selectors
+   CisOptions <- names(CC$C[[Ois]])                    #    Outcome is handled in caller, which already has the info.
+   if(!Cis %in% CisOptions) { Cis <- CisOptions[1] }   #    Use first Cis as the default when user switches Ois
+   tsVec <- S$Arm$FORM %>% filter(id=="idArmTS") %>% pull(value)  # Get Time Spans and Interventions checked in
+   tsVec <- unlist(str_split(tsVec, fixed(";")))                  #   Arm form
+   iVec <- S$Arm$FORM %>% filter(id=="idArmI") %>% pull(value)
+   iVec <- unlist(str_split(iVec, fixed(";")))
+   # Top rows of FORM
+   # Visually this is two rows
+   # Formally it's the Outcome selector, the Outcome is (Ois) selector, and the CalculatorIs (Cis) selector
+   r <- CC$top
+   r$options[2] <- paste0(OisOptions, collapse=";")    # Insert options and values for the Ois and Cis selectors
+   r$value[2] <- Ois
+   r$options[3] <- paste0(CisOptions, collapse=";")
+   r$value[3] <- Cis
+   r$min[1]   <- length(tsVec)                         # Save length of these vectors in min/max of 1st row
+   r$max[1]   <- length(iVec)
+   # Time Spans
+   # visually this is one row
+   #    FORMally, first the spacer row
+   #       and add a text-disabled row for each time span
+   s <- CC$ts1                                          # Get time span rows from CC$
+   for(i in 1:length(tsVec)) {
+      x <- CC$ts2
+      x$value <- ifelse(x$type=="text", tsVec[i], "")
+      s <- bind_rows(s, x)
+   }
+   # Control Group - visually one row
+   #    FORMally, text-disabled row naming "Control Group"
+   #    next, add a set of rows specific to CalcType; one set for each time span
+   c <- CC$group
+   for(j in 1:length(tsVec)) {
+      x <- CC$C[[Ois]][[Cis]][["cRow"]]
+      x$id <- ifelse(x$name!="", paste0(x$name,".0.",j), "")        # add id, but skip if no name, eg, spacers
+      c <- bind_rows(c, x)
+   }
+   # Intervention - visually one row per intervention
+   #    FORMally, text-disabled row naming this Intervention
+   #    next, add a set for rows specific to CalcType; one set for each time span
+   #      ...repeat for each intervention
+   v <- CC$group
+   v$value = iVec[1]
+   for(i in 1:length(iVec)) {
+      if(i>1) {
+         x = CC$group
+         x$value <- ifelse(x$type=="text", iVec[i], "")
+         v = bind_rows(v, x)
+      }
+      for(j in 1:length(tsVec)) {
+         x <- CC$C[[Ois]][[Cis]][["iRow"]]
+         x$id <- ifelse(x$name!="", paste0(x$name,".",i,".",j), "") # add id, but skip if no name, eg, spacers
+         v <- bind_rows(v, x)
+      }
+   }
+   r <- bind_rows(r,s,c,v)
+   r$order <- 1:nrow(r)                                # Fix order column
+   return(r)
+}
+
+# Collects the inputs, saves the FORM, calculates Effect Sizes, and saves in results
 calcNsave <- function() {
    ids <- S$IN$FORM$id
    for(i in 1:length(ids)) {                                # Get current values, store in FORM
@@ -1062,7 +1196,7 @@ calcNsave <- function() {
                                                                c("O", "=", O.PICO),
                                                                c("TS", "=", TS.PICO)))
          r$extractID[2] <- S$NUMs$extractID
-         r$catalogID[2] <- S$NUMs$catalogID
+         r$catalogID[2] <- S$NUMs$catalogID                # Need to fill all these in just in case it's a new record
          r$studyNUM[2]  <- S$NUMs$studyNUM
          r$armNUM[2]    <- S$NUMs$armNUM
          r$P[2]  <- P.PICO
@@ -1073,10 +1207,11 @@ calcNsave <- function() {
          t <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["params"]]   # get correct parameter table from CC$C list
          for(z in 1:nrow(t)) {                              # fill out parameter table using inputs
             if(t$T[z]=="C") {
-               t$V[z] <- input[[paste0(t$P[z],".0.",ts) ]]
+               sin <-
+               t$V[z] <- stripHTML(input[[paste0(t$P[z],".0.",ts) ]])
                if(t$P[z]=="n") { nC <- t$V[z] }             # capture n of control group
             } else {
-               t$V[z] <- input[[paste0(t$P[z],".",i,".",ts) ]]
+               t$V[z] <- stripHTML(input[[paste0(t$P[z],".",i,".",ts) ]])
                if(t$P[z]=="n") { nI <- t$V[z] }             # capture n of intervention group
             }
          }
@@ -1106,212 +1241,61 @@ calcNsave <- function() {
    }
 }
 
-# calcES <- function(r, d, ts, i) {
-#    switch(d["Ois"],
-#       "Counts" = {
-#          nwC <- d[paste0("nw.0.",ts)]
-#          nbC <- d[paste0("nb.0.",ts)]
-#          nwI <- d[paste0("nw.",i,".",ts)]
-#          nbI <- d[paste0("nb.",i,".",ts)]
-#          if(nwC=="" || nbC=="" || nwI=="" || nbI=="") {
-#             NoData = TRUE
-#          } else {
-#             NoData = FALSE
-#             e <- esc_2x2(as.numeric(nbI),
-#                          as.numeric(nwI),
-#                          as.numeric(nbC),
-#                          as.numeric(nwC),
-#                          es.type="or")
-#             r$nC[2] <- as.numeric(nwC) + as.numeric(nbC)  # will be converted back to chr when stuffed in r
-#             r$nI[2] <- as.numeric(nwI) + as.numeric(nbI)
-#             r$es[2] <- format(e$es, digits=6)
-#             r$v[2]  <- format(e$v, digits=6)
-#          }
-#       },
-#       "Proportions" = {
-#          nC <- d[paste0("n.0.",ts)]
-#          nI <- d[paste0("n.",i,".",ts)]
-#          sC <- d[paste0("s.0.",ts)]
-#          sI <- d[paste0("s.",i,".",ts)]
-#          if(nC=="" || nI =="" || sC=="" || sI=="") {
-#             NoData = TRUE
-#          } else {
-#             NoData = FALSE
-#             e <- esc_bin_prop(as.numeric(sI),
-#                               as.numeric(nI),
-#                               as.numeric(sC),
-#                               as.numeric(nC),
-#                               es.type = c("or"))
-#             r$nC[2] <- nC
-#             r$nI[2] <- nI
-#             r$es[2] <- format(e$es, digits=6)
-#             r$v[2]  <- format(e$v, digits=6)
-#          }
-#       },
-#       "Means" = {
-#          print(tibble(a=names(d), b=d))
-#          nC  <- d[paste0("n.0.",ts)]
-#          nI  <- d[paste0("n.",i,".",ts)]
-#          switch(d["Cis"],
-#             "Means & SEs" = {
-#                mC  <- d[paste0("m.0.",ts)]
-#                mI  <- d[paste0("m.",i,".",ts)]
-#                seC <- d[paste0("se.0.",ts)]
-#                seI <- d[paste0("se.",i,".",ts)]
-#                if(nC=="" || mC =="" || seC=="" || nI=="" || mI=="" || seI =="") {
-#                   NoData = TRUE
-#                } else {
-#                   NoData = FALSE
-#                   e <- esc_mean_se(as.numeric(mI),
-#                                    as.numeric(seI),
-#                                    as.numeric(nI),
-#                                    as.numeric(mC),
-#                                    as.numeric(seC),
-#                                    as.numeric(nC),
-#                                    es.type = "d")
-#                   r$nC[2] <- nC
-#                   r$nI[2] <- nI
-#                   r$es[2] <- format(e$es, digits=6)
-#                   r$v[2]  <- format(e$v, digits=6)
-#                }
-#             },
-#             "Means & SDs" = {
-#                mC  <- d[paste0("m.0.",ts)]
-#                mI  <- d[paste0("m.",i,".",ts)]
-#                sdC <- d[paste0("sd.0.",ts)]
-#                sdI <- d[paste0("sd.",i,".",ts)]
-#                if(nC=="" || mC =="" || sdC=="" || nI=="" || mI=="" || sdI =="") {
-#                   NoData = TRUE
-#                } else {
-#                   NoData = FALSE
-#                   e <- esc_mean_sd(as.numeric(mI),
-#                                    as.numeric(sdI),
-#                                    as.numeric(nI),
-#                                    as.numeric(mC),
-#                                    as.numeric(sdC),
-#                                    as.numeric(nC),
-#                                    es.type = "d")
-#                   r$nC[2] <- nC
-#                   r$nI[2] <- nI
-#                   r$es[2] <- format(e$es, digits=6)
-#                   r$v[2]  <- format(e$v, digits=6)
-#                }
-#             },
-#             "Means & Overall SD" = {
-#                mC  <- d[paste0("m.0.",ts)]
-#                mI  <- d[paste0("m.",i,".",ts)]
-#                sdI <- d[paste0("sd.",i,".",ts)]
-#                if(nC=="" || mC =="" || nI=="" || mI=="" || sdI =="") {
-#                   NoData = TRUE
-#                } else {
-#                   NoData = FALSE
-#                   e <- esc_mean_sd(grp1m=as.numeric(mI),
-#                                    grp1n=as.numeric(nI),
-#                                    grp2m=as.numeric(mC),
-#                                    grp2n=as.numeric(nC),
-#                                    totalsd=as.numeric(sdI),
-#                                    es.type = "d")
-#                   r$nC[2] <- nC
-#                   r$nI[2] <- nI
-#                   r$es[2] <- format(e$es, digits=6)
-#                   r$v[2]  <- format(e$v, digits=6)
-#                }
-#             },
-#             "t-test t-value" = {
-#                tI <- d[paste0("t.",i,".",ts)]
-#                if(nC=="" || nI=="" || tI=="") {
-#                   NoData = TRUE
-#                } else {
-#                   NoData = FALSE
-#                   e <- esc_t(t=as.numeric(tI),
-#                              grp1n=as.numeric(nI),
-#                              grp2n=as.numeric(nC),
-#                              es.type = "d")
-#                   r$nC[2] <- nC
-#                   r$nI[2] <- nI
-#                   r$es[2] <- format(e$es, digits=6)
-#                   r$v[2]  <- format(e$v, digits=6)
-#                }
-#             },
-#             "t-test p-value" = {
-#                pI <- d[paste0("p.",i,".",ts)]
-#                if(nC=="" || nI =="" || pI =="") {
-#                   NoData = TRUE
-#                } else {
-#                   NoData = FALSE
-#                   e <- esc_t(p=as.numeric(pI),
-#                              grp1n=as.numeric(nI),
-#                              grp2n=as.numeric(nC),
-#                              es.type = "d")
-#                   r$nC[2] <- nC
-#                   r$nI[2] <- nI
-#                   r$es[2] <- format(e$es, digits=6)
-#                   r$v[2]  <- format(e$v, digits=6)
-#                }
-#             }
-#          )
-#       },
-#       "Effect sizes" = {
-#          nC <- d[paste0("n.0.",ts)]
-#          nI <- d[paste0("n.",i,".",ts)]
-#          es <- d[paste0("es.",i,".",ts)]
-#          v  <- d[paste0("v.",i,".",ts)]
-#          if(nC=="" || nI =="" || es=="" || v=="") {
-#             NoData = TRUE
-#          } else {
-#             NoData = FALSE
-#             r$nC[2] <- nC
-#             r$nI[2] <- nI
-#             r$es[2] <- es
-#             r$v[2]  <- v
-#             e <- list()
-#             e$se <- e$ci.lo <- e$ci.hi <- e$w <- ""
-#             e$info <- paste0("User-entered effect size ", d["Cis"])
-#             switch(d["Cis"],
-#                "Cohen's d" = { e$measure <- "d"},
-#                "Hedge's g" = { e$measure <- "g"},
-#                "Point-biserial r" = { e$measure <- "r"},
-#                "Relative Risk" = { e$measure <- "rr"},
-#                "Log Relative Risk" = { e$measure <- "lrr"},
-#                "Odds Ratio" = { e$measure <- "or"},
-#                "Log Odds Ratio" = { e$measure <- "lor"}
-#             )
-#          }
-#       }
-#    )
-#    if(!NoData) {
-#
-#    }
-#    print(tibble(a=names(d), b=d))
-#    return(list(r=r, error=NoData))
-# }
-#
-# whichCalculator <- function(Ois, Cis) {
-#    switch(Ois,
-#       "Effect sizes" = {
-#          switch(Cis,
-#             "Cohen's d" = { CalcName <- "Form-ES-d" },
-#             "Hedge's g" = { CalcName <- "Form-ES-g" },
-#             "Relative Risk" = { CalcName <- "Form-ES-rr" },
-#             "Log Relative Risk" = { CalcName <- "Form-ES-Lrr" },
-#             "Odds Ratio" = { CalcName <- "Form-ES-or" },
-#             "Log Odds Ratio" = { CalcName <- "Form-ES-Lor" },
-#             CalcName <- "Form-ES-d"        # Default when Ois changes.
-#          )
-#       },
-#       "Means" = {
-#          switch(Cis,
-#             "Means & SEs" = { CalcName <- "Form-ESC-Mean&SE" },
-#             "Means & SDs" = { CalcName <- "Form-ESC-Mean&SD" },
-#             "Means & Overall SD" = { CalcName <- "Form-ESC-Mean&OverallSD" },
-#             "t-test t-value" = { CalcName <- "Form-ESC-t-test-t" },
-#             "t-test p-value" = { CalcName <- "Form-ESC-t-test-p" },
-#             "Point-Biserial r" = { CalcName <- "Form-ES-pbr" },
-#             CalcName <- "Form-ESC-Mean&SE" # Default when Ois changes.
-#          )
-#       },
-#       "Proportions" = { CalcName <- "Form-ESC-Proportions" },
-#       "Counts" = { CalcName <- "Form-ESC-Counts" }
-#    )
-#    return(imGetFORM(CalcName, "om$prime"))
-# }
+# Does the saved form have the right Time Spans and Interventions?
+# If not, create a new form, then copy over the data from the old form; also, delete obsolete results
+calcCheck <- function(savedFORM) {
+   v <- savedFORM %>% filter(type=="text") %>% pull(value)           # Get Time Spans and Interventions in FORM
+   tsn <- as.numeric(savedFORM$min[1])                               # This is the number of Time Spans in savedFORM
+   tsVecSaved <- v[1:tsn]
+   iVecSaved <-  v[((tsn+2):(length(v)))]                            # 2 to skip over "Control Group"
+   tsVecArm <- S$Arm$FORM %>% filter(id=="idArmTS") %>% pull(value)  # Get Time Spans selected in Arm specification
+   tsVecArm <- unlist(str_split(tsVecArm, fixed(";")))
+   iVecArm <- S$Arm$FORM %>% filter(id=="idArmI") %>% pull(value)    # Same for Interventions
+   iVecArm <- unlist(str_split(iVecArm, fixed(";")))
+   if(identical(tsVecSaved,tsVecArm) && identical(iVecSaved,iVecArm)) {  # If everything is the same, we're good to go.
+      return(savedFORM)
+   }
+   # Forms are different; copy still-relevent data to newFORM and delete obsolete results from results table
+   newFORM <- makeAcalc(savedFORM$value[2], savedFORM$value[3])
+   t <- CC$C[[savedFORM$value[2]]][[savedFORM$value[3]]][["params"]] # get correct parameter table from CC$C list
+      # Copy data from savedFORM to newFORM
+   for(ts in 1:length(tsVecArm)) {
+      for(i in 1:length(iVecArm)) {
+         tsS <- which(tsVecSaved %in% tsVecArm[ts])                  # Note that "which" returns an empty vector if not found
+         iS  <- which(iVecSaved %in% iVecArm[i])
+         if(length(tsS)>0 && length(iS)>0) {
+            for(z in 1:nrow(t)) {                                    # copy data from savedFORM to newFORM
+               if(t$T[z]=="C") {
+                  newFORM[newFORM$id==paste0(t$P[z],".0.",ts), "value"] <- savedFORM %>% filter(id==paste0(t$P[z],".0.",tsS)) %>% pull(value)
+               } else {
+                  newFORM[newFORM$id==paste0(t$P[z],".",i,".",ts), "value"] <- savedFORM %>% filter(id==paste0(t$P[z],".",iS,".",tsS)) %>% pull(value)
+               }
+            }
+         }
+      }
+   }
+      # Delete results that aren't in newFORM
+   for(ts in 1:length(tsVecSaved)) {
+      for(i in 1:length(iVecSaved)) {
+         if(!(tsVecSaved[ts] %in% tsVecArm) || !(iVecSaved[i] %in% iVecArm)) {
+            P.PICO  <- S$Arm$FORM %>% filter(id=="idArmP") %>% pull("value")
+            I.PICO  <- iVecSaved[i]
+            C.PICO  <- S$Arm$FORM %>% filter(id=="idArmC") %>% pull("value")
+            O.PICO  <- savedFORM$value[1]                            # 1st row always has selected Outcome
+            TS.PICO <- tsVecSaved[ts]
+            r <- recGet(S$db, "result", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
+                                                               c("armNUM", "=", S$NUMs$armNUM),
+                                                               c("P", "=", P.PICO),
+                                                               c("I", "=", I.PICO),
+                                                               c("C", "=", C.PICO),
+                                                               c("O", "=", O.PICO),
+                                                               c("TS", "=", TS.PICO)))
+            if(r$resultID[1]>0) {
+               r$deleted[2] <- 1                                     # if we found something, delete it.
+               r <- recSave(r, S$db)
+            }
+         }
+      }
+   }
+   return(newFORM)
+}
