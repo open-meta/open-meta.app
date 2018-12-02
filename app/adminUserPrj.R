@@ -10,7 +10,7 @@ S$showPage <- FALSE               # flags determines what gets rendered
 # ...S$U is the logged in user
 
 output$uiHead <- renderUI({        # No rv$limn because this only needs to be rendered once.
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
    }
    if(S$userOK) {
@@ -130,7 +130,7 @@ output$showResults  <- renderDT(
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("\nClick on ", input$js.omclick, "\n"))
    }
    uid = str_split(input$js.omclick, "_")

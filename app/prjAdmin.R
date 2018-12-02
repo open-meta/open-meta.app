@@ -309,7 +309,7 @@ line, your inputs will appear in a vertical column under the standard inputs.</p
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Click on ", input$js.omclick, "\n"))
    }
    uid = str_split(input$js.omclick, "_")

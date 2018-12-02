@@ -820,7 +820,7 @@ output$ResultsYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Click on ", input$js.omclick, "\n"))
    }
    uid = str_split(input$js.omclick, "_")

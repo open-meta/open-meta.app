@@ -1,12 +1,21 @@
 ### open-meta.app app.R
 ### Tom Weishaar - May 2018 - v0.3
 
-### FLAGS
-#burnItAllDown = TRUE          # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
-burnItAllDown = FALSE
-showSysMsg = TRUE              # Controls whether the big red box shows on the main site pages or not
-sink(file=stderr())            # When on a server, this makes sure what we print() appears in the log...
-debugON <- TRUE                # if TRUE, prints debugging info to the console (or server log)
+sink(file=stderr())      # When on a server, this makes sure what we print() appears in the log...
+
+###  APP GLOBAL VARIABLES
+#    Most global variables are Session-Global rather than App-Global, but there are a few in this category:
+
+A <- list()              # This list is for Application Globals
+#A$burnItAllDown = TRUE  # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
+A$burnItAllDown = FALSE
+A$debugON <- TRUE        # if TRUE, prints debugging info to the console (or server log)
+A$showSysMsg = TRUE      # Controls whether the big red box shows on the main site pages or not
+A$FORMfromDisk <- TRUE   # FALSE gets FORMs from SQL
+A$FORMtoDisk <-TRUE      # TRUE saves to both Disk and SQL; FALSE to SQL only
+A$PM_lastTime <- now()   # Used to space out PubMed Searches
+A$SES_lastTime <- now()  # Used to space out Email sends
+A$sessionNum <- 0        # Used to identify specific sessions in the debugging output
 
 ### CREDENTIALS
 # You need to add four passwords to the credentials.R file to get started
@@ -16,7 +25,7 @@ if(file.exists("../om2_credentials.R")) {
 } else {
    source("credentials.R", local=TRUE)
 }
-if(debugON) { print("Credentials loaded...") }
+if(A$debugON) { print("Credentials loaded...") }
 
 noEmail = FALSE         # See credentials.R for usage
 
@@ -46,21 +55,11 @@ library(robumeta)
 library(bcrypt)         # password encryption
 library(DT)             # JavaScript tables
 
-###  APP GLOBAL VARIABLES
-#    Most global variables are Session-Global rather than App-Global, but there are a few in this category:
-
-AppGlobal <- list()
-AppGlobal$PM_lastTime <- now()   # Used to space out PubMed Searches
-AppGlobal$SES_lastTime <- now()  # Used to space out Email sends
-AppGlobal$sessionNum <- 0        # Used to identify specific sessions in the debugging output
-AppGlobal$FORMfromDisk <- TRUE   # FALSE gets FORMs from SQL
-AppGlobal$FORMtoDisk <-TRUE      # TRUE saves to both Disk and SQL; FALSE to SQL only
-
 ###  GLOBAL FUNCTIONS
 
 incSN = function() {
-   AppGlobal$sessionNum <<- AppGlobal$sessionNum + 1
-   return(AppGlobal$sessionNum)
+   A$sessionNum <<- A$sessionNum + 1
+   return(A$sessionNum)
 }
 
 # Time Functions (way up here because sTime() is needed by sql-initialization)
@@ -186,11 +185,11 @@ r = dbExecute(dbLink, "SET GLOBAL max_allowed_packet=16777216;")    # Enlarge My
 options(shiny.maxRequestSize = 16*1024^2 )            # Enlarge Shiny file upload size to 16MB
 
 SQL.DBs <- dbGetQuery(dbLink, "SHOW DATABASES")
-if(burnItAllDown || !("om$prime" %in% SQL.DBs$Database)) {
-   if(debugON) { print("Initializing database...") }
+if(A$burnItAllDown || !("om$prime" %in% SQL.DBs$Database)) {
+   if(A$debugON) { print("Initializing database...") }
    source("sql-initialization.R", local=TRUE)         # This file is loaded only if we need to init databases
-   r = DB.Initialization(burnItAllDown)
-   if(debugON) { print(r) }                           # r is an initialization completion message
+   r = DB.Initialization(A$burnItAllDown)
+   if(A$debugON) { print(r) }                         # r is an initialization completion message
 }
 poolReturn(dbLink)                                    # return dbLink
 poolClose(root.pool)                                  # log out of root
@@ -449,7 +448,7 @@ clashCard <- function(t) {
    }
    return(r)
 }
-if(showSysMsg) {
+if(A$showSysMsg) {
    sysMsg = tagList(
       bs4("r", align="hc",
          bs4("c12", tagList(
@@ -551,7 +550,7 @@ server <- function(input, output, session) {
    S$PKR <- list()
    S$PKR$itemsPerPage <- 30
 
-   if(debugON) {
+   if(A$debugON) {
       S$sessionNum <- incSN()   # get an id number for this session
       cat(paste0("Session ", S$sessionNum, " started @ ", now(), ".\n"))
       onSessionEnded(function() {
@@ -713,14 +712,14 @@ server <- function(input, output, session) {
 
    # Cookie observer to determine login status
    observeEvent(input$js.sessionID, {                 # Buzzer is a change in the cookie status; only happens once per session
-      if(debugON) { cat("Checking cookies...\n")}
+      if(A$debugON) { cat("Checking cookies...\n")}
       if(input$js.sessionID=="") {                    # not logged in;
          S$U <<- emptySU( )                           # Use a blank S$U
-         if(debugON) { cat("...cookie is blank.\n") }
+         if(A$debugON) { cat("...cookie is blank.\n") }
       } else {
          S$U <<- user1SU(tibble(c("sessionID", "=", input$js.sessionID)))
          if(S$U$userID != 0) {                        # Already logged in
-            if(debugON) {
+            if(A$debugON) {
                cat(paste0("...user is ", S$U$userName, "\n"))
             }
          } else {                                     # This happens when we BurnItAllDown
@@ -783,7 +782,7 @@ server <- function(input, output, session) {
       } else {
          output$ui <- renderUI(bigHead)
          output$uiMeat <- renderUI({
-            if(debugON) {
+            if(A$debugON) {
                cat(paste0("Rendering 404 Error v.", rv$loadPage, "\n"))
             }
             if(url=="NoSuchProject") {

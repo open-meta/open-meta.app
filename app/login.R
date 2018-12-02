@@ -13,7 +13,7 @@ if(S$U$sPowers) {                            # sPower of 1 or more (TRUE) means 
 
 output$uiMeat <- renderUI({rv$limn; isolate({
    if(rv$limn) {                             # don't run this unless rv$limn is 1 or more
-      if(debugON) {
+      if(A$debugON) {
          cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
       }
       return(tagList(

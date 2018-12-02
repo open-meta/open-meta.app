@@ -23,7 +23,7 @@ S$IN$view <- "Look and Feel"
 
 output$uiHead <- renderUI({rv$limn; isolate({
    if(rv$limn) {
-      if(debugON) {
+      if(A$debugON) {
          cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
       }
       if(S$U$sPowers < S$PG$spReq) {   # Although users without superpowers can't get here via the
@@ -179,7 +179,7 @@ text every time you edit an input. Sorry; this one is too complicated to figure 
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Click on ", input$js.omclick, "\n"))
    }
    uid = str_split(input$js.omclick, "_")
@@ -204,7 +204,7 @@ observeEvent(input$js.omclick, {
             r <-recGet("om$prime", "settings", c("name","value"), tibble(c("settingsID", "=", n)))
             S$IN$FORMname <<- r$name
             fileName <- paste0("FORMs/", S$IN$FORMname, ".csv")
-            if(AppGlobal$FORMfromDisk && file.exists(fileName)) {
+            if(A$FORMfromDisk && file.exists(fileName)) {
                print("Loading file...")
                S$IN$FORM <<- read_csv(fileName, na=character(), col_types="ccccccccccccccccccclllln")
             } else {

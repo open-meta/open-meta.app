@@ -511,7 +511,7 @@ bs4SelectInput = function(attribs, children) {
 #   Optional attribs are *value* (a vector of selected box/btn options; defaults to ""),
 #      *label* (a GROUP label, defaults to ""), and *inline* (defaults to FALSE).
 bs4CRGroups = function(attribs, children) {
-   if(debugON) {
+   if(A$debugON) {
       if(length(children)>0) {warning("In bs4CRGroups, unnamed text is ignored.")}
       if(is.null(attribs$type)) {stop("In bs4CRGroups, attribs$type is missing.")}
       if(is.null(attribs$id)) {stop("In bs4CRGroups, attribs$id is missing.")}

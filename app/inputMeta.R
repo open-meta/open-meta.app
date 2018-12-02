@@ -83,7 +83,7 @@ imGetBlankform <- function(type) {            # type refers to the type of input
 imGetFORM = function(FORMname, db=S$db) {
    S$IN$FORMname <<- FORMname                     # imSaveform2FORMrow() will need this
    fileName <- paste0("FORMs/", S$IN$FORMname, ".csv")
-   if(AppGlobal$FORMfromDisk && file.exists(fileName)) {
+   if(A$FORMfromDisk && file.exists(fileName)) {
       f <- read_csv(fileName, na=character(), col_types="ccccccccccccccccccclllln")
    } else {
       r <- recGet(db, "settings", "value", tibble(c("name", "=", FORMname)))
@@ -565,7 +565,7 @@ imSaveform2FORMrow <- function() {
 # Saves S$IN$FORM into the S$db.settings file. For adminForms.R that's om$prime, for prjAdmin.R it's the project's db
 #    This is separated from imSaveform2FORMrow because it's also used after moveup, movedown, and delete
 #    Note that this is used to save a FORM, but NOT the data collected by the form. For that, see rv$imGetFORMData below.
-# Always saves to SQL, also saves to disk if AppGlobal$FORMtoDisk is TRUE.
+# Always saves to SQL, also saves to disk if A$FORMtoDisk is TRUE.
 imSaveFORM = function() {
    r <- recGet(S$db, "settings", "**", tibble(c("name", "=", S$IN$FORMname)))
    r$name[2] <- S$IN$FORMname                                    # In case this is a new FORM and recGet gave us a blank record
@@ -576,7 +576,7 @@ imSaveFORM = function() {
       r$value[2] <- toJSON(S$IN$FORM)                            # FORM is a tibble, so we have to JSONize it
    }
    r = recSave(r, S$db)
-   if(AppGlobal$FORMtoDisk) {
+   if(A$FORMtoDisk) {
       write.csv(S$IN$FORM, paste0("FORMs/", S$IN$FORMname, ".csv"), row.names=F)
    }
 }

@@ -1108,7 +1108,7 @@ observe({                                                        # observe rathe
             S$PM$progress$set(.4)
             url <- paste0(Esearch, key, max, str_replace_all(terms, " ", "+")) # fix url; also replace " " with "+"
             xml <- RCurl::getURL(url)                            # get xml
-            AppGlobal$PM_lastTime <<- now()                      # Note time of search execution
+            A$PM_lastTime <<- now()                              # Note time of search execution
             raw <- xml2::read_xml(xml)                           # read xml
             error <- xml2::xml_text(xml2::xml_find_first(raw, "/eSearchResult/ERROR"))
             S$PM$progress$set(.6)
@@ -1158,14 +1158,14 @@ observe({                                                        # observe rathe
          },
          "b" = {
             S$PM$progress$set((S$PM$Chunk/S$PM$Chunks)-.03)      # not more than .97
-            pauseFor <- PubMed.Delay - (seconds(now()-AppGlobal$PM_lastTime)*1000)
+            pauseFor <- PubMed.Delay - (seconds(now()-A$PM_lastTime)*1000)
             if(pauseFor > 0) {                                   # Pausing so other code gets a shot at the processor
                invalidateLater(max(c(100,pauseFor)))             #    and to honor PubMed delay
                return()
             } else {
                S$PM$url2 <<- paste0(S$PM$url, '&retstart=', (S$PM$Chunksize*S$PM$Chunk), '&retMax=', S$PM$Chunksize)
                S$PM$Medline <<- paste0(S$PM$Medline, RCurl::getURL(S$PM$url2))   # Use URL constructed above to get cite data
-               AppGlobal$PM_lastTime <<- now()                   # Note end time of search execution
+               A$PM_lastTime <<- now()                           # Note end time of search execution
                S$PM$Chunk <<- S$PM$Chunk+1
                if(S$PM$Chunk==S$PM$Chunks) {                     # Started at zero, so == means end
                   S$PM$cascade <<- "c"                           # Done; move on to part "c"
@@ -1190,7 +1190,7 @@ observe({                                                        # observe rathe
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Click on ", input$js.omclick, "\n"))
    }
    uid = str_split(input$js.omclick, "_")

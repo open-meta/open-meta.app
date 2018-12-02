@@ -93,7 +93,7 @@ if(S$P$Msg=="") {
 
 output$uiHead <- renderUI({rv$limn; isolate({
    if(rv$limn) {                          # prevents a premature run while rv$limn = 0
-      if(debugON) {                       # debug message
+      if(A$debugON) {                     # debug message
          cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
       }
       if(S$P$Msg != "") {                 # we have an error

@@ -3,7 +3,7 @@
 
 output$uiHead <- renderUI({rv$limn; isolate({
    if(rv$limn) {
-      if(debugON) {
+      if(A$debugON) {
          cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
       }
       if(S$U$sPowers < S$PG$spReq) {   # Although users without superpowers can't get here via the
@@ -74,7 +74,7 @@ observeEvent(input$js.editorText, {
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Click on ", input$js.omclick, "\n"))
    }
    uid = str_split(input$js.omclick, "_")

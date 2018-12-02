@@ -148,7 +148,7 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
       SELECT="*"                                                   #    (all columns, 2 duplicate rows)
    }
 # Do some error checking
-   if(debugON) {
+   if(A$debugON) {
       if(!(table %in% names(table.definition.list))) {
          stop(paste0("In recGet() there is no table named ", table, "."))
       }
@@ -248,7 +248,7 @@ recSaveR <- function(SET, verUser="Admin", db="om$prime", pool=shiny.pool) {
    table = str_sub(setFields[1], 1, nchar(setFields[1])-2)                 # Name of the table
  # Do some error checking before save
    sacredFields = c("verNum", "verUser", "verTime", "clash", "clashFacts", "deleted") # Never-drop columns
-   if(debugON) {
+   if(A$debugON) {
       if(!(table %in% names(table.definition.list))) {                     # Check for valid table name
          stop(paste0("In recSaveR() there is no table named ", table, "."))
       }

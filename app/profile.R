@@ -14,7 +14,7 @@ output$uiHead <- renderUI(tagList(slimHead, bs4("hr")))
 
 output$uiMeat <- renderUI({rv$limn; isolate({
    if(rv$limn) {                             # don't run this unless rv$limn is 1 or more
-      if(debugON) {
+      if(A$debugON) {
          cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
       }
       if(S$U$sPowers==0) { # not logged in; return registration inputs

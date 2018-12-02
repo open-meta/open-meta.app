@@ -7,7 +7,7 @@
 rv$limn <- rv$limn + 1
 
 output$uiHead <- renderUI({
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Rendering ", S$PG$pageName, " v.", rv$limn, "\n"))
    }
    return(bigHead)
@@ -64,7 +64,7 @@ output$uiResults  <- renderDT(
 
 ### observer for omclick
 observeEvent(input$js.omclick, {
-   if(debugON) {
+   if(A$debugON) {
       cat(paste0("Click on ", input$js.omclick, "\n"))
    }
    uid = str_split(input$js.omclick, "_")

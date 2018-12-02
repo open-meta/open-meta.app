@@ -22,11 +22,11 @@ observeEvent(rv$sendEmail, {
          S$modal_size <<- "l"
          rv$modal_warning <- rv$modal_warning + 1
       } else {
-         pauseFor <- SESdelay - (seconds(now()-AppGlobal$SES_lastTime)*1000)
+         pauseFor <- SESdelay - (seconds(now()-A$SES_lastTime)*1000)
          if(pauseFor > 0) {                                  # Pausing so other code gets a shot at the processor
             return(invalidateLater(max(c(75,pauseFor))))     #    and to honor SES 14 emails per second limit
          }
-         AppGlobal$SES_lastTime <<- now()                    # Note end time of search execution
+         A$SES_lastTime <<- now()                            # Note end time of search execution
          if(length(S$emailFromName)==0) S$emailFromName <<- SESfromName
          if(length(S$emailFromAdr)==0) S$emailFromAdr <<- SESfromAdr
          S$emailSubject = paste0("[", site_name, "] ", S$emailSubject)
