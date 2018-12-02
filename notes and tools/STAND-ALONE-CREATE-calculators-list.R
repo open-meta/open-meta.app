@@ -95,7 +95,7 @@ calcRow <- function(type) {
 
 ### B.SD
    B.SD <- B.SE
-   B.SD$name = "sd"
+   B.SD$name[3] = "sd"
    B.SD$label[3] = "SD"
    B.SD$helptext[3] = "Group SD."
 
@@ -122,6 +122,42 @@ calcRow <- function(type) {
    r3$width = "1"
    r3$sameline = TRUE
    C.n.only <- bind_rows(r1,r2,r3)
+
+### I row for t-Test-t
+   r1 <- calcRow("number")
+   r1$width = "7"
+   r1$name = "n"
+   r1$label = "n"
+   r1$helptext = "Group size."
+   r1$sameline = TRUE
+   r2 <- calcRow("number")
+   r2$width = "14"
+   r2$name = "tt"
+   r2$label = "t-Test t-Value"
+   r2$helptext = "Enter the t-Value from the t-Test comparing this intervention group to its control group."
+   r2$sameline = TRUE
+   r3 <- calcRow("spacer")
+   r3$width = "1"
+   r3$sameline = TRUE
+   I.TT <- bind_rows(r1, r2, r3)
+
+### I row for t-Test-P
+   I.TP <- I.TT
+   I.TP$name[2] = "tp"
+   I.TP$label[2] = "t-Test p-Value"
+   I.TP$helptext[2]  = "Enter the p-Value from the t-Test comparing this intervention group to its control group."
+
+### I row for One-way Anova
+   I.A <- I.TT
+   I.A$name[2] = "F"
+   I.A$label[2] = "F"
+   I.A$helptext[2]  = "Enter the F-Value from a one-way, two-group ANOVA comparing this intervention group to its control group."
+
+### I row for Point-Biserial correlation
+   PBR <- I.TT
+   PBR$name[2] = "pbr"
+   PBR$label[2] = "r"
+   PBR$helptext[2]  = "Point-biserial correlation between a dichotomous variable indicating the group and a continuous outcome."
 
 ### C row for counts
    r1 <- calcRow("number")
@@ -168,86 +204,56 @@ calcRow <- function(type) {
    I.P <- C.P
    I.P$helptext[2] = "Enter the percentage of this intervention group for which the outcome was better."
 
-### I row for t-Test-t
-   r1 <- calcRow("number")
-   r1$width = "7"
-   r1$name = "n"
-   r1$label = "n"
-   r1$helptext = "Group size."
-   r1$sameline = TRUE
-   r2 <- calcRow("number")
-   r2$width = "14"
-   r2$name = "tt"
-   r2$label = "t-Test t-Value"
-   r2$helptext = "Enter the t-Value from the t-Test comparing this intervention group to its control group."
-   r2$sameline = TRUE
-   r3 <- calcRow("spacer")
-   r3$width = "1"
-   r3$sameline = TRUE
-   T.T <- bind_rows(r1, r2, r3)
-
-### I row for t-Test-t
-   T.P <- T.T
-   T.P$name[2] = "tp"
-   T.P$label[2] = "t-Test p-Value"
-   T.P$helptext[2]  = "Enter the p-Value from the t-Test comparing this intervention group to its control group."
-
-### I row for Point-Biserial correlation
-   PBR <- T.T
-   PBR$name[2] = "pbr"
-   PBR$label[2] = "r"
-   PBR$helptext[2]  = "Point-biserial correlation between a dichotomous variable indicating the group and a continuous outcome."
-
 ### I row for Cohen's d
-   I.d <- T.T
+   I.d <- I.TT
    I.d$name[2] = "d"
    I.d$label[2] = "Cohen's d"
    I.d$helptext[2]  = "d for size of effect between control group and this intervention group."
 
 ### I row for Hedge's g
-   I.g <- T.T
+   I.g <- I.TT
    I.g$name[2] = "g"
    I.g$label[2] = "Hedge's g"
    I.g$helptext[2]  = "g for size of effect between control group and this intervention group."
 
 ### I row for Odds Ratio
-   I.or <- T.T
+   I.or <- I.TT
    I.or$name[2] = "or"
    I.or$label[2] = "OR"
    I.or$helptext[2]  = "Odds ratio for size of effect between control group and this intervention group."
 
 ### I row for Log Odds Ratio
-   I.lor <- T.T
+   I.lor <- I.TT
    I.lor$name[2] = "lor"
    I.lor$label[2] = "log OR"
    I.lor$helptext[2]  = "Log odds ratio for size of effect between control group and this intervention group."
 
 ### I row for Relative Risk
-   I.rr <- T.T
+   I.rr <- I.TT
    I.rr$name[2] = "rr"
    I.rr$label[2] = "RR"
    I.rr$helptext[2]  = "Relative risk for size of effect between control group and this intervention group."
 
 ### I row for Log Relative Risk
-   I.lrr <- T.T
+   I.lrr <- I.TT
    I.lrr$name[2] = "lrr"
    I.lrr$label[2] = "log RR"
    I.lrr$helptext[2]  = "Log relative risk for size of effect between control group and this intervention group."
 
 ### I row for Pearson's r
-   I.r <- T.T
+   I.r <- I.TT
    I.r$name[2] = "r"
    I.r$label[2] = "r"
    I.r$helptext[2]  = "Pearson's r for size of effect between control group and this intervention group."
 
 ### I row for Cohen's f
-   I.f <- T.T
+   I.f <- I.TT
    I.f$name[2] = "f"
    I.f$label[2] = "f"
    I.f$helptext[2]  = "Cohen's f for size of effect between control group and this intervention group."
 
 ### I row for eta-squared
-   I.eta2 <- T.T
+   I.eta2 <- I.TT
    I.eta2$name[2] = "eta2"
    I.eta2$label[2] = "eta^2"
    I.eta2$helptext[2]  = "eta-squared for size of effect between control group and this intervention group."
@@ -279,15 +285,21 @@ CC <- list(
          ),
          "t-Test t-Value" = list(
             "cRow" = C.n.only,
-            "iRow" = T.T,
+            "iRow" = I.TT,
             "params" = tibble(T=c("C","I","I"), P=c("n","n","t"), V=0),
             "calc" = function(t) { return(esc_t(t=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
          ),
          "t-Test p-Value" = list(
             "cRow" = C.n.only,
-            "iRow" = T.P,
+            "iRow" = I.TP,
             "params" = tibble(T=c("C","I","I"), P=c("n","n","p"), V=0),
             "calc" = function(t) { return(esc_t(p=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
+         ),
+         "One-way ANOVA" = list(
+            "cRow" = C.n.only,
+            "iRow" = I.A,
+            "params" = tibble(T=c("C","I","I"), P=c("n","n","F"), V=0),
+            "calc" = function(t) { return(esc_f(f=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
          ),
          "Point-Biserial r" = list(
             "cRow" = C.n.only,
@@ -372,19 +384,24 @@ CC <- list(
    "ts2" = ts,
    "group" = group,
    "C" = function(n0, n1, es, es.in, es.out) {
+      v=as.numeric(NA)
       switch(es.in,
          "d"    = { d <- es },
          "g"    = { d <- 999 },
          "or"   = { d <- log(es) / (pi / sqrt(3)) },
-         "lor"  = { d <- es / (pi / sqrt(3)) },
+            # Bornstein-Intro to Meta-Analysis, formula:
+         "lor"  = { d <- es * sqrt(3) / pi },  # 7.1
          "rr"   = { d <- 999 },
          "lrr"  = { d <- 999 },
-         "r"    = { d <- (2 * es) / sqrt(1 - (es^2)) },
+            # Bornstein-Intro to Meta-Analysis, formula:
+         "r"    = { d <- (2 * es) / sqrt(1 - (es^2)) }, # 7.5
          "f"    = { d <- 2 * es },
          "eta2" = { d <- 2 * (sqrt(es / (1 - es))) },
          stop(paste0("In CC$C$C, ", es.in, " isn't a valid effect size to convert from."))
       )
-      v <- ((n1+n0)/(n1*n0)) + (d*d/(2*(n1+n0-2)))
+      if(is.na(v)) {
+         v <- ((n1+n0)/(n1*n0)) + (d*d/(2*(n1+n0-2)))
+      }
       switch(es.out,
          "d" = {
             es <- d
@@ -396,11 +413,15 @@ CC <- list(
          },
          "or" = {
             es <- exp(d * pi / sqrt(3))
-            v <- 999
+            v <- v * (pi  ^ 2) / 3
          },
-         "lor" = {
-            es <- d * pi / sqrt(3)
-            v <- 999
+         "lor" = { # Bornstein-Intro to Meta-Analysis, formula:
+            es <- d * pi / sqrt(3)  # 7.3
+            v <- v * (pi  ^ 2) / 3  # 7.4
+         },
+         "cox-lor" = {
+            es <- d * 1.65
+            v <- v / .367
          },
          "rr" = {
             es <- 999
@@ -410,9 +431,10 @@ CC <- list(
             es <- 999
             v <- 999
          },
-         "r" = {
-            es <- sqrt(d^2 / (d^2 + 4))
-            v <- 999
+         "r" = { # Bornstein-Intro to Meta-Analysis, formula:
+            a <- ((n0+n1)^2) / (n0*n1) # 7.8
+            es <- d / sqrt(d^2 + a)    # 7.7
+            v <- a^2*v / (d^2+a)^3     # 7.9
          },
          "f" = {
             es <- d / 2
@@ -441,8 +463,8 @@ saveRDS(CC, file="app/Calculators.RDS")
 
 
 rm(B.SD, B.SE, C.n.only, C.C, I.C, C.P, I.P, C.SD1, group, I.d, I.eta2,
-   I.f, I.g, I.lor, I.lrr, I.or, I.rr, I.r, I.SD1, PBR, r1, r2, r3, r4, T.P,
-   T.T, top, ts, ts1, calcRow, imGetBlankFORMrow)
+   I.f, I.g, I.lor, I.lrr, I.or, I.rr, I.r, I.SD1, PBR, r1, r2, r3, r4, I.TP,
+   I.TT, top, ts, ts1, calcRow, imGetBlankFORMrow)
 
 rm(CC)
 
