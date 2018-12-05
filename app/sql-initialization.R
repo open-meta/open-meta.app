@@ -5,7 +5,7 @@
 
 # Also creates "admin" and "shiny" users.
 
-DB.Initialization = function(A$burnItAllDown=FALSE) {
+DB.Initialization = function(burnItAllDown=FALSE) {
    # caller must set up dbLink
    start.time <- Sys.time()
    on.exit({
@@ -13,9 +13,8 @@ DB.Initialization = function(A$burnItAllDown=FALSE) {
       print(Sys.time() - start.time)
    })
 
-
    # TEST CODE - deletes users and database so the rest of the code is tested
-   if(A$burnItAllDown) {
+   if(burnItAllDown) {
       SQL.Users <- dbGetQuery(dbLink, "SELECT `user` FROM `mysql`.`user`;")
       if("admin" %in% SQL.Users$user) {
          r = dbExecute(dbLink, "DROP USER 'admin'@'localhost';")

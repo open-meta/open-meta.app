@@ -1,7 +1,7 @@
 ### open-meta.app email-core.R
 ### Tom Weishaar - May 2018 - v0.2
 
-# v0.2 - Added "noEmail" flag to put send emails in a modal dialog; this makes it possible to run the app
+# v0.2 - Added "A$noEmail" flag to put send emails in a modal dialog; this makes it possible to run the app
 #    on a development system without needing an email host.
 
 # v0.3 - Nov 2018 - Email now uses the AWS SES api rather than SMTP & mailR.
@@ -15,7 +15,7 @@ S$emailFromName <- S$emailFromAdr <- S$emailReplytoName <- S$emailReplytoAdr <- 
 ### sendEmail
 observeEvent(rv$sendEmail, {
    if(rv$sendEmail) {
-      if(noEmail) {
+      if(A$noEmail) {
          S$modal_title <<- "Email not sent, but text is:"
          S$modal_text <<- HTML("<p>Subject:", S$emailSubject, "</p>",
                                "<p>Body:", S$emailText, "</p>")

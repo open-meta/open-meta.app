@@ -13,7 +13,7 @@ if(admin_password=="admin.pw") {
 }
 
 ### You can work on code development without Amazon Simple Email Service credentials.
-#   In that case noEmail will be set to TRUE and sent emails will appear in a modal
+#   In that case A$noEmail will be set to TRUE and sent emails will appear in a modal
 #   dialog so you can see the subject and body. No email will actually be sent.
 #   However, in some places (e.g. trying to contact a  project's leaders), sending
 #   email is immediately followed by a redirect to a different page. The redirect
@@ -47,9 +47,9 @@ SESfromAdr <- ""           # Default "From" name and address. Address must be AW
 SESdelay <- 75             # ~ 14 emails per second max
 
 if(SESkey=="") {
-   noEmail = TRUE          # Email appears in a modal dialog
+   A$noEmail = TRUE          # Email appears in a modal dialog
 } else {
-   noEmail = FALSE         # Email is sent using AWS-SES api
+   A$noEmail = FALSE         # Email is sent using AWS-SES api
 }
 
 ### MySQL credentials

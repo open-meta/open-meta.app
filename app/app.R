@@ -6,16 +6,17 @@ sink(file=stderr())      # When on a server, this makes sure what we print() app
 ###  APP GLOBAL VARIABLES
 #    Most global variables are Session-Global rather than App-Global, but there are a few in this category:
 
-A <- list()              # This list is for Application Globals
-#A$burnItAllDown = TRUE  # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
+A <- list()                  # This list is for Application Globals
+#A$burnItAllDown = TRUE      # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
 A$burnItAllDown = FALSE
-A$debugON <- TRUE        # if TRUE, prints debugging info to the console (or server log)
-A$showSysMsg = TRUE      # Controls whether the big red box shows on the main site pages or not
-A$FORMfromDisk <- TRUE   # FALSE gets FORMs from SQL
-A$FORMtoDisk <-TRUE      # TRUE saves to both Disk and SQL; FALSE to SQL only
-A$PM_lastTime <- now()   # Used to space out PubMed Searches
-A$SES_lastTime <- now()  # Used to space out Email sends
-A$sessionNum <- 0        # Used to identify specific sessions in the debugging output
+A$debugON <- TRUE            # if TRUE, prints debugging info to the console (or server log)
+A$showSysMsg = TRUE          # Controls whether the big red box shows on the main site pages or not
+A$FORMfromDisk <- FALSE      # FALSE gets FORMs from SQL
+A$FORMtoDisk <- FALSE        # TRUE saves to both Disk and SQL; FALSE to SQL only
+A$PM_lastTime <- Sys.time()  # Used to space out PubMed Searches
+A$SES_lastTime <- Sys.time() # Used to space out Email sends
+A$sessionNum <- 0            # Used to identify specific sessions in the debugging output
+A$noEmail = FALSE            # See credentials.R for usage
 
 ### CREDENTIALS
 # You need to add four passwords to the credentials.R file to get started
@@ -26,8 +27,6 @@ if(file.exists("../om2_credentials.R")) {
    source("credentials.R", local=TRUE)
 }
 if(A$debugON) { print("Credentials loaded...") }
-
-noEmail = FALSE         # See credentials.R for usage
 
 ### LIBRARIES
 library(shiny)
@@ -49,7 +48,8 @@ library(rvest)
 
 library(aws.signature)
 library(RefManageR)     # BibTeX stuff
-library(esc)
+library(esc)            # Meta-analysis packages
+
 library(metafor)
 library(robumeta)
 library(bcrypt)         # password encryption
@@ -452,13 +452,12 @@ if(A$showSysMsg) {
    sysMsg = tagList(
       bs4("r", align="hc",
          bs4("c12", tagList(
-            bs4("d", class="card bg-danger mx-auto my-4", bs4("d", class="card-body",
-                  bs4("d", class="card-title", h4("Alpha-Test Mode")),
-                  bs4("d", class="card-text", style="color:#FFF;", HTML("Several parts ",
-                     "of the Open-Meta app are in alpha-test; others are unfinished. Feel ",
-                     "free to try to break things; nothing you do will be permanent -- I ",
-                     "still regularly have to burn down the database and start over. If you ",
-                     "have any questions, comments, or bug reports, <a href='?Help', ",
+            bs4("d", class="card bg-success mx-auto my-4", bs4("d", class="card-body",
+                  bs4("d", class="card-title", h4("Beta-Test Mode")),
+                  bs4("d", class="card-text", style="color:#000;", HTML("Most of the ",
+                     "Open-Meta app is now in beta-test; a few features are unfinished. Feel ",
+                     "free to start real projects but expect to find an occasional bug, which ",
+                     "I will fix once you let me know about it. And if you have any other questions <a href='?Help', ",
                      "style='color:#FDD;'><u>I\'m eager to hear them</u></a>."))
                ))
    ))))
