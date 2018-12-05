@@ -30,6 +30,7 @@ rv$menu2Active <- 1
 
 S$PRK$Studies$activePage <- 1
 rv$limnExtraction <- 0
+rv$limnpickStudy <- 0
 rv$limnviewStudy <- 0
 rv$limnviewArm <- 0
 rv$limnviewCalculator <- 0
@@ -139,11 +140,11 @@ output$editForm <- renderUI({c(rv$limn); isolate({
 })})
 
 output$Dashboard <- renderUI({c(rv$limn); isolate({
-   S$NUMs$extractID <- 0
-   S$NUMs$catalogID <- 0
-   S$NUMs$studyNUM <- 0
-   S$NUMs$armNUM <- 0
-   S$NUMs$armNUMnext <- 0
+   S$NUMs$extractID <<- 0
+   S$NUMs$catalogID <<- 0
+   S$NUMs$studyNUM <<- 0
+   S$NUMs$armNUM <<- 0
+   S$NUMs$armNUMnext <<- 0
    return(
       tagList(
          bs4("c12", "Dashboard Here")
@@ -189,11 +190,11 @@ include that name and allow you to gather these reports together here under the 
 
 
 output$PICOSetup <- renderUI({c(rv$limn); isolate({
-   S$NUMs$extractID <- 0
-   S$NUMs$catalogID <- 0
-   S$NUMs$studyNUM <- 0
-   S$NUMs$armNUM <- 0
-   S$NUMs$armNUMnext <- 0
+   S$NUMs$extractID <<- 0
+   S$NUMs$catalogID <<- 0
+   S$NUMs$studyNUM <<- 0
+   S$NUMs$armNUM <<- 0
+   S$NUMs$armNUMnext <<- 0
    if(S$picoDisplay=="add") {
       return(
          tagList(
@@ -351,11 +352,8 @@ additional information on each time span.</p>"
 
 output$editPico <- renderUI({c(rv$limn); isolate({
    S$Pico$Form <<- imGetFORM(S$picoName[2])        # S$picoName is set in picoPickR
-   View(S$Pico$Form)
-   if(S$recID>0) {                               # If this is an edit, get the FORM's current values; S$recID set in addPico, editPico
+   if(S$recID>0) {                                 # If this is an edit, get the FORM's current values; S$recID set in addPico, editPico
       R <- recGet(S$db, "pico", c("name", "value"), tibble(c("picoNUM", "=", imID2NUM(S$recID, "pico"))))
-      View(R)
-
       for(i in 1:nrow(S$Pico$Form)) {              # Insert values from R into form$value
          S$Pico$Form$value[i] <<- R$value[R$name==S$Pico$Form$name[i]]    # In FORM, "name" is the short label
       }                                                               # In R, it's the "name" of the "value"
@@ -420,13 +418,12 @@ output$Extraction <- renderUI({c(rv$limn, rv$limnExtraction); isolate({
 #    )
 # })})
 
-output$pickStudy <- renderUI({c(rv$limn, rv$limnExtraction); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
-#   print("Running output$pickStudy")
+output$pickStudy <- renderUI({c(rv$limn, rv$limnpickStudy); isolate({ # !!!Note that rv$limnForms must be rv[[paste0("limn",ID)]]!!!
    if(S$NUMs$catalogID>0) {
       return("")
    } else {
    ###### pickR start
-      ID = "Studies"                                                 # This allows multiple pickRs on a single page
+      ID = "pickStudy"                                               # This allows multiple pickRs on a single page
       TABLE = "catalog"                                              # The table the pickR data will come from
       WHERE = "extract"                       # Special handling for citesFilter
       FilterF = citesFilter                                                   # typically whereFilter
@@ -473,7 +470,7 @@ studyFix <- function(R) {
    catalog$reviewBest <- statusText[catalog$reviewBest + 1]
    Rx <- S$extractTBL %>%
       filter(catalogID %in% R$catalogID & name=="Trial") %>%         # filter extract table; these should be unique
-      select(catalogID, value) %>%                               # just need Trial
+      select(catalogID, value) %>%                                   # just need Trial
       merge(catalog, all.x=TRUE) %>%                                 # add reviewBest, Y, author
       merge(R, all.x=TRUE) %>%                                       # add buttons
       arrange(Y, author) %>%                                         # sort
@@ -493,7 +490,7 @@ prf_5.3.4r = function(r) {                        # Standard function for one co
 </div>', collapse = ''))
 }
 
-output$viewStudy <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewStudy); isolate({
+output$viewStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
 #   print("Running output$viewStudy")
    if(S$NUMs$catalogID==0) {
       return("")
@@ -551,7 +548,7 @@ output$viewStudy <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewStudy); i
    }
 })})
 
-output$viewArm <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm); isolate({
+output$viewArm <- renderUI({c(rv$limn, rv$limnviewArm); isolate({
 #   print(paste0("Running output$viewArm; armNUM: ", S$NUMs$armNUM))
    if(S$NUMs$studyNUM==0) {
       return("")
@@ -695,7 +692,7 @@ output$viewResults <- renderUI({c(rv$limnviewCalculator); isolate({
    }
    r <- recGet(S$db, "result", SELECT="*", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
                                                          c("armNUM", "=", S$NUMs$armNUM)))
-
+   if(r$resultID[1]==0) { return("")} # No results yet
    r <- r %>% arrange(O,I,TS)
    omf <- function(n) { format(as.numeric(n), digits=3, scientific=FALSE) }
    omES <- function(i) {
@@ -763,7 +760,7 @@ output$viewResults <- renderUI({c(rv$limnviewCalculator); isolate({
    # return(fp)
 })})
 
-output$studyYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewStudy); isolate({
+output$studyYbox <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
    if(S$NUM$armNUM>0) {
       return("")
    } else {
@@ -776,7 +773,7 @@ output$studyYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewStudy); i
    }
 })})
 
-output$ArmYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm); isolate({
+output$ArmYbox <- renderUI({c(rv$limn, rv$limnviewArm); isolate({
    if(S$NUM$armNUM>0) {
       return("")
    } else {
@@ -789,7 +786,7 @@ output$ArmYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm); isola
    }
 })})
 
-output$CalculatorYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewCalculator); isolate({
+output$CalculatorYbox <- renderUI({c(rv$limn, rv$limnviewCalculator); isolate({
    return("")
    if(S$NUM$armNUM==0) {
       return("")
@@ -803,8 +800,7 @@ output$CalculatorYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm,
    }
 })})
 
-output$ResultsYbox <- renderUI({c(rv$limn, rv$limnExtraction, rv$limnviewArm, rv$limnviewCalculator,
-                                 rv$limnviewResults); isolate({
+output$ResultsYbox <- renderUI({c(rv$limn, rv$limnviewResults); isolate({
    return("")
    if(S$NUM$armNUM==0) {
       return("")
@@ -827,20 +823,11 @@ observeEvent(input$js.omclick, {
    id = uid[[1]][1]        # We don't care about the value of uid[[1]][3]; it's just there
    n  = uid[[1]][2]        #   to guarantee Shiny.onInputChange sees something new and returns it.
    switch(id,
-      "pgn" = {                    # For pgn, [2] or n is the form name, [3] is the recID
-         S$PKR[[n]]$activePage <<- as.numeric(uid[[1]][3])
-         limnID = paste0("limn", n)         # The pickR render should respond to this rv$limn...;
-         rv[[limnID]] <- rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
-      },
-      "filter" = {
-         rv$limnExtraction <- rv$limnExtraction + 1
-#         rv$render = rv$render+1
-      },
       "menu1" = {
          S$hideMenus <<- FALSE
-#         S$PGN$activePage <- 1                    # When changing submenu, set scroller back to 1
+#         S$PGN$activePage <- 1             # When changing submenu, set scroller back to 1
          rv$menu1Active = n
-         if(n==3) {                                # Extraction, start at beginning
+         if(n==3) {                         # Extraction, start at beginning
             S$NUMs$catalogID <<- 0
             S$NUMs$studyNUM <<- 0
             S$NUMs$armNUM <<- 0
@@ -851,14 +838,17 @@ observeEvent(input$js.omclick, {
       "menu2" = {
          S$hideMenus <<- FALSE
          S$picoDisplay <<- "add"
-#         S$PGN$activePage <- 1                    # When changing submenu, set scroller back to 1
+#         S$PGN$activePage <- 1             # When changing submenu, set scroller back to 1
          rv$menu2Active = n
          rv$limn = rv$limn+1
       },
-      "pgn" = {                    # For pgn, [2] or n is the form name, [3] is the recID
+      "pgn" = {                             # For pgn, [2] or n is the form name, [3] is the recID
          S$PKR[[n]]$activePage <<- as.numeric(uid[[1]][3])
          limnID = paste0("limn", n)         # The pickR render should respond to this rv$limn...;
-         rv[[limnID]] = rv[[limnID]] + 1    # rv$limn... also needs to be pre-defined at the top of the script
+         rv[[limnID]] = rv[[limnID]] + 1    # if it's not working, make sure rv$limn... is pre-defined at the top of the script
+      },
+      "filter" = {
+         rv$limnpickStudy <- rv$limnpickStudy + 1
       },
       "addPico" = {
          S$recID <<- 0
@@ -975,9 +965,9 @@ observeEvent(input$js.omclick, {
          msg=""
          switch(n,
             "PrjForm-Arm" = {
-               n <- str_trim(stripHTML(as.character(input[["idArmName"]]))) == ""
-               i <- is.null(input[["idArmI"]])
-               ts <- is.null(input[["idArmTS"]])
+               n <- str_trim(stripHTML(as.character(input[["ArmName"]]))) == ""
+               i <- is.null(input[["ArmI"]])
+               ts <- is.null(input[["ArmTS"]])
                if(n) {
                   msg = paste0(msg, "<li>Arm name can't be blank</li>")
                }
@@ -1099,9 +1089,9 @@ makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
    OisOptions <- names(CC$C)                           # Options for Ois and Cis selectors
    CisOptions <- names(CC$C[[Ois]])                    #    Outcome is handled in caller, which already has the info.
    if(!Cis %in% CisOptions) { Cis <- CisOptions[1] }   #    Use first Cis as the default when user switches Ois
-   tsVec <- S$Arm$FORM %>% filter(id=="idArmTS") %>% pull(value)  # Get Time Spans and Interventions checked in
+   tsVec <- S$Arm$FORM %>% filter(id=="ArmTS") %>% pull(value)  # Get Time Spans and Interventions checked in
    tsVec <- unlist(str_split(tsVec, fixed(";")))                  #   Arm form
-   iVec <- S$Arm$FORM %>% filter(id=="idArmI") %>% pull(value)
+   iVec <- S$Arm$FORM %>% filter(id=="ArmI") %>% pull(value)
    iVec <- unlist(str_split(iVec, fixed(";")))
    # Top rows of FORM
    # Visually this is two rows
@@ -1175,17 +1165,17 @@ calcNsave <- function() {
    r$value[2] <- toJSON(S$IN$FORM)
    r <- recSave(r, S$db)
    # Calculate effect sizes and save in the results table
-   tsVec <- S$Arm$FORM %>% filter(id=="idArmTS") %>% pull(value)  # Get Time Spans and Interventions checked in
+   tsVec <- S$Arm$FORM %>% filter(id=="ArmTS") %>% pull(value)  # Get Time Spans and Interventions checked in
    tsVec <- unlist(str_split(tsVec, fixed(";")))                  #   Arm form
-   iVec <- S$Arm$FORM %>% filter(id=="idArmI") %>% pull(value)
+   iVec <- S$Arm$FORM %>% filter(id=="ArmI") %>% pull(value)
    iVec <- unlist(str_split(iVec, fixed(";")))
    # For each Time Span by Intervention, calulate results and save in result table
    msg=""
    for(ts in 1:S$IN$FORM$min[1]) {                          # number of Time Spans in this FORM
       for(i in 1:S$IN$FORM$max[1]) {                        # number of Interventions in this FORM
-         P.PICO  <- S$Arm$FORM %>% filter(id=="idArmP") %>% pull("value")
+         P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
          I.PICO  <- iVec[i]
-         C.PICO  <- S$Arm$FORM %>% filter(id=="idArmC") %>% pull("value")
+         C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
          O.PICO  <- S$IN$FORM$value[1]                      # 1st row always has selected Outcome
          TS.PICO <- tsVec[ts]
          r <- recGet(S$db, "result", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
@@ -1218,7 +1208,18 @@ calcNsave <- function() {
          if(any(is.na(t$V))) {
             msg = paste0(msg, "<li>", r$I[2], " in ", r$TS[2], "</li>")
          } else {
-            e <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]](t)
+            # Need to reverse sign of effect size because lower scores are better?
+            picoNUM <- recGet(S$db, "pico", "picoNUM", tibble(c("name", "=", "Outcome"),
+                                                              c("value", "=", O.PICO)))
+            Ohio <- recGet(S$db, "pico", c("value"), tibble(c("picoNUM", "=", picoNUM$picoNUM[1]),
+                                                            c("name", "=", "OutcomeHi")))
+            e <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]](t) # Call the right calculation function in CC$
+            if(Ohio$value[1]=="Lower scores are better") {
+               e$es <- -e$es                                # reversal happens here
+               save.lo <- e$ci.lo
+               e$ci.lo <- -e$ci.hi
+               e$ci.hi <- -save.lo
+            }
             r$info[2]   <- e$info
             r$esType[2] <- e$measure
             r$nC[2]     <- nC
@@ -1229,7 +1230,7 @@ calcNsave <- function() {
             r$ci.lo[2]  <- format(e$ci.lo, digits=6)
             r$ci.hi[2]  <- format(e$ci.hi, digits=6)
             r$weight[2] <- format(e$w, digits=6)
-            r <- recSave(r, S$db)
+            r <- recSave(r, S$db)                           # save results
          }
       }
    }
@@ -1248,9 +1249,9 @@ calcCheck <- function(savedFORM) {
    tsn <- as.numeric(savedFORM$min[1])                               # This is the number of Time Spans in savedFORM
    tsVecSaved <- v[1:tsn]
    iVecSaved <-  v[((tsn+2):(length(v)))]                            # 2 to skip over "Control Group"
-   tsVecArm <- S$Arm$FORM %>% filter(id=="idArmTS") %>% pull(value)  # Get Time Spans selected in Arm specification
+   tsVecArm <- S$Arm$FORM %>% filter(id=="ArmTS") %>% pull(value)  # Get Time Spans selected in Arm specification
    tsVecArm <- unlist(str_split(tsVecArm, fixed(";")))
-   iVecArm <- S$Arm$FORM %>% filter(id=="idArmI") %>% pull(value)    # Same for Interventions
+   iVecArm <- S$Arm$FORM %>% filter(id=="ArmI") %>% pull(value)    # Same for Interventions
    iVecArm <- unlist(str_split(iVecArm, fixed(";")))
    if(identical(tsVecSaved,tsVecArm) && identical(iVecSaved,iVecArm)) {  # If everything is the same, we're good to go.
       return(savedFORM)
@@ -1278,9 +1279,9 @@ calcCheck <- function(savedFORM) {
    for(ts in 1:length(tsVecSaved)) {
       for(i in 1:length(iVecSaved)) {
          if(!(tsVecSaved[ts] %in% tsVecArm) || !(iVecSaved[i] %in% iVecArm)) {
-            P.PICO  <- S$Arm$FORM %>% filter(id=="idArmP") %>% pull("value")
+            P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
             I.PICO  <- iVecSaved[i]
-            C.PICO  <- S$Arm$FORM %>% filter(id=="idArmC") %>% pull("value")
+            C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
             O.PICO  <- savedFORM$value[1]                            # 1st row always has selected Outcome
             TS.PICO <- tsVecSaved[ts]
             r <- recGet(S$db, "result", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
