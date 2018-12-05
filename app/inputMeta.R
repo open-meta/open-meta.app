@@ -153,6 +153,7 @@ imShowInputs <- function() {
    ir$value = S$IN$view
    ir$options = "Look and Feel; Action Buttons"
    ir$label = "Show"
+   ir$inline = TRUE
    showWhatBut = ""
    if(S$IN$flag$showAddInputButton) {             # only show the Look and Feel/Action Buttons choice when NOT editing
       showWhatBut = imForm2HTML(ir)
