@@ -667,13 +667,14 @@ output$viewCalculator <- renderUI({c(rv$limn, rv$limnviewCalculator, input$Outco
    ## Add all current outcomes to every form
    FORM[1, "options"] <- paste0(allOutcomes, collapse=";")
    FORM[1, "value"] <- OutcomePICO
-   S$IN$FORM <<- FORM
    if(S$P$Modify) {
-      saveResultsBtn <- tagList(
+      saveResultsBtn <- tagList(             # Deal with Permission issues
          bs4("c12", class="text-right", bs4("btn", uid=paste0("calcNsave_", CalcName), q="g", class="mr-3", "Save Results")))
    } else {
       saveResultsBtn <- ""
+      FORM$disabled[2:nrow(FORM)] <- TRUE    # Don't disable Outcome selector
    }
+   S$IN$FORM <<- FORM
    return(tagList(
       imForm2HTML(FORM),
       saveResultsBtn
@@ -820,7 +821,6 @@ observeEvent(input$js.omclick, {
    switch(id,
       "menu1" = {
          S$hideMenus <<- FALSE
-#         S$PGN$activePage <- 1             # When changing submenu, set scroller back to 1
          rv$menu1Active = n
          if(n==3) {                         # Extraction, start at beginning
             S$NUMs$extractID <<- 0
@@ -835,7 +835,6 @@ observeEvent(input$js.omclick, {
       "menu2" = {
          S$hideMenus <<- FALSE
          S$picoDisplay <<- "add"
-#         S$PGN$activePage <- 1             # When changing submenu, set scroller back to 1
          rv$menu2Active = n
          rv$limn = rv$limn+1
       },
@@ -848,16 +847,20 @@ observeEvent(input$js.omclick, {
          rv$limnpickStudy <- rv$limnpickStudy + 1
       },
       "addPico" = {
-         S$recID <<- 0
-         S$picoDisplay <<- "edit"
-         S$hideMenus <<- TRUE
-         rv$limn = rv$limn+1
+         if(S$P$Modify) {
+            S$recID <<- 0
+            S$picoDisplay <<- "edit"
+            S$hideMenus <<- TRUE
+            rv$limn = rv$limn+1
+         }
       },
       "editPico" = {
-         S$recID <<- n
-         S$picoDisplay <<- "edit"
-         S$hideMenus <<- TRUE
-         rv$limn = rv$limn+1
+         if(S$P$Modify) {
+            S$recID <<- n
+            S$picoDisplay <<- "edit"
+            S$hideMenus <<- TRUE
+            rv$limn = rv$limn+1
+         }
       },
       "viewPico" = {
          S$recID <<- n
@@ -866,26 +869,28 @@ observeEvent(input$js.omclick, {
          rv$limn = rv$limn+1
       },
       "savePico" = {
-         S$IN$recID <<- S$recID
-         empty=0
-         for(i in which(S$Pico$Form$placeholder=="Required...")) {
-            empty <- empty + (input[[S$Pico$Form$id[i]]]=="")
-         }
-         if(empty!=0) {
-            if(empty==1) {
-               S$modal_text <<- HTML0("<p>You need to enter something in the required field.</p>")
-            } else {
-               S$modal_text <<- HTML0("<p>You need to enter something in ", empty, " required fields.</p>")
+         if(S$P$Modify) {
+            S$IN$recID <<- S$recID
+            empty=0
+            for(i in which(S$Pico$Form$placeholder=="Required...")) {
+               empty <- empty + (input[[S$Pico$Form$id[i]]]=="")
             }
-            S$modal_title <<- "Whoops."
-            S$modal_size <<- "m"
-            rv$modal_warning <- rv$modal_warning + 1
-         } else {
-            S$IN$FORM <<- S$Pico$Form
-            rv$imGetFORMData <<- rv$imGetFORMData + 1
-            S$picoDisplay <<- "add"
-            S$hideMenus <<- FALSE
-            rv$menuActive = 2
+            if(empty!=0) {
+               if(empty==1) {
+                  S$modal_text <<- HTML0("<p>You need to enter something in the required field.</p>")
+               } else {
+                  S$modal_text <<- HTML0("<p>You need to enter something in ", empty, " required fields.</p>")
+               }
+               S$modal_title <<- "Whoops."
+               S$modal_size <<- "m"
+               rv$modal_warning <- rv$modal_warning + 1
+            } else {
+               S$IN$FORM <<- S$Pico$Form
+               rv$imGetFORMData <<- rv$imGetFORMData + 1
+               S$picoDisplay <<- "add"
+               S$hideMenus <<- FALSE
+               rv$menuActive = 2
+            }
          }
       },
       "cancelPico" = {
@@ -895,14 +900,16 @@ observeEvent(input$js.omclick, {
          rv$limn = rv$limn+1
       },
       "deletePico" = {
-         NUM <- imID2NUM(n, "pico")                                         # Get the NUM for this picoID
-         picoids <- S$picoTBL %>% filter(picoNUM==NUM) %>% select(picoID) %>% collect()
-         for(id in picoids$picoID) {                                        # For each ID, delete the record
-            r <- recGet(S$db, "pico", "**", tibble(c("picoID", "=", id)))
-            r$deleted[2] <- 1
-            recSave(r, S$db)
+         if(S$P$Modify) {
+            NUM <- imID2NUM(n, "pico")                                         # Get the NUM for this picoID
+            picoids <- S$picoTBL %>% filter(picoNUM==NUM) %>% select(picoID) %>% collect()
+            for(id in picoids$picoID) {                                        # For each ID, delete the record
+               r <- recGet(S$db, "pico", "**", tibble(c("picoID", "=", id)))
+               r$deleted[2] <- 1
+               recSave(r, S$db)
+            }
+            rv$limnPico = rv$limnPico + 1
          }
-         rv$limnPico = rv$limnPico + 1
       },
       "viewStudy" = {
          S$NUMs$catalogID <<- as.numeric(n)
@@ -928,68 +935,78 @@ observeEvent(input$js.omclick, {
       "deleteX" = {
          # This should refuse to delete an arm until all its outcomes have been deleted
          #   and refuse to delete an outcome until all its intervention data has been deleted.
-         warning("deleteX needs work.")
-         r <- recGet(S$db, "extract", c("catalogID", "armNUM", "outcome"),
-                     tibble(c("extractID", "=", n)))
-         WHERE <- tibble(
-            c = c("catalogID", "=", r$catalogID),
-            a = c("armNUM", "=", r$armNUM))
-         if(r$outcome != "") {
-            WHERE$o = c("outcome", "=", r$outcome)
+         if(S$P$Modify) {
+            warning("deleteX needs work.")
+            r <- recGet(S$db, "extract", c("catalogID", "armNUM", "outcome"),
+                        tibble(c("extractID", "=", n)))
+            WHERE <- tibble(
+               c = c("catalogID", "=", r$catalogID),
+               a = c("armNUM", "=", r$armNUM))
+            if(r$outcome != "") {
+               WHERE$o = c("outcome", "=", r$outcome)
+            }
+            r <- recGet(S$db, "extract", "extractID", WHERE)
+            for(id in r$extractID) {
+               rX <-recGet(S$db, "extract", "**", tibble(c("extractID", "=", id)))
+               rX$deleted[2] <- 1
+               rx <- recSave(rX, S$db)
+            }
+            rv$limnviewArm = rv$limnviewArm + 1
          }
-         r <- recGet(S$db, "extract", "extractID", WHERE)
-         for(id in r$extractID) {
-            rX <-recGet(S$db, "extract", "**", tibble(c("extractID", "=", id)))
-            rX$deleted[2] <- 1
-            rx <- recSave(rX, S$db)
-         }
-         rv$limnviewArm = rv$limnviewArm + 1
       },
       "addForm" = {
-         S$editFORM <<- TRUE
-         S$Arm$FORMname <<- n
-         S$NUMs$armNUM <<- S$NUMs$armNUMnext
-         S$hideMenus <<- TRUE
-         rv$limn <- rv$limn + 1
+         if(S$P$Modify) {
+            S$editFORM <<- TRUE
+            S$Arm$FORMname <<- n
+            S$NUMs$armNUM <<- S$NUMs$armNUMnext
+            S$hideMenus <<- TRUE
+            rv$limn <- rv$limn + 1
+         }
       },
       "editForm" = {
-         S$editFORM <<- TRUE
-         S$Arm$FORMname <<- n
-         S$hideMenus <<- TRUE
-         rv$limn <- rv$limn + 1
+         if(S$P$Modify) {
+            S$editFORM <<- TRUE
+            S$Arm$FORMname <<- n
+            S$hideMenus <<- TRUE
+            rv$limn <- rv$limn + 1
+         }
       },
       "saveForm" = {
-         msg=""
-         switch(n,
-            "PrjForm-Arm" = {
-               n <- str_trim(stripHTML(as.character(input[["ArmName"]]))) == ""
-               i <- is.null(input[["ArmI"]])
-               ts <- is.null(input[["ArmTS"]])
-               if(n) {
-                  msg = paste0(msg, "<li>Arm name can't be blank</li>")
+         if(S$P$Modify) {
+            msg=""
+            switch(n,
+               "PrjForm-Arm" = {
+                  n <- str_trim(stripHTML(as.character(input[["ArmName"]]))) == ""
+                  i <- is.null(input[["ArmI"]])
+                  ts <- is.null(input[["ArmTS"]])
+                  if(n) {
+                     msg = paste0(msg, "<li>Arm name can't be blank</li>")
+                  }
+                  if(i) {
+                     msg = paste0(msg, "<li>You must check at least one Intervention</i></li>")
+                  }
+                  if(ts) {
+                     msg = paste0(msg, "<li>You must check at least one Time Span</i></li>")
+                  }
                }
-               if(i) {
-                  msg = paste0(msg, "<li>You must check at least one Intervention</i></li>")
-               }
-               if(ts) {
-                  msg = paste0(msg, "<li>You must check at least one Time Span</i></li>")
-               }
+            )
+            if(msg=="") {
+               S$editFORM <<- FALSE
+               S$hideMenus <<- FALSE
+               rv$imGetFORMData <- rv$imGetFORMData + 1
+               rv$limnviewArm <- rv$limnviewArm+1
+            } else {
+               S$modal_title <<- "Whoops"
+               S$modal_text <<- HTML("<p>Can't save form because:<ul>", msg, "</ul></p>")
+               rv$modal_warning <- rv$modal_warning + 1
             }
-         )
-         if(msg=="") {
-            S$editFORM <<- FALSE
-            S$hideMenus <<- FALSE
-            rv$imGetFORMData <- rv$imGetFORMData + 1
-            rv$limnviewArm <- rv$limnviewArm+1
-         } else {
-            S$modal_title <<- "Whoops"
-            S$modal_text <<- HTML("<p>Can't save form because:<ul>", msg, "</ul></p>")
-            rv$modal_warning <- rv$modal_warning + 1
          }
       },
       "calcNsave" = {
-         r <- calcNsave()
-         rv$limnviewCalculator <- rv$limnviewCalculator + 1
+         if(S$P$Modify) {
+            r <- calcNsave()
+            rv$limnviewCalculator <- rv$limnviewCalculator + 1
+         }
       },
       "cancelForm" = {
          switch(n,
@@ -1138,7 +1155,7 @@ makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
       }
    }
    r <- bind_rows(r,s,c,v)
-   r$order <- 1:nrow(r)                                # Fix order column
+   r$order <- 1:nrow(r)                                     # Fix order column
    return(r)
 }
 
