@@ -190,11 +190,6 @@ include that name and allow you to gather these reports together here under the 
 
 
 output$PICOSetup <- renderUI({c(rv$limn); isolate({
-   S$NUMs$extractID <<- 0
-   S$NUMs$catalogID <<- 0
-   S$NUMs$studyNUM <<- 0
-   S$NUMs$armNUM <<- 0
-   S$NUMs$armNUMnext <<- 0
    if(S$picoDisplay=="add") {
       return(
          tagList(
@@ -622,7 +617,7 @@ prf_arm = function(r) {                        # Standard function for one colum
 </div>', collapse = ''))
 }
 
-output$viewCalculator <- renderUI({c(rv$limnviewCalculator, input$OutcomePICO, input$Ois, input$Cis); isolate({
+output$viewCalculator <- renderUI({c(rv$limn, rv$limnviewCalculator, input$OutcomePICO, input$Ois, input$Cis); isolate({
    if(S$NUMs$studyNUM==0 || S$NUMs$armNUM==0) {                # If no studyNUM or armNUM, don't display the Calculator
       return("")
    }
@@ -686,7 +681,7 @@ output$viewCalculator <- renderUI({c(rv$limnviewCalculator, input$OutcomePICO, i
 })})
 
 #output$viewResults <- renderPlot({c(rv$limnviewCalculator); isolate({
-output$viewResults <- renderUI({c(rv$limnviewCalculator); isolate({
+output$viewResults <- renderUI({c(rv$limn, rv$limnviewCalculator); isolate({
    if(S$NUMs$armNUM==0) {
       return("")
    }
@@ -828,9 +823,11 @@ observeEvent(input$js.omclick, {
 #         S$PGN$activePage <- 1             # When changing submenu, set scroller back to 1
          rv$menu1Active = n
          if(n==3) {                         # Extraction, start at beginning
+            S$NUMs$extractID <<- 0
             S$NUMs$catalogID <<- 0
             S$NUMs$studyNUM <<- 0
             S$NUMs$armNUM <<- 0
+            S$NUMs$armNUMnext <<- 0
             S$hideMenus <<- FALSE
          }
          rv$limn = rv$limn+1
