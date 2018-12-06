@@ -475,3 +475,13 @@ rm(CC)
 # #   return((((n1+n2)/(n1*n2)) + (d*d/(2*(n1+n2-2)))) * ((n1+n2)/(n1+n2-2)))
 #    return((((n1+n2)/(n1*n2)) + (d*d/(2*(n1+n2-2))))) # dropping the multiplication matchs the Wilson calculator
 # }
+
+# from: https://stats.stackexchange.com/questions/130237/convert-hazards-ratio-to-odds-ratio
+# Exploiting the assumption that hazard ratios are asymptotically similar to relative risks, you can use exploit the formula recommendeed by Grant et al, BMJ 2014:
+#    RR = OR / (1 - p + (p * OR)
+# where RR is the relative risk, OR is the odds ratio, and p is the control event rate, which leads to the following:
+#    OR = ((1 - p) * RR) / (1 - RR * p)
+# Thus, for instance, a RR of 2.0 with a p of 0.1 would lead to an OR of 2.25, whereas if p increases to 0.2 it would lead to an OR of 2.67.
+
+
+
