@@ -47,19 +47,19 @@ if(S$P$Msg=="") {
             cites = recGet(S$db, "catalog", c("catalogID", "dupOf", "reviewBest", "reviewCount"), tibble(c("catalogID", ">", 0)))
             if(cites$catalogID[1]>0) {                                                     # Prepare data for doughnut charts
                noText <- ""
-               aData <- c(sum(cites$dupOf==0), sum(cites$dupOf!=0))
+               aData <- c(sum(cites$dupOf==0), sum(cites$dupOf!=0))                        # Chart 1 - Duplicates
                aColors <- c("#1997c6","#9F86FF")
                cites = cites[cites$dupOf==0,]
-               bData <- c(sum(cites$reviewBest==0), sum(cites$reviewBest==1),sum(cites$reviewBest==2)) # Have cites, chart 1
-               bColors <- c("#1997c6","#9F86FF","#1BC98E")
-               if(sum(cites$reviewCount>0)==0) {                                           # Have cites, but no reviews, chart 2
+               bData <- c(sum(cites$reviewBest==0), sum(cites$reviewBest==1),sum(cites$reviewBest>1))
+               bColors <- c("#1997c6","#9F86FF","#1BC98E")                                 # Chart 2 - Stage 1 - Not Reviewed,
+               if(sum(cites$reviewCount>0)==0) {                                           #    Fail, Pass
                   cData <- c(1,1,1)
                   cColors <- c("#6c757d","#6c757d","#6c757d")
-               } else {                                                                    # Have cites & reviews, chart 2
+               } else {                                                                    # Chart 3 - By number or reviews
                   cData <- c(sum(cites$reviewCount==1), sum(cites$reviewCount==2), sum(cites$reviewCount>2))
                   cColors <- c("#1997c6","#9F86FF","#1BC98E")
                }
-            } else {                                                                       # No cites, no reviews, both charts
+            } else {                                                                       # No cites, no reviews, all charts
                noText <- "<h5>Nothing to review yet</h5>"
                bData <- c(1,1,1)
                bColors <- c("#6c757d","#6c757d","#6c757d")
