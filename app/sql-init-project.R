@@ -37,7 +37,7 @@ initProject = function(projectID, projectName, pool) {
    r = newRec("settings")
    r$name[2] = "failBoxNames"
    r$value[2] = toJSON(c("No Fulltext", "Study DNMPC", "Participants DNMPC", "Intervention DNMPC",
-                         "Comparison DNMPC", "Outcomes DNMPC"))
+                         "Comparison DNMPC", "Outcome DNMPC", "Time Span DNMPC"))
    r = recSaveR(r, db=S$db, pool=pool)
 
    r = newRec("settings")
