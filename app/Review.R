@@ -50,7 +50,7 @@ if(S$P$Msg=="") {
                aData <- c(sum(cites$dupOf==0), sum(cites$dupOf!=0))                        # Chart 1 - Duplicates
                aColors <- c("#1997c6","#9F86FF")
                cites = cites[cites$dupOf==0,]
-               bData <- c(sum(cites$reviewBest==0), sum(cites$reviewBest==1),sum(cites$reviewBest>1))
+               bData <- c(sum(cites$reviewBest==0), sum(cites$reviewBest==1), sum(cites$reviewBest>1))
                bColors <- c("#1997c6","#9F86FF","#1BC98E")                                 # Chart 2 - Stage 1 - Not Reviewed,
                if(sum(cites$reviewCount>0)==0) {                                           #    Fail, Pass
                   cData <- c(1,1,1)
