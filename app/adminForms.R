@@ -196,47 +196,14 @@ observeEvent(input$js.omclick, {
             S$IN$flag$showAddInputButton <<- TRUE
             S$display <<- "newForm"
             S$hideMenus <<- TRUE
-            rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
-         }
-      },
-      "editForm" = {               # This doesn't use imGetForm because at this point we have the form's ID rather than its name.
-         if(S$P$Modify) {
-            r <-recGet("om$prime", "settings", c("name","value"), tibble(c("settingsID", "=", n)))
-            S$IN$FORMname <<- r$name
-            fileName <- paste0("FORMs/", S$IN$FORMname, ".csv")
-            if(A$FORMfromDisk && file.exists(fileName)) {
-               print("Loading file...")
-               S$IN$FORM <<- read_csv(fileName, na=character(), col_types="ccccccccccccccccccclllln")
-            } else {
-               print("Loading from SQL...")
-               S$IN$FORM <<- as.tibble(fromJSON(r$value))           # Yes, unJSONize as it's a tibble
-            }
-   #         View(S$IN$FORM)
-            S$IN$flag$showAddInputButton <<- TRUE
-            S$IN$flag$oldInput <<- FALSE                      # Need this for the Look and Feel item-disabling if()
-            S$display <<- "editForm"
-            S$hideMenus <<- TRUE
-            rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
-         }
-      },
-      "deleteForm" = {
-         if(S$P$Modify) {
-            r <-recGet(S$db, "settings", c("name","value"), tibble(c("settingsID", "=", n)))
-            S$IN$FORM <<- as.tibble(fromJSON(r$value))
-            dbLink <- poolCheckout(shiny.pool)                              # When deleting a FORM, we also need to delete
-            on.exit(poolReturn(dbLink), add = TRUE)                         #   its ids from the ids table
-            for(i in 1:nrow(S$IN$FORM)) {
-               r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[i, "id"], "';"))
-            }
-            r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`settings` WHERE settingsID='", n, "';"))
-            rv$limn = rv$limn + 1
+            rv$limn <- rv$limn +1  # Need to limn at this level to hideMenus
          }
       },
       "saveAdd" = {
          if(S$P$Modify) {
             f = str_trim(stripHTML(input[[S$newFormNameID]]))
             if(str_sub(f, 1, 5)=="Form-" || str_sub(f, 1, 8)=="PrjForm-") {
-               r = recGet(om$prime, "settings", "**", tibble(c("name", "=", f)))   # all forms are in om$prime but not in S$db
+               r = recGet("om$prime", "settings", "**", tibble(c("name", "=", f)))   # all forms are in om$prime but not in S$db
                   if(r[[1,1]]==0) {
                      r$name[2] <- f
                      r$value[2] <- toJSON(imGetBlankFORMrow("blank")[-1,])
@@ -263,6 +230,38 @@ observeEvent(input$js.omclick, {
          S$display <<- "open"
          S$hideMenus <<- FALSE
          rv$limn <- rv$limn +1      # Need to limn at this level to un-hideMenus
+      },
+      "editForm" = {               # This doesn't use imGetForm because at this point we have the form's ID rather than its name.
+         if(S$P$Modify) {
+            r <-recGet("om$prime", "settings", c("name","value"), tibble(c("settingsID", "=", n)))
+            S$IN$FORMname <<- r$name
+            fileName <- paste0("FORMs/", S$IN$FORMname, ".csv")
+            if(A$FORMfromDisk && file.exists(fileName)) {
+               print("Loading file...")
+               S$IN$FORM <<- read_csv(fileName, na=character(), col_types="ccccccccccccccccccclllln")
+            } else {
+               print("Loading from SQL...")
+               S$IN$FORM <<- as.tibble(fromJSON(r$value))     # Yes, unJSONize as it's a tibble
+            }
+            S$IN$flag$showAddInputButton <<- TRUE
+            S$IN$flag$oldInput <<- FALSE                      # Need this for the Look and Feel item-disabling if()
+            S$display <<- "editForm"
+            S$hideMenus <<- TRUE
+            rv$limn <- rv$limn +1     # Need to limn at this level to hideMenus
+         }
+      },
+      "deleteForm" = {
+         if(S$P$Modify) {
+            r <-recGet(S$db, "settings", c("name","value"), tibble(c("settingsID", "=", n)))
+            S$IN$FORM <<- as.tibble(fromJSON(r$value))
+            dbLink <- poolCheckout(shiny.pool)                              # When deleting a FORM, we also need to delete
+            on.exit(poolReturn(dbLink), add = TRUE)                         #   its ids from the ids table
+            for(i in 1:nrow(S$IN$FORM)) {
+               r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`ids` WHERE idsID='", S$IN$FORM[i, "id"], "';"))
+            }
+            r = dbExecute(dbLink, paste0("DELETE FROM `", S$db, "`.`settings` WHERE settingsID='", n, "';"))
+            rv$limn = rv$limn + 1
+         }
       },
       "inputAdd" = {                # This is the big green Add button
          if(S$P$Modify) {
