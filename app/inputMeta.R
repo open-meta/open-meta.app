@@ -250,9 +250,9 @@ imFormRow2HTML = function(tr) {
       options = str_trim(unlist(str_split(options, ";")))             # vectorize and trim
       value = str_trim(unlist(str_split(value, ";")))                 # vectorize and trim
    }
-   if(tr$type=="checkbox") {
-      if(S$P$SA && str_sub(tr$id,1,2)!="id") {                        # if id doesn't start with "id" its a form, not a FORM
-         options = c(options, "locked")                               # System Admin also gets the locked option
+   if(tr$type=="checkbox") {                                          # If adminForms.R, System Admin also gets
+      if(S$PG$pageName=="adminForms" && S$P$SA && tr$id=="other") {   #  the locked option on the "other" checkboxes
+         options = c(options, "locked")
          if(tr$locked){
             value = c(value, "locked")
          }
@@ -530,7 +530,7 @@ imSaveform2FORMrow <- function() {
                                    id, "', '", S$IN$FORMname, "', '", name, "');")) # if adminForm.R S$db is om$prime
       ### imInputValidates() checked for uniqueness just milliseconds ago
    } else {
-      FORMrow$id <- FORMrow$name                                 # For Form- forms, skip the ids table
+      FORMrow$id <- "FORM-default"                               # For Form- forms, skip the ids table and use this for now
    }
    form <- imGetBlankform(inputCode)                             # Get the form for this type of FORMrow; we need its ids
    for(id in form$id) {                                          # Loop through the form ids; some, but not all, are columns in FORMrow
@@ -549,6 +549,9 @@ imSaveform2FORMrow <- function() {
       } else {
          FORMrow[1,id] <- ifelse(is.na(rawI), "", rawI)          # NA happens when min, max, step, or maxlength are empty. stripHTML()
       }                                                          #   converts as.character(NA) to "", but returns numeric as is
+   }
+   if(FORMrow$id=="FORM-default") {                              # Now we can fix the id on non-PrjForm- foms
+      FORMrow$id <- FORMrow$name
    }
    FORMrow$formname <- S$IN$FORMname
    if(nrow(S$IN$FORM)==0) {                                      # To rbind or not to rbind, that is the question.
@@ -635,16 +638,13 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
          if(S$IN$Qn>0) {
             ids <- ids[-S$IN$Qs]                                      # Remove quill ids, if any
          }
-         for(i in 1:length(ids)) {
-            if(is.null(input[[ids[i]]])) {                            # input[[id]] can be NULL for checkboxes
-               rawI <- ""                                             #   where nothing is checked
-            } else {
-               rawI <- str_trim(stripHTML(as.character(input[[ids[i]]]))) # trim and strip HTML from input$
-            }
+         ids <- ids[ids!=""]                                          # Remove blank ids (spacers, etc.)
+         for(id in ids) {
+            rawI <- str_trim(stripHTML(as.character(input[[id]])))    # trim and strip HTML from input$; changes NULL to ""
             if(length(rawI)>1) {                                      # collapse vectors (multiple checkboxes)
                rawI <- paste0(rawI, collapse=";")
             }
-            S$IN$FORM$value[i] <<- ifelse(is.na(rawI), "", rawI)      # NA happens when a numeric input is empty
+            S$IN$FORM$value[S$IN$FORM$id==id] <<- ifelse(is.na(rawI), "", rawI) # NA happens when a numeric input is empty
          }
       }
       S$IN$flag$imSAVE <<- "start"                                    # Clean up for next run
@@ -660,7 +660,6 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
          WHERE=tibble(c=c("catalogID", "=", S$NUMs$catalogID),
                       s=c("studyNUM", "=", S$NUMs$studyNUM),
                       a=c("armNUM", "=", armNUM))
-#         print(WHERE)
          for(i in 1:nrow(S$IN$FORM)) {                                # Save FORM values
             WHERE$n = c("name", "=", S$IN$FORM$name[i])
             R <-  recGet(S$db, dataTable, SELECT="**", WHERE=WHERE)
@@ -684,7 +683,21 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
             R <- recSave(R, S$db)                                     # There's a save on each loop
          }
       }
-      if(!dataTable %in% c("extract", "settings", "pico")) {          # It's a standard table
+      if(dataTable %in% "review") {
+         status <- S$IN$FORM$value[S$IN$FORM$id=="Stage2Status"]      # Handling Extraction Reviews
+         chex <- S$IN$FORM$value[S$IN$FORM$id=="Stage2Detail"]        #  Also see error-checking and save to catalog table
+         comment <- S$IN$FORM$value[S$IN$FORM$id=="Stage2Comment"]    #  in Extract.R
+         r <- recGet(S$db, "review", "**", tibble(c("catalogID", "=", S$NUMs$catalogID)))
+         if(status=="Unreviewed") {                                   # Undo prior review, if one
+            r$decision[2] <- 2                                        # 2=Stage 1 Pass
+         } else {
+            r$decision[2] <- ifelse(status=="Fail - study ineligible", 3, 4)  # 3=Stage 2 Fail; 4=Stage 2 Pass
+         }
+         r$detail[2] <- toJSON(chex)
+         r$comment[2] <- comment
+         r <- recSave(r, S$db)
+      }
+      if(!dataTable %in% c("extract", "settings", "pico", "review")) {          # It's a standard table
          warning("At the bottom of inputMeta.R, the code for saving FORM data into a standard table is incomplete.")
          R <-  recGet(S$db, dataTable, SELECT="**", WHERE=tibble(c(paste0(dataTable, "ID"), "=", S$IN$recID)))
          for(i in 1:nrow(S$IN$FORM)) {
@@ -729,8 +742,17 @@ imGetFORMvalues <- function (FORM) {
             }
          }
       },
+      "review" = {
+         r = recGet(S$db, "review", c("decision", "detail", "comment"), WHERE=tibble(c("catalogID", "=", S$NUMs$catalogID)))
+         FORM$value[1] <- ifelse(r$decision<3, "Unreviewed", ifelse(r$decision==3, "Fail - study ineligible", "Pass - study Ok"))
+         if(FORM$options[3]=="settings::failBoxNames") {
+            fBN <- recGet(S$db, "settings", "value", WHERE=tibble(c("name", "=", "failBoxNames")))
+            FORM$options[3] <- paste0(fromJSON(fBN$value), collapse=";")
+            FORM$value[3] <- paste0(fromJSON(r$detail), collapse=";")
+         }
+         FORM$value[5] <- r$comment
+      },
       warning(paste0("In imGetFORMvalues(), no handler for ", FORM$table[1], " table."))
       )
-   # View(FORM)
    return(FORM)
 }
