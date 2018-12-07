@@ -49,7 +49,6 @@ S$NUMs$armNUMnext <- 0
 
 S$Arm <- list()
 S$Arm$FORM <- tibble()
-S$Arm$FORMname <- ""
 S$Arm$lastCalc <- now()
 S$Arm$lastWasNULL <- FALSE
 
@@ -61,7 +60,7 @@ S$catalogTBL <- tbl(shiny.pool, in_schema(S$db, "catalog"))
 S$picoTBL <- tbl(shiny.pool, in_schema(S$db, "pico"))
 
 S$editFORM <- FALSE
-
+S$editFORMname <- ""
 
 output$uiMeat <- renderUI({c(rv$limn); isolate({
    if(rv$limn && S$P$Msg=="") {
@@ -128,13 +127,14 @@ output$pageMenu <- renderUI({c(rv$limn); isolate({
 })})
 
 output$editForm <- renderUI({c(rv$limn); isolate({
-   S$IN$FORM <<- imGetFORM(S$Arm$FORMname)                        # S$Arm$FORMname is the only input here
+   db <- ifelse(str_sub(S$editFORMname,1,5)=="Form-", "om$prime", S$db)
+   S$IN$FORM <<- imGetFORM(S$editFORMname, db)                    # S$editFORMname is the only input here
    S$IN$FORM <<- imGetFORMvalues(S$IN$FORM)                       # Heavily uses inputMeta.R functions
    return(tagList(                                                # Save will use rv$imGetFORMData, which
       imForm2HTML(S$IN$FORM),                                     #   needs S$IN$FORM, which is set up here
       bs4("c12", class="text-right",
-         bs4("btn", uid=paste0("cancelForm_", S$Arm$FORMname), q="b", class="mr-3", "Cancel"),
-         bs4("btn", uid=paste0("saveForm_", S$Arm$FORMname), q="b", class="mr-3", "Save")
+         bs4("btn", uid=paste0("cancelForm_", S$editFORMname), q="b", class="mr-3", "Cancel"),
+         bs4("btn", uid=paste0("saveForm_", S$editFORMname), q="b", class="mr-3", "Save")
       )
    ))
 })})
@@ -372,6 +372,7 @@ output$Extraction <- renderUI({c(rv$limn, rv$limnExtraction); isolate({
       tagList(
          bs4("c12", id="pickStudy"),
          bs4("c12", id="viewStudy"),
+         bs4("c12", id="failStudy"),
 #         bs4("c12", id="studyYbox"),
          bs4("c12", id="viewArm"),
 #         bs4("c12", id="ArmYbox"),
@@ -543,9 +544,32 @@ output$viewStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
    }
 })})
 
+output$failStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
+   if(S$NUMs$catalogID==0) {
+      return("")
+   } else {
+      FORM <- imGetFORM("Form-Fail-Stage-2", "om$prime")
+      FORM <- imGetFORMvalues(FORM)
+      S$decision <<- FORM$value[1]                                   # Save decision (to hide ARM)
+      FORM$disabled <- TRUE                                          # Disable the FORM for now
+      if(S$P$Modify) {                                               #   but provide a button for editing it
+         UpdateReviewBtn <- tagList(
+            bs4("c12", class="text-right",
+                bs4("btn", uid="editForm_Form-Fail-Stage-2", q="g", class="mr-3", "Update Review")))
+      } else {
+         UpdateReviewBtn <- ""
+      }
+      return(tagList(
+  #       bs4("c12", class="pl-0 pb-2", bs4("btn", uid="menu1_4", q="b", class="mr-3", "Select a Different Study")),
+         imForm2HTML(FORM),
+         UpdateReviewBtn
+      ))
+   }
+})})
+
 output$viewArm <- renderUI({c(rv$limn, rv$limnviewArm); isolate({
 #   print(paste0("Running output$viewArm; armNUM: ", S$NUMs$armNUM))
-   if(S$NUMs$studyNUM==0) {
+   if(S$NUMs$studyNUM==0 || S$decision =="Fail - study ineligible") {
       return("")
    }
    r = recGet(S$db, "extract", "armNUM", tibble(                     # Look up all armNUMs for this article
@@ -957,7 +981,7 @@ observeEvent(input$js.omclick, {
       "addForm" = {
          if(S$P$Modify) {
             S$editFORM <<- TRUE
-            S$Arm$FORMname <<- n
+            S$editFORMname <<- n
             S$NUMs$armNUM <<- S$NUMs$armNUMnext
             S$hideMenus <<- TRUE
             rv$limn <- rv$limn + 1
@@ -966,7 +990,7 @@ observeEvent(input$js.omclick, {
       "editForm" = {
          if(S$P$Modify) {
             S$editFORM <<- TRUE
-            S$Arm$FORMname <<- n
+            S$editFORMname <<- n
             S$hideMenus <<- TRUE
             rv$limn <- rv$limn + 1
          }
@@ -988,17 +1012,41 @@ observeEvent(input$js.omclick, {
                   if(ts) {
                      msg = paste0(msg, "<li>You must check at least one Time Span</i></li>")
                   }
+               },
+               "Form-Fail-Stage-2" = {
+                  status <- str_trim(stripHTML(input$Stage2Status))    # If study is a Fail, check whether we need a
+                  chex <- str_trim(stripHTML(input$Stage2Detail))
+                  if(status=="Unreviewed" && chex[1]!="") {
+                     msg="<li>If the decision is <i>Unreviewed</i>, uncheck all reasons for failure. Otherwise, change the decision to <i>Fail</i>.</li>"
+                  }
+                  if(status=="Fail - study ineligible") {              #    reason for failure
+                     r <- recGet(S$db, "settings", "value", tibble(c("name", "=", "forceFail")))
+                     if(r$value=="T" && chex[1]=="") {
+                        msg <- "<li>When your review is <b>Fail</b>, you must check at least one reason for failure.</li>"
+                     }
+                  }
+                  if(status==";Pass - study Ok") {                     # If study is a Pass, check whether we need
+                     r <- recGet(S$db, "settings", "value", tibble(c("name", "=", "forcePass")))
+                     if(r$value=="T" && chex[1]!="") {
+                        msg <- "<li>When your decision is <b>Pass</b>, you must uncheck all reasons for failure.</li>"
+                     }
+                  }
                }
             )
-            if(msg=="") {
+            if(msg!="") {
+               S$modal_title <<- "Whoops"
+               S$modal_text <<- HTML("<p>Can't save this yet because:<ul>", msg, "</ul></p>")
+               rv$modal_warning <- rv$modal_warning + 1
+            } else {
+               if(n=="Form-Fail-Stage-2") {
+                  r <- recGet(S$db, "catalog", "**", tibble(c("catalogID", "=", S$NUMs$catalogID)))
+                  r$reviewBest[2] <- ifelse(status=="Unreviewed", 2, ifelse(status=="Fail - study ineligible", 3, 4))
+                  r <- recSave(r, S$db)
+               }
                S$editFORM <<- FALSE
                S$hideMenus <<- FALSE
                rv$imGetFORMData <- rv$imGetFORMData + 1
                rv$limnviewArm <- rv$limnviewArm+1
-            } else {
-               S$modal_title <<- "Whoops"
-               S$modal_text <<- HTML("<p>Can't save form because:<ul>", msg, "</ul></p>")
-               rv$modal_warning <- rv$modal_warning + 1
             }
          }
       },
