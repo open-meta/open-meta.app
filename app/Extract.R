@@ -16,6 +16,11 @@ source("chokidar.R", local=TRUE)
 source("inputMeta.R", local=TRUE)
 source("citationFiltering.R", local=TRUE)
 
+# Load the list of calculator definitions into memory. This list is created by the
+#   STAND-ALONE-CREATE-calculators-list.R file, and makeAcalc uses it heavily.
+#   Done this way so that the list can be updated without restarting the app.
+CC <- readRDS(file="Calculators.RDS")
+
 rv$menu1Active <- 1
 rv$menu2Active <- 1
 
@@ -1139,11 +1144,6 @@ updateEXtable <- function() {
    progress$close()
    return(review)
 }
-
-# Load the list of calculator definitions into memory. This list is created by the
-#   STAND-ALONE-CREATE-calculators-list.R file, and makeAcalc uses it heavily.
-#   Done this way so that the list can be updated without restarting the app.
-CC <- readRDS(file="Calculators.RDS")
 
 makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
    # build a FORM for a calculator
