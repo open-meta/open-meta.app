@@ -19,6 +19,8 @@ source("citationFiltering.R", local=TRUE)
 # Load the list of calculator definitions into memory. This list is created by the
 #   STAND-ALONE-CREATE-calculators-list.R file, and makeAcalc uses it heavily.
 #   Done this way so that the list can be updated without restarting the app.
+#   Also load the effect size conversion function, esR().
+source("esR.R", local=TRUE)
 CC <- readRDS(file="Calculators.RDS")
 
 rv$menu1Active <- 1
@@ -732,6 +734,7 @@ output$viewResults <- renderUI({c(rv$limn, rv$limnviewCalculator); isolate({
                bs4("d", class="fc", style="width:40rem;min-width:40rem;", "Outcome: ", r$O[i])
             )
          )
+         I <- ""            # Reset Intervention Header...
       }
       if(r$I[i]!=I) {       # Do we need an Intervention header?
          I <- r$I[i]
@@ -1257,41 +1260,49 @@ calcNsave <- function() {
          r$O[2]  <- O.PICO
          r$TS[2] <- TS.PICO
          t <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["params"]]   # get correct parameter table from CC$C list
+         nC <- nI <- 0                                      # initialize
          for(z in 1:nrow(t)) {                              # fill out parameter table using inputs
-            if(t$T[z]=="C") {
-               sin <-
+            if(t$T[z]=="C") {                               # Control group parameter?
                t$V[z] <- stripHTML(input[[paste0(t$P[z],".0.",ts) ]])
-               if(t$P[z]=="n") { nC <- t$V[z] }             # capture n of control group
-            } else {
+               if(str_sub(t$P[z],1,1)=="n") {               # capture n of control group
+                  nC <- nC + t$V[z]                         # this is specifically for 2x2 number better, number worse
+               }
+            } else {                                        # Intervention group parameter...
                t$V[z] <- stripHTML(input[[paste0(t$P[z],".",i,".",ts) ]])
-               if(t$P[z]=="n") { nI <- t$V[z] }             # capture n of intervention group
+               if(str_sub(t$P[z],1,1)=="n") {              # capture n of intervention group
+                  nI <- nI + t$V[z]                         # this is specifically for 2x2 number better, number worse
+               }
             }
          }
          if(any(is.na(t$V))) {
             msg = paste0(msg, "<li>", r$I[2], " in ", r$TS[2], "</li>")
          } else {
-            # Need to reverse sign of effect size because lower scores are better?
+            # Do we need to reverse the sign of the effect size because lower scores are better?
             picoNUM <- recGet(S$db, "pico", "picoNUM", tibble(c("name", "=", "Outcome"),
                                                               c("value", "=", O.PICO)))
             Ohio <- recGet(S$db, "pico", c("value"), tibble(c("picoNUM", "=", picoNUM$picoNUM[1]),
                                                             c("name", "=", "OutcomeHi")))
-            e <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]](t) # Call the right calculation function in CC$
-            if(Ohio$value[1]=="Lower scores are better") {
-               e$es <- -e$es                                # reversal happens here
-               save.lo <- e$ci.lo
-               e$ci.lo <- -e$ci.hi
-               e$ci.hi <- -save.lo
+            if(S$IN$FORM$value[2]=="An Effect Size") {
+               d <- esR(t$V[1], t$V[2], t$V[3], "d", CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]])
+            } else {
+               d <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]](t) # Call the right calculation function in CC$
             }
-            r$info[2]   <- e$info
-            r$esType[2] <- e$measure
+            if(Ohio$value[1]=="Lower scores are better") {
+               d$es <- -d$es                                # reversal happens here
+               save.lo <- d$ci.lo
+               d$ci.lo <- -d$ci.hi
+               d$ci.hi <- -save.lo
+            }
+            r$info[2]   <- d$info
+            r$esType[2] <- d$measure
             r$nC[2]     <- nC
             r$nI[2]     <- nI
-            r$es[2]     <- format(e$es, digits=6)
-            r$v[2]      <- format(e$v, digits=6)
-            r$se[2]     <- format(e$se, digits=6)
-            r$ci.lo[2]  <- format(e$ci.lo, digits=6)
-            r$ci.hi[2]  <- format(e$ci.hi, digits=6)
-            r$weight[2] <- format(e$w, digits=6)
+            r$es[2]     <- format(d$es, digits=6)
+            r$v[2]      <- format(d$v, digits=6)
+            r$se[2]     <- format(d$se, digits=6)
+            r$ci.lo[2]  <- format(d$ci.lo, digits=6)
+            r$ci.hi[2]  <- format(d$ci.hi, digits=6)
+            r$weight[2] <- format(d$w, digits=6)
             r <- recSave(r, S$db)                           # save results
          }
       }

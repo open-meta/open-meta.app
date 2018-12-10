@@ -202,6 +202,7 @@ calcRow <- function(type) {
 
 ### I row for proportions
    I.P <- C.P
+   I.P$name[2] = "s"
    I.P$helptext[2] = "Enter the percentage of this intervention group for which the outcome was better."
 
 ### I row for Cohen's d
@@ -259,8 +260,8 @@ calcRow <- function(type) {
    I.eta2$helptext[2]  = "eta-squared for size of effect between control group and this intervention group."
 
 
-CC <- list(
-   "C" = list(
+CC <- list()
+CC$C = list(
       "Continuous" = list(
          "Means & SEs" = list(
             "cRow" = B.SE,
@@ -318,8 +319,8 @@ CC <- list(
          "Proportions" = list(
             "cRow" = C.P,
             "iRow" = I.P,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","eta2"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "eta2")) }
+            "params" = tibble(T=c("C","C","I","I"), P=c("n","s","n", "s"), V=0),
+            "calc" = function(t) { return(esc_bin_prop(prop1event=t$V[4], grp1n=t$V[3], prop2event=t$V[2], grp2n=t$V[1], es.type="d")) }
          )
       ),
       "An Effect Size" = list(
@@ -327,161 +328,73 @@ CC <- list(
             "cRow" = C.n.only,
             "iRow" = I.d,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","d"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "d")) }
+            "calc" = "d"
          ),
          "Hedge's g" = list(
             "cRow" = C.n.only,
             "iRow" = I.g,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","g"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "g")) }
+            "calc" = "g"
          ),
          "Odds Ratio" = list(
             "cRow" = C.n.only,
             "iRow" = I.or,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","or"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "or")) }
+            "calc" = "or"
          ),
          "Log Odds Ratio" = list(
             "cRow" = C.n.only,
             "iRow" = I.lor,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","lor"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "lor")) }
+            "calc" = "lor"
          ),
          "Relative Risk" = list(
             "cRow" = C.n.only,
             "iRow" = I.rr,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","rr"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "rr")) }
+            "calc" = "rr"
          ),
          "Log Relative Risk" = list(
             "cRow" = C.n.only,
             "iRow" = I.lrr,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","lrr"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "lrr")) }
+            "calc" = "lrr"
          ),
          "Pearson's r" = list(
             "cRow" = C.n.only,
             "iRow" = I.r,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","r"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "r")) }
+            "calc" = "r"
          ),
          "Cohen's f" = list(
             "cRow" = C.n.only,
             "iRow" = I.f,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","f"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "f")) }
+            "calc" = "f"
          ),
          "eta-squared" = list(
             "cRow" = C.n.only,
             "iRow" = I.eta2,
             "params" = tibble(T=c("C", "I", "I"), P=c("n","n","eta2"), V=0),
-            "calc" = function(t) { return(CC$C$C(t$V[1], t$V[2], t$V[3], "d", "eta2")) }
+            "calc" = "eta2"
          )
       )
-   ),
-   "top" = top,
-   "ts1" = ts1,
-   "ts2" = ts,
-   "group" = group,
-   "C" = function(n0, n1, es, es.in, es.out) {
-      v=as.numeric(NA)
-      switch(es.in,
-         "d"    = { d <- es },
-         "g"    = { d <- 999 },
-         "or"   = { d <- log(es) / (pi / sqrt(3)) },
-            # Bornstein-Intro to Meta-Analysis, formula:
-         "lor"  = { d <- es * sqrt(3) / pi },  # 7.1
-         "rr"   = { d <- 999 },
-         "lrr"  = { d <- 999 },
-            # Bornstein-Intro to Meta-Analysis, formula:
-         "r"    = { d <- (2 * es) / sqrt(1 - (es^2)) }, # 7.5
-         "f"    = { d <- 2 * es },
-         "eta2" = { d <- 2 * (sqrt(es / (1 - es))) },
-         stop(paste0("In CC$C$C, ", es.in, " isn't a valid effect size to convert from."))
-      )
-      if(is.na(v)) {
-         v <- ((n1+n0)/(n1*n0)) + (d*d/(2*(n1+n0-2)))
-      }
-      switch(es.out,
-         "d" = {
-            es <- d
-            v <- v
-         },
-         "g" = {
-            es <- 999
-            v <- 999
-         },
-         "or" = {
-            es <- exp(d * pi / sqrt(3))
-            v <- v * (pi  ^ 2) / 3
-         },
-         "lor" = { # Bornstein-Intro to Meta-Analysis, formula:
-            es <- d * pi / sqrt(3)  # 7.3
-            v <- v * (pi  ^ 2) / 3  # 7.4
-         },
-         "cox-lor" = {
-            es <- d * 1.65
-            v <- v / .367
-         },
-         "rr" = {
-            es <- 999
-            v <- 999
-         },
-         "lrr" = {
-            es <- 999
-            v <- 999
-         },
-         "r" = { # Bornstein-Intro to Meta-Analysis, formula:
-            a <- ((n0+n1)^2) / (n0*n1) # 7.8
-            es <- d / sqrt(d^2 + a)    # 7.7
-            v <- a^2*v / (d^2+a)^3     # 7.9
-         },
-         "f" = {
-            es <- d / 2
-            v <- 999
-         },
-         "eta2" = {
-            es <- (d^2 / (1 + d^2)) / 2
-            v <- 999
-         },
-         stop(paste0("In CC$C$C, ", es.out, " isn't a valid effect size to convert to."))
-      )
-      info <- paste0(es.in, " converted to ", es.out)
-      return(list(es = es,
-                  var = v,
-                  se = sqrt(v),
-                  ci.low = es - stats::qnorm(.975) * se,
-                  ci.hi = es + stats::qnorm(.975) * se,
-                  w = 1/v,
-                  measure = es.out,
-                  info = info))
-   }
-)
+   )
+   CC$top = top
+   CC$ts1 = ts1
+   CC$ts2 = ts
+   CC$group = group
 
 saveRDS(CC, file="app/Calculators.RDS")
 ##################################################################################
 
 
 rm(B.SD, B.SE, C.n.only, C.C, I.C, C.P, I.P, C.SD1, group, I.d, I.eta2,
-   I.f, I.g, I.lor, I.lrr, I.or, I.rr, I.r, I.SD1, PBR, r1, r2, r3, r4, I.TP,
-   I.TT, top, ts, ts1, calcRow, imGetBlankFORMrow)
+   I.f, I.g, I.lor, I.lrr, I.or, I.rr, I.r, I.SD1, I.A, PBR, r1, r2, r3,
+   r4, I.TP, I.TT, top, ts, ts1, calcRow, imGetBlankFORMrow)
 
 rm(CC)
 
-
-#dVar from https://trendingsideways.com/the-cohens-d-formula; doesn't exactly match Wilson calculator, but close.
-# also https://stats.stackexchange.com/questions/144084/variance-of-cohens-d-statistic has matching formula below
-# dVar <- function(n1, n2, d) {
-# #   return((((n1+n2)/(n1*n2)) + (d*d/(2*(n1+n2-2)))) * ((n1+n2)/(n1+n2-2)))
-#    return((((n1+n2)/(n1*n2)) + (d*d/(2*(n1+n2-2))))) # dropping the multiplication matchs the Wilson calculator
-# }
-
-# from: https://stats.stackexchange.com/questions/130237/convert-hazards-ratio-to-odds-ratio
-# Exploiting the assumption that hazard ratios are asymptotically similar to relative risks, you can use exploit the formula recommendeed by Grant et al, BMJ 2014:
-#    RR = OR / (1 - p + (p * OR)
-# where RR is the relative risk, OR is the odds ratio, and p is the control event rate, which leads to the following:
-#    OR = ((1 - p) * RR) / (1 - RR * p)
-# Thus, for instance, a RR of 2.0 with a p of 0.1 would lead to an OR of 2.25, whereas if p increases to 0.2 it would lead to an OR of 2.67.
 
 
 
