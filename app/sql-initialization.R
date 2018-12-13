@@ -477,7 +477,7 @@ r = saveP(order, title, helpText)
 order="Dae"
 title="Study Characteristics - Comparisons"
 helpText='
-<p>Describe the types of control groups the studies you include will have. For example, will your project include a study with a no-intervention control group or only studies in which the control group received a placebo? What about a a control group that received a placebo with a standard-of-care dose of the intervention rather than a zero dose? Typically, comparison groups must be identical except for the intervention - will you include studies with specific types of non-identical groups?</p>
+<p>The Open-Meta app supports combining studies that compare a control group to an intervention group or that compare a baseline or pre-treatment (pre-test) score with a post-treatment (post-test) score. The best data to work with, however, includes both control and intervention group data and both baseline and post-treatment scores on the outcomes of interest. Will your meta-analysis accept studies without a control group or without baseline data? If you require a control group, also describe the types of control groups your project will accept. For example, will your project include a study with a no-intervention control group or only studies in which the control group received a placebo? What about a a control group that received a placebo with a standard-of-care dose of the intervention rather than a zero dose? Typically, comparison groups must be identical except for the intervention - will you include studies with specific types of non-identical groups?</p>
 '
 r = saveP(order, title, helpText)
 
