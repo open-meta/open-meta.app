@@ -266,46 +266,46 @@ CC$C = list(
          "Means & SEs" = list(
             "cRow" = B.SE,
             "iRow" = B.SE,
-            "params" = tibble(T=c("C","C","C","I","I","I"), P=c("n","m","se","n","m","se"), V=0),
+            "params" = tibble(TS=rep("",6), T=c("C","C","C","I","I","I"), P=c("n","m","se","n","m","se"), V=0),
             "calc" = function(t) { return(esc_mean_se(grp1m=t$V[5], grp1se=t$V[6], grp1n=t$V[4],
                                                       grp2m=t$V[2], grp2se=t$V[3], grp2n=t$V[1], es.type="d")) }
          ),
          "Means & SDs" = list(
             "cRow" = B.SD,
             "iRow" = B.SD,
-            "params" = tibble(T=c("C","C","C","I","I","I"), P=c("n","m","sd","n","m","sd"), V=0),
+            "params" = tibble(TS=rep("",6), T=c("C","C","C","I","I","I"), P=c("n","m","sd","n","m","sd"), V=0),
             "calc" = function(t) { return(esc_mean_sd(grp1m=t$V[5], grp1sd=t$V[6], grp1n=t$V[4],
                                                       grp2m=t$V[2], grp2sd=t$V[3], grp2n=t$V[1], es.type="d")) }
          ),
          "Means & Overall SD" = list(
             "cRow" = C.SD1,
             "iRow" = I.SD1,
-            "params" = tibble(T=c("C","C","I","I","I"), P=c("n","m","n","m","sd"), V=0),
+            "params" = tibble(TS=rep("",5), T=c("C","C","I","I","I"), P=c("n","m","n","m","sd"), V=0),
             "calc" = function(t) { return(esc_mean_sd(grp1m=t$V[4], totalsd=t$V[5], grp1n=t$V[3],
                                                       grp2m=t$V[2], grp2n=t$V[1], es.type="d")) }
          ),
          "t-Test t-Value" = list(
             "cRow" = C.n.only,
             "iRow" = I.TT,
-            "params" = tibble(T=c("C","I","I"), P=c("n","n","t"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","t"), V=0),
             "calc" = function(t) { return(esc_t(t=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
          ),
          "t-Test p-Value" = list(
             "cRow" = C.n.only,
             "iRow" = I.TP,
-            "params" = tibble(T=c("C","I","I"), P=c("n","n","p"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","p"), V=0),
             "calc" = function(t) { return(esc_t(p=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
          ),
          "One-way ANOVA" = list(
             "cRow" = C.n.only,
             "iRow" = I.A,
-            "params" = tibble(T=c("C","I","I"), P=c("n","n","F"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","F"), V=0),
             "calc" = function(t) { return(esc_f(f=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
          ),
          "Point-Biserial r" = list(
             "cRow" = C.n.only,
             "iRow" = PBR,
-            "params" = tibble(T=c("C","I","I"), P=c("n","n","r"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","r"), V=0),
             "calc" = function(t) { return(esc_rpb(r=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
          )
       ),
@@ -313,13 +313,13 @@ CC$C = list(
          "Counts" = list(
             "cRow" = C.C,
             "iRow" = I.C,
-            "params" = tibble(T=c("C","C","I","I"), P=c("nb","nw","nb","nw"), V=0),
+            "params" = tibble(TS=rep("",4), T=c("C","C","I","I"), P=c("nb","nw","nb","nw"), V=0),
             "calc" = function(t) { return(esc_2x2(grp1yes=t$V[3], grp1no=t$V[4], grp2yes=t$V[1], grp2no=t$V[2], es.type="d")) }
          ),
          "Proportions" = list(
             "cRow" = C.P,
             "iRow" = I.P,
-            "params" = tibble(T=c("C","C","I","I"), P=c("n","s","n", "s"), V=0),
+            "params" = tibble(TS=rep("",4), T=c("C","C","I","I"), P=c("n","s","n", "s"), V=0),
             "calc" = function(t) { return(esc_bin_prop(prop1event=t$V[4], grp1n=t$V[3], prop2event=t$V[2], grp2n=t$V[1], es.type="d")) }
          )
       ),
@@ -327,55 +327,55 @@ CC$C = list(
          "Cohen's d" = list(
             "cRow" = C.n.only,
             "iRow" = I.d,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","d"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","d"), V=0),
             "calc" = "d"
          ),
          "Hedge's g" = list(
             "cRow" = C.n.only,
             "iRow" = I.g,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","g"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","g"), V=0),
             "calc" = "g"
          ),
          "Odds Ratio" = list(
             "cRow" = C.n.only,
             "iRow" = I.or,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","or"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","or"), V=0),
             "calc" = "or"
          ),
          "Log Odds Ratio" = list(
             "cRow" = C.n.only,
             "iRow" = I.lor,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","lor"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","lor"), V=0),
             "calc" = "lor"
          ),
          "Relative Risk" = list(
             "cRow" = C.n.only,
             "iRow" = I.rr,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","rr"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","rr"), V=0),
             "calc" = "rr"
          ),
          "Log Relative Risk" = list(
             "cRow" = C.n.only,
             "iRow" = I.lrr,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","lrr"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","lrr"), V=0),
             "calc" = "lrr"
          ),
          "Pearson's r" = list(
             "cRow" = C.n.only,
             "iRow" = I.r,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","r"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","r"), V=0),
             "calc" = "r"
          ),
          "Cohen's f" = list(
             "cRow" = C.n.only,
             "iRow" = I.f,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","f"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","f"), V=0),
             "calc" = "f"
          ),
          "eta-squared" = list(
             "cRow" = C.n.only,
             "iRow" = I.eta2,
-            "params" = tibble(T=c("C", "I", "I"), P=c("n","n","eta2"), V=0),
+            "params" = tibble(TS=rep("",3), T=c("C", "I", "I"), P=c("n","n","eta2"), V=0),
             "calc" = "eta2"
          )
       )
