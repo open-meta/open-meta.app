@@ -1,6 +1,40 @@
 ### open-meta.app esR.R
 ### Tom Weishaar - v0.1 - Dec 2018
 
+
+# Calculate effect using both Baseline and Control group data.
+# From 2008-Morris-Estimating Effect Sizes From Pretest-Posttest-Control Group Designs
+#    where this is called "dppc2". Function is vectorized.
+dppc2 <- function(n.0.1, m.0.1, sd.0.1,  # C.Pre
+                  n.1.1, m.1.1, sd.1.1,  # I.Pre
+                  n.0.2, m.0.2, sd.0.2,  # C.Post
+                  n.1.2, m.1.2, sd.1.2)  # I.Post
+{
+   N   <- n.0.1 + n.1.1                        # N is total at baseline
+   m   <- (m.1.2 - m.1.1) - (m.0.2 - m.0.1)    # (Intervention @ TS2 - baseline) - (Control @ TS2 - baseline)
+   sd  <- sqrt((((n.0.1 - 1)*sd.0.1^2) + ((n.1.1 - 1)*sd.1.1^2)) / (N - 2)) # Pooling total squared error @ baseline
+   ssa <- 1 - (3 / (4*(N) - 9))                # Small sample adjustment
+   es  <- m/sd*ssa
+   v   <- ((N)/(n.0.1*n.1.1)) + (es^2/(2*(N-2)))
+   info <- paste0("dppc2")
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.low = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "d",
+               info = info))
+}
+
+# TEST - Answer is .7684649; function is vectorized
+# dppc2(20, 23.1, 13.8,  # C.Pre
+#       20, 30.6, 15.0,  # I.Pre
+#       c(20,20), c(19.7,19.7), c(14.8,14.8),  # C.Post
+#       c(20,20), c(38.5,38.5), c(11.6,11.6))  # I.Post
+
+
 # This is our effect size converter. It's in a separate file to make it easier to update
 #    without disruputing the app. It was originally part of the CC$ list, but that created
 #    problems with R's lexical scoping.
