@@ -289,8 +289,11 @@ output$picoPickR <- renderUI({c(rv$limn, rv$limnPico); isolate({
 })})
 
 picoFix <- function(x) {
+   x[1,"Action"] = str_replace(x[1,"Action"], "btn-danger", "btn-danger disabled")  # disable deletion of first button
+   if(x[1,"name"]=="TimeSpan" && x[1,"value"]=="Baseline") {
+      x[1,"Action"] = str_replace(x[1,"Action"], '">Edit<', ' disabled">Edit<')     # also disable editing of Baseline
+   }
    x <- x[,-2]            # delete "name" column, leave "values"
-   x[1,"Action"] = str_replace(x[1,"Action"], "btn-danger", "btn-danger disabled")  # disable deletion of button 1!
    return(x)
 }
 
@@ -721,7 +724,7 @@ output$viewResults <- renderUI({c(rv$limn, rv$limnviewCalculator); isolate({
                                                          c("armNUM", "=", S$NUMs$armNUM)))
    if(r$resultID[1]==0) { return("")} # No results yet
    r <- r %>% arrange(O,I,TS)
-   omf <- function(n) { format(as.numeric(n), digits=3, scientific=FALSE) }
+   omf <- function(n) { format(as.numeric(n), digits=3, nsmall=3, scientific=FALSE) }
    omES <- function(i) {
       paste0(omf(r$es[i]), " (", omf(r$ci.lo[i]), ", ", omf(r$ci.hi[i]), ")")
    }
@@ -1158,6 +1161,8 @@ makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
    tsVec <- unlist(str_split(tsVec, fixed(";")))                  #   Arm form
    iVec <- S$Arm$FORM %>% filter(id=="ArmI") %>% pull(value)
    iVec <- unlist(str_split(iVec, fixed(";")))
+   tsN <- length(tsVec)
+   iN <- length(iVec)
    # Top rows of FORM
    # Visually this is two rows
    # Formally it's the Outcome selector, the Outcome is (Ois) selector, and the CalculatorIs (Cis) selector
@@ -1166,14 +1171,14 @@ makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
    r$value[2] <- Ois
    r$options[3] <- paste0(CisOptions, collapse=";")
    r$value[3] <- Cis
-   r$min[1]   <- length(tsVec)                         # Save length of these vectors in min/max of 1st row
-   r$max[1]   <- length(iVec)
+   r$min[1]   <- tsN                                   # Save length of these vectors in min/max of 1st row
+   r$max[1]   <- iN
    # Time Spans
    # visually this is one row
    #    FORMally, first the spacer row
    #       and add a text-disabled row for each time span
-   s <- CC$ts1                                          # Get time span rows from CC$
-   for(i in 1:length(tsVec)) {
+   s <- CC$ts1                                         # Get time span rows from CC$
+   for(i in 1:tsN) {
       x <- CC$ts2
       x$value <- ifelse(x$type=="text", tsVec[i], "")
       s <- bind_rows(s, x)
@@ -1182,7 +1187,7 @@ makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
    #    FORMally, text-disabled row naming "Control Group"
    #    next, add a set of rows specific to CalcType; one set for each time span
    c <- CC$group
-   for(j in 1:length(tsVec)) {
+   for(j in 1:tsN) {
       x <- CC$C[[Ois]][[Cis]][["cRow"]]
       x$id <- ifelse(x$name!="", paste0(x$name,".0.",j), "")        # add id, but skip if no name, eg, spacers
       c <- bind_rows(c, x)
@@ -1193,13 +1198,13 @@ makeAcalc <- function(Ois="An Effect Size", Cis="Cohen's d") {
    #      ...repeat for each intervention
    v <- CC$group
    v$value = iVec[1]
-   for(i in 1:length(iVec)) {
+   for(i in 1:iN) {
       if(i>1) {
          x = CC$group
          x$value <- ifelse(x$type=="text", iVec[i], "")
          v = bind_rows(v, x)
       }
-      for(j in 1:length(tsVec)) {
+      for(j in 1:tsN) {
          x <- CC$C[[Ois]][[Cis]][["iRow"]]
          x$id <- ifelse(x$name!="", paste0(x$name,".",i,".",j), "") # add id, but skip if no name, eg, spacers
          v <- bind_rows(v, x)
@@ -1218,6 +1223,7 @@ calcNsave <- function() {
          S$IN$FORM$value[i] <<- str_trim(stripHTML(as.character(input[[ids[i]]]))) # input[[]] isn't vectorized, so looping
       }
    }
+View(S$IN$FORM)
    # Save the calculation FORM in the extract table
    O.PICO <- S$IN$FORM$value[1]
    r <- recGet(S$db, "extract", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
@@ -1229,90 +1235,362 @@ calcNsave <- function() {
    r$name[2] <- "Calculator"
    r$value[2] <- toJSON(S$IN$FORM)
    r <- recSave(r, S$db)
-   # Calculate effect sizes and save in the results table
-   tsVec <- S$Arm$FORM %>% filter(id=="ArmTS") %>% pull(value)  # Get Time Spans and Interventions checked in
-   tsVec <- unlist(str_split(tsVec, fixed(";")))                  #   Arm form
+
+   # Get vectors of names of Interventions and Time Spans that are checked in the Arm form
    iVec <- S$Arm$FORM %>% filter(id=="ArmI") %>% pull(value)
    iVec <- unlist(str_split(iVec, fixed(";")))
-   # For each Time Span by Intervention, calulate results and save in result table
-   msg=""
-   for(ts in 1:S$IN$FORM$min[1]) {                          # number of Time Spans in this FORM
-      for(i in 1:S$IN$FORM$max[1]) {                        # number of Interventions in this FORM
-         P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
-         I.PICO  <- iVec[i]
-         C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
-         O.PICO  <- S$IN$FORM$value[1]                      # 1st row always has selected Outcome
-         TS.PICO <- tsVec[ts]
-         r <- recGet(S$db, "result", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
-                                                               c("armNUM", "=", S$NUMs$armNUM),
-                                                               c("P", "=", P.PICO),
-                                                               c("I", "=", I.PICO),
-                                                               c("C", "=", C.PICO),
-                                                               c("O", "=", O.PICO),
-                                                               c("TS", "=", TS.PICO)))
-         r$extractID[2] <- S$NUMs$extractID
-         r$catalogID[2] <- S$NUMs$catalogID                # Need to fill all these in just in case it's a new record
-         r$studyNUM[2]  <- S$NUMs$studyNUM
-         r$armNUM[2]    <- S$NUMs$armNUM
-         r$P[2]  <- P.PICO
-         r$I[2]  <- I.PICO
-         r$C[2]  <- C.PICO
-         r$O[2]  <- O.PICO
-         r$TS[2] <- TS.PICO
-         t <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["params"]]   # get correct parameter table from CC$C list
-         nC <- nI <- 0                                      # initialize
-         for(z in 1:nrow(t)) {                              # fill out parameter table using inputs
-            if(t$T[z]=="C") {                               # Control group parameter?
-               t$V[z] <- stripHTML(input[[paste0(t$P[z],".0.",ts) ]])
-               if(str_sub(t$P[z],1,1)=="n") {               # capture n of control group
-                  nC <- nC + t$V[z]                         # this is specifically for 2x2 number better, number worse
-               }
-            } else {                                        # Intervention group parameter...
-               t$V[z] <- stripHTML(input[[paste0(t$P[z],".",i,".",ts) ]])
-               if(str_sub(t$P[z],1,1)=="n") {              # capture n of intervention group
-                  nI <- nI + t$V[z]                         # this is specifically for 2x2 number better, number worse
-               }
+   tsVec <- S$Arm$FORM %>% filter(id=="ArmTS") %>% pull(value)
+   tsVec <- unlist(str_split(tsVec, fixed(";")))
+   tsN <- length(tsVec)
+   iN <- length(iVec)
+   # If no Interventions or Time Spans are checked for this Arm, send error message.
+   if(iN>0 && tsN>0) {
+      # Get data Parameters from S$IN$FORM
+      P <- unique(S$IN$FORM$name[S$IN$FORM$name!=""])
+      # Create results tibble with 4 "sets" of the Parameters - C.Pre, I.Pre, C.Post, I.Post
+      baseLineTS <- ifelse(tsVec[1]=="Baseline", 1, 0) # Things are a little different with/without a Baseline Time Span
+      n.rows <- (tsN-baseLineTS) * iN            # (Number of Time Spans - Baseline) * Number of Interventions
+      R <- tibble(O=rep(O.PICO, n.rows), I=rep("", n.rows), TS=rep("", n.rows)) # start table
+      Ri=0                                       # Row counter for the table
+      for(ts in 1:(tsN-baseLineTS)) {            # Looping through TimeSpans...
+         for(i in 1:iN) {                        #    ...and Interventions
+            Ri = Ri+1                            # Increment row counter
+            R[Ri, "I"]  <- iVec[i]               # Add names of Intervention and Time Span
+            R[Ri, "TS"] <- tsVec[ts+baseLineTS]
+            for(p in P) {                        # For whatever parameter set is in S$IN$FORM, do...
+            # ...C.Pre
+               idVec <- S$IN$FORM$id==paste0(p,".0.1")
+               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+               R[Ri,paste0(p,".0.0")] <- v
+            # ...I.Pre
+               idVec <- S$IN$FORM$id==paste0(p,".",i,".1")
+               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+               R[Ri,paste0(p,".1.0")] <- v
+            # ...C.Post
+               idVec <- S$IN$FORM$id==paste0(p,".0.",ts+baseLineTS)
+               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+               R[Ri,paste0(p,".0.1")] <- v
+            # ...I.Post
+               idVec <- S$IN$FORM$id==paste0(p,".",i,".",ts+baseLineTS)
+               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+               R[Ri,paste0(p,".1.1")] <- v
             }
          }
-         if(any(is.na(t$V))) {
-            msg = paste0(msg, "<li>", r$I[2], " in ", r$TS[2], "</li>")
+      }
+      # Decide what kind of analysis to do.
+      NoCtrlData <- 0                     # Figure out if all Control data or all Baseline data is missing
+      NoBaseData <- 0
+      for(p in P) {
+         NoCtrlData <- NoCtrlData + all(is.na(R[[paste0(p,".0.0")]]))
+         NoCtrlData <- NoCtrlData + all(is.na(R[[paste0(p,".0.1")]]))
+
+         NoBaseData <- NoBaseData + all(is.na(R[[paste0(p,".0.0")]]))
+         NoBaseData <- NoBaseData + all(is.na(R[[paste0(p,".1.0")]]))
+      }
+      NoCtrlData <- ifelse(NoCtrlData==(length(P)*2), TRUE, FALSE)
+      NoBaseData <- ifelse(NoBaseData==(length(P)*2), TRUE, FALSE)
+      if(S$IN$FORM$value[3] %in% c("Means & SDs","Means & SEs","Means & Overall SD")) {
+         # If necessary, add sd by convering se
+         if("se" %in% P) {
+            R$sd.0.0 <- sqrt(R$n.0.0)*R$se.0.0
+            R$sd.1.0 <- sqrt(R$n.1.0)*R$se.1.0
+            R$sd.0.1 <- sqrt(R$n.0.1)*R$se.0.1
+            R$sd.1.1 <- sqrt(R$n.1.1)*R$se.1.1
+         }
+         if(NoCtrlData) {                            # pp
+            ES <- m.pp(R$n.1.0, R$m.1.0, R$sd.1.0, # I.Pre
+                       R$n.1.1, R$m.1.1, R$sd.1.1) # I.Post
+            R$nC <- R$n.1.0                          # Control and Intervention n's for results table
+            R$nI <- R$n.1.1
+         }
+         if(NoBaseData) {                            # ci
+            ES <- m.ci(R$n.0.1, R$m.0.1, R$sd.0.1,   # C.Post
+                       R$n.1.1, R$m.1.1, R$sd.1.1)   # I.Post
+            R$nC <- R$n.0.1
+            R$nI <- R$n.1.1
+         }
+         if(!NoCtrlData && !NoBaseData) {            # ppci
+            ES <- m.ppci(R$n.0.0, R$m.0.0, R$sd.0.0, # C.Pre
+                         R$n.1.0, R$m.1.0, R$sd.1.0, # I.Pre
+                         R$n.0.1, R$m.0.1, R$sd.0.1, # C.Post
+                         R$n.1.1, R$m.1.1, R$sd.1.1) # I.Post
+            R$nC <- R$n.0.1
+            R$nI <- R$n.1.1
+         }
+      }
+      if(S$IN$FORM$value[3] %in% c("t-Test t-Value","t-Test p-Value")) {
+         if(NoCtrlData) {                 # pp
+            if("tp" %in% P) {
+               N <- R$n.1.1               # Pairwise; use n from TS/intervention group
+               R$tt.1.1 <- stats::qt(p=R$tp.1.1/2, df=N-2, lower.tail = F)   # formula from esc package
+            }
+            ES <- t.pp(R$n.1.0,           # I.Pre
+                       R$n.1.1, R$tt.1.1) # I.Post
+            R$nC <- R$n.1.0               # Control and Intervention n's for results table
+            R$nI <- R$n.1.1
+         }
+         if(NoBaseData) {                 # ci
+            if("tp" %in% P) {
+               N <- R$n.0.1 + R$n.1.1     # No baseline data; use n from TS/Control + Intervention
+               R$tt.1.1 <- stats::qt(p=R$tp.1.1/2, df=N-2, lower.tail = F)
+            }
+            ES <- t.ci(R$n.0.1,                        # C.Post
+                       R$n.1.1, R$tt.1.1)                 # I.Post
+            R$nC <- R$n.0.1
+            R$nI <- R$n.1.1
+         }
+         if(!NoCtrlData && !NoBaseData) { #ppci
+            if("tp" %in% P) {
+               N <- R$n.0.0 + R$n.1.0
+               R$tt.1.0 <- stats::qt(p=R$tp.1.0, df=N-2, lower.tail = F)
+               N <- R$n.0.1 + R$n.1.1
+               R$tt.1.1 <- stats::qt(p=R$tp.1.1, df=N-2, lower.tail = F)
+            }
+            ES <- t.ppci(R$n.0.0,            # C.Pre
+                         R$n.1.0, R$tt.1.0,  # I.Pre
+                         R$n.0.1,            # C.Post
+                         R$n.1.1, R$tt.1.1)  # I.Post
+            R$nC <- R$n.0.1
+            R$nI <- R$n.1.1
+         }
+      }
+      if(S$IN$FORM$value[3] %in% c("Counts","Proportions")) {
+         if("s" %in% P) {                 # Convert proportion to 2x2
+            R$nb.0.0 <- round(R$n.0.0 * R$s.0.0 / 100)
+            R$nw.0.0 <- R$n.0.0 - R$nb.0.0
+            R$nb.1.0 <- round(R$n.1.0 * R$s.1.0 / 100)
+            R$nw.1.0 <- R$n.1.0 - R$nb.1.0
+            R$nb.0.1 <- round(R$n.0.1 * R$s.0.1 / 100)
+            R$nw.0.1 <- R$n.0.1 - R$nb.0.1
+            R$nb.1.1 <- round(R$n.1.1 * R$s.1.1 / 100)
+            R$nw.1.1 <- R$n.1.1 - R$nb.1.1
+         }
+         if(NoCtrlData) {                 # pp
+            ES <- c.pp(R$nb.1.0, R$nw.1.0,           # I.Pre
+                       R$nb.1.1, R$nw.1.1)           # I.Post
+            R$nC <- R$nb.1.0 + R$nw.1.0
+            R$nI <- R$nb.1.1 + R$nw.1.1
+         }
+         if(NoBaseData) {                 # ci
+            ES <- c.ci(R$nb.0.1, R$nw.0.1,           # C.Post
+                       R$nb.1.1, R$nw.1.1)           # I.Post
+            R$nC <- R$nb.0.1 + R$nw.0.1
+            R$nI <- R$nb.1.1 + R$nw.1.1
+         }
+         if(!NoCtrlData && !NoBaseData) { #ppci
+            ES <- c.ppci(R$nb.0.0, R$nw.0.0,         # C.Pre
+                         R$nb.1.0, R$nw.1.0,         # I.Pre
+                         R$nb.0.1, R$nw.0.1,         # C.Post
+                         R$nb.1.1, R$nw.1.1)         # I.Post
+            R$nC <- R$nb.0.1 + R$nw.0.1
+            R$nI <- R$nb.1.1 + R$nw.1.1
+         }
+      }
+      # As part of that we determine the n's to keep in the results, which depends...
+
+      # Note that if baseLine TS=FALSE, the code (accidentally) fills in the baseline cells with the 1st Timespan values,
+      #   which also appear where they're supposed to. So if baseLineTS=FALSE, all we do to is call the right function,
+      #   which doesn't have parameters for the baseline data.
+
+      # If all control variables are false, use d.pp
+      # If some are true and some are false, assume the user forgot some entries
+
+      # If baseLineTS=FALSE OR baseLineTS=TRUE but there's no baseline data, use dci
+      if(length(ES$es)==0) {     # This can happen when some data is missing...
+         ES$es <- as.numeric(NA)
+         ES$var <- as.numeric(NA)
+         ES$se <- as.numeric(NA)
+         ES$ci.lo <- as.numeric(NA)
+         ES$ci.hi <- as.numeric(NA)
+         ES$w <- as.numeric(NA)
+      }
+      R <- bind_cols(R,as.tibble(ES))
+      # Do we need to reverse the sign of the effect size because lower scores are better?
+      picoNUM <- recGet(S$db, "pico", "picoNUM", tibble(c("name", "=", "Outcome"),
+                                                        c("value", "=", O.PICO)))
+      Ohio <- recGet(S$db, "pico", c("value"), tibble(c("picoNUM", "=", picoNUM$picoNUM[1]),
+                                                      c("name", "=", "OutcomeHi")))
+      if(Ohio$value[1]=="Lower scores are better") {
+         R$es    <- -R$es                             # reversal happens here
+         save.lo <- R$ci.lo
+         R$ci.lo <- -R$ci.hi
+         R$ci.hi <- -save.lo
+      }
+   View(R)
+      msg <- ""
+      P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
+      C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
+      for(i in 1:nrow(R)) {
+         if(is.na(R$es[i])) {
+            msg = paste0(msg, "<li>", R$I[i], " in ", R$TS[i], "</li>")
          } else {
-            # Do we need to reverse the sign of the effect size because lower scores are better?
-            picoNUM <- recGet(S$db, "pico", "picoNUM", tibble(c("name", "=", "Outcome"),
-                                                              c("value", "=", O.PICO)))
-            Ohio <- recGet(S$db, "pico", c("value"), tibble(c("picoNUM", "=", picoNUM$picoNUM[1]),
-                                                            c("name", "=", "OutcomeHi")))
-            if(S$IN$FORM$value[2]=="An Effect Size") {
-               d <- esR(t$V[1], t$V[2], t$V[3], "d", CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]])
-            } else {
-               d <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]](t) # Call the right calculation function in CC$
-            }
-            if(Ohio$value[1]=="Lower scores are better") {
-               d$es <- -d$es                                # reversal happens here
-               save.lo <- d$ci.lo
-               d$ci.lo <- -d$ci.hi
-               d$ci.hi <- -save.lo
-            }
-            r$info[2]   <- d$info
-            r$esType[2] <- d$measure
-            r$nC[2]     <- nC
-            r$nI[2]     <- nI
-            r$es[2]     <- format(d$es, digits=6)
-            r$v[2]      <- format(d$v, digits=6)
-            r$se[2]     <- format(d$se, digits=6)
-            r$ci.lo[2]  <- format(d$ci.lo, digits=6)
-            r$ci.hi[2]  <- format(d$ci.hi, digits=6)
-            r$weight[2] <- format(d$w, digits=6)
+            r <- recGet(S$db, "result", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
+                                                                  c("armNUM", "=", S$NUMs$armNUM),
+                                                                  c("P", "=", P.PICO),
+                                                                  c("I", "=", R$I[i]),
+                                                                  c("C", "=", C.PICO),
+                                                                  c("O", "=", O.PICO),      # defined near start of function
+                                                                  c("TS", "=", R$TS[i])))
+            r$extractID[2] <- S$NUMs$extractID
+            r$catalogID[2] <- S$NUMs$catalogID                # Need to fill all these in just in case it's a new record
+            r$studyNUM[2]  <- S$NUMs$studyNUM
+            r$armNUM[2]    <- S$NUMs$armNUM
+            r$P[2]  <- P.PICO
+            r$I[2]  <- R$I[i]
+            r$C[2]  <- C.PICO
+            r$O[2]  <- O.PICO
+            r$TS[2] <- R$TS[i]
+            r$info[2]   <- R$info[i]
+            r$esType[2] <- R$measure[i]
+            r$nC[2]     <- R$nC[i]
+            r$nI[2]     <- R$nI[i]
+            r$es[2]     <- format(R$es[i], digits=6)
+            r$v[2]      <- format(R$var[i], digits=6)
+            r$se[2]     <- format(R$se[i], digits=6)
+            r$ci.lo[2]  <- format(R$ci.lo[i], digits=6)
+            r$ci.hi[2]  <- format(R$ci.hi[i], digits=6)
+            r$weight[2] <- format(R$w[i], digits=6)
             r <- recSave(r, S$db)                           # save results
          }
       }
+      if(msg!="") {
+         S$modal_text <<- HTML("<p>Missing data is preventing the calculation of:<ul>", msg, "</ul></p>")
+         S$modal_title <<- "Whoops."
+         S$modal_size <<- "m"
+         rv$modal_warning <- rv$modal_warning + 1
+      }
+   } else {
+         S$modal_text <<- HTML("<p>You need to click the green <b>Edit Arm-Level Data</b> button and check
+                              the boxes for at least one eligible Intervention and one eligible Time Span.</p>")
+         S$modal_title <<- "Whoops."
+         S$modal_size <<- "m"
+         rv$modal_warning <- rv$modal_warning + 1   # But this shouldn't actually happen because of Edit Arm error checking...
    }
-   if(msg!="") {
-      S$modal_text <<- HTML("<p>Missing data is preventing the calculation of:<ul>", msg, "</ul></p>")
-      S$modal_title <<- "Whoops."
-      S$modal_size <<- "m"
-      rv$modal_warning <- rv$modal_warning + 1
-   }
+
+
+
+   #
+   #    if(dt[3]=="se") { se2sd = TRUE } else { se2sd = FALSE }
+   #    # For each Time Span by Intervention, calulate results and save in result table
+   #    for(ts in 1:(S$IN$FORM$min[1])) {                 # number of Time Spans in this FORM
+   #       for(i in 1:S$IN$FORM$max[1]) {                 # number of Interventions in this FORM
+   #          r <- ts * i
+   #          R$I[r] <- iVec[i]
+   #          R$TS[r] <- tsVec[ts]
+   #          for(z in dt) {
+   #
+   #          }
+   #
+   #       }
+   #    }
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   # msg=""
+   # all.t = tibble()
+   # for(ts in 0:(S$IN$FORM$min[1]-1)) {                      # number of Time Spans in this FORM
+   #    for(i in 1:S$IN$FORM$max[1]) {                        # number of Interventions in this FORM
+   #
+   #       t <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["params"]]   # get correct parameter table from CC$C list
+   #       nC <- nI <- 0                                      # initialize
+   #       for(z in 1:nrow(t)) {                              # fill out parameter table using inputs
+   #          if(t$T[z]=="C") {                               # Control group parameter?
+   #             t$V[z] <- stripHTML(input[[paste0(t$P[z],".0.",ts) ]])
+   #             if(str_sub(t$P[z],1,1)=="n") {               # capture n of control group
+   #                nC <- nC + t$V[z]                         # this is specifically for 2x2 number better, number worse
+   #             }
+   #          } else {                                        # Intervention group parameter...
+   #             t$V[z] <- stripHTML(input[[paste0(t$P[z],".",i,".",ts) ]])
+   #             if(str_sub(t$P[z],1,1)=="n") {               # capture n of intervention group
+   #                nI <- nI + t$V[z]                         # this is specifically for 2x2 number better, number worse
+   #             }
+   #          }
+   #       }
+   #    }
+   #    t$TS <- ts                                            # add Time Span data to t; Baseline is 1
+   #    if(any(is.na(t$V))) {                                 # if data is missing, add error message about that
+   #       msg = paste0(msg, "<li>", r$I[2], " in ", r$TS[2], "</li>")
+   #    } else {                                              # Don't add rows with missing data
+   #       if(nrow(all.t)==0) {                               # add or row bind?
+   #          all.t <- t
+   #       } else {
+   #          all.t <- bind_rows(all.t, t)
+   #       }
+   #    }
+   # }
+   # View(all.t)
+   # View(S$IN$FORM)
+   # haveResults=FALSE
+   # all.t$V <- as.numeric(all.t$V)                           # Convert data to numeric; blanks go to NA
+   # if(S$IN$FORM$value[3]=="Means & SEs" || S$IN$FORM$value[3]=="Means & SDs") {
+   #    if(all(!is.na(all.t$V[1:6]))) {                       # If any Baseline data is NA, skip all this...
+   #       for(ts in 0:(S$IN$FORM$min[1]-1)) {                # For each Time Span
+   #          t.TS <- t.all %>% filter(TS==ts)                # Get Time Span's rows from t.all
+   #          if(all(!is.na(t.TS$V[1:6]))) {                  # Skip this TS if there's an NA
+   #             if(t.TS$P[3]=="se") {
+   #                t.TS$V[3] <- sqrt(t.TS$V[1]) * t.TS$V[3]  # Convert any SEs to SDs
+   #                t.TS$V[6] <- sqrt(t.TS$V[4]) * t.TS$V[6]
+   #                t.TS$P[3] <- t.TS$P[6] <- "sd"
+   #             }
+   #             if(i==1) {
+   #                n.0.0  <- t.TS$V[1]   # C.Pre
+   #                m.0.0  <- t.TS$V[2]
+   #                sd.0.0 <- t.TS$V[3]
+   #                n.1.0  <- t.TS$V[4]   # I.Pre
+   #                m.1.0  <- t.TS$V[5]
+   #                sd.1.0 <- t.TS$V[6]
+   #                n.0.1  <- numeric(0)  # C.Post
+   #                m.0.1  <- numeric(0)
+   #                sd.0.1 <- numeric(0)
+   #                n.1.1  <- numeric(0)  # I.Post
+   #                m.1.1  <- numeric(0)
+   #                sd.1.1 <- numeric(0)
+   #             } else {
+   #                n.0.1  <- c(n.0.1,  t.TS$V[1])            # Calculators are vectorized
+   #                m.0.1  <- c(m.0.1,  t.TS$V[2])
+   #                sd.0.1 <- c(sd.0.1, t.TS$V[3])
+   #                n.1.1  <- c(n.1.1,  t.TS$V[4])
+   #                m.1.1  <- c(m.1.1,  t.TS$V[5])
+   #                sd.1.1 <- c(sd.1.1, t.TS$V[6])
+   #             }
+   #          }
+   #          if(length(n.1.1)>0) {                           # If we have at least one Time Span, calculate
+   #             d <- calc.d.pp(n.0.1, m.0.1, sd.0.1,  # C.Pre
+   #                           n.1.1, m.1.1, sd.1.1,  # I.Pre
+   #                           n.0.2, m.0.2, sd.0.2,  # C.Post
+   #                           n.1.2, m.1.3, sd.1.2)  # I.Post
+   #             haveResults=TRUE
+   #          }
+   #       }
+   #    }
+   # }
+   #
+   # if(S$IN$FORM$value[2]=="An Effect Size") {
+   #    d <- esR(t$V[1], t$V[2], t$V[3], "d", CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]])
+   # } else {
+   #    if(haveResults) {
+   #       # get result for this TimeSpan from previous results
+   #    } else {
+   #       d <- CC$C[[S$IN$FORM$value[2]]][[S$IN$FORM$value[3]]][["calc"]](t) # Call the right calculation function in CC$
+   #    }
+   # }
+   #
+   #
+   # # Do we need to reverse the sign of the effect size because lower scores are better?
+   # picoNUM <- recGet(S$db, "pico", "picoNUM", tibble(c("name", "=", "Outcome"),
+   #                                                   c("value", "=", O.PICO)))
+   # Ohio <- recGet(S$db, "pico", c("value"), tibble(c("picoNUM", "=", picoNUM$picoNUM[1]),
+   #                                                 c("name", "=", "OutcomeHi")))
 }
 
 # Does the saved form have the right Time Spans and Interventions?

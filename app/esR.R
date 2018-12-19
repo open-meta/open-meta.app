@@ -2,21 +2,27 @@
 ### Tom Weishaar - v0.1 - Dec 2018
 
 
-# Calculate effect using both Baseline and Control group data.
+# Calculate effect size using both Baseline and Control group data.
 # From 2008-Morris-Estimating Effect Sizes From Pretest-Posttest-Control Group Designs
 #    where this is called "dppc2". Function is vectorized.
-dppc2 <- function(n.0.1, m.0.1, sd.0.1,  # C.Pre
-                  n.1.1, m.1.1, sd.1.1,  # I.Pre
-                  n.0.2, m.0.2, sd.0.2,  # C.Post
-                  n.1.2, m.1.2, sd.1.2)  # I.Post
+m.ppci <- function(n.0.0, m.0.0, sd.0.0,         # C.Pre
+                   n.1.0, m.1.0, sd.1.0,         # I.Pre
+                   n.0.1, m.0.1, sd.0.1,         # C.Post
+                   n.1.1, m.1.1, sd.1.1)         # I.Post
 {
-   N   <- n.0.1 + n.1.1                        # N is total at baseline
-   m   <- (m.1.2 - m.1.1) - (m.0.2 - m.0.1)    # (Intervention @ TS2 - baseline) - (Control @ TS2 - baseline)
-   sd  <- sqrt((((n.0.1 - 1)*sd.0.1^2) + ((n.1.1 - 1)*sd.1.1^2)) / (N - 2)) # Pooling total squared error @ baseline
-   ssa <- 1 - (3 / (4*(N) - 9))                # Small sample adjustment
+   info <- paste0("m.ppci")
+   N   <-  n.1.0 + n.0.0                         # N is total at baseline
+   m   <- (m.1.1 - m.1.0) - (m.0.1 - m.0.0)      # (Intervention @ TS2 - baseline) - (Control @ TS2 - baseline)
+   sd  <- sqrt((((n.0.0 - 1)*sd.0.0^2) + ((n.1.0 - 1)*sd.1.0^2)) / (N - 2)) # Pooling total squared error @ baseline
+   if(all(is.na(sd.0.0)) && all(is.na(sd(0.1)))) { # Overall SD
+      sd <- sd.1.0                               # Overall sd is already pooled!
+   }
+   if(all(is.na(sd.0.1)) && all(is.na(sd(1.1))) && all(is.na(sd(1.0)))) {  # In case there's no Baseline Overall SD
+      sd <- sd.1.1
+   }
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
    es  <- m/sd*ssa
-   v   <- ((N)/(n.0.1*n.1.1)) + (es^2/(2*(N-2)))
-   info <- paste0("dppc2")
+   v   <- ((N)/(n.0.0*n.1.0)) + (es^2/(2*(N-2))) # variance is based on baseline n
    se  <- sqrt(v)
    return(list(es = es,
                var = v,
@@ -24,15 +30,229 @@ dppc2 <- function(n.0.1, m.0.1, sd.0.1,  # C.Pre
                ci.lo = es - stats::qnorm(.975) * se,
                ci.hi = es + stats::qnorm(.975) * se,
                w = 1/v,
-               measure = "d",
+               measure = "hd",
                info = info))
 }
 
-# TEST - Answer is .7684649; function is vectorized
-# dppc2(20, 23.1, 13.8,  # C.Pre
-#       20, 30.6, 15.0,  # I.Pre
-#       c(20,20), c(19.7,19.7), c(14.8,14.8),  # C.Post
-#       c(20,20), c(38.5,38.5), c(11.6,11.6))  # I.Post
+#TEST - Answer is .7684649; function is vectorized
+# m.ppci(20, 23.1, 13.8,  # C.Pre
+#        20, 30.6, 15.0,  # I.Pre
+#      c(20,20), c(19.7,19.7), c(14.8,14.8),  # C.Post
+#      c(20,20), c(38.5,38.5), c(11.6,11.6))  # I.Post
+
+t.ppci <- function(n.0.0,                      # C.Pre
+                   n.1.0, t.1.0,               # I.Pre
+                   n.0.1,                      # C.Post
+                   n.1.1, t.1.1)               # I.Post
+{
+   info <- paste0("t.ppci")
+   N   <-  n.1.1 + n.0.1                         # N is total at TS
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
+   dPre  <- t.1.0 * sqrt((n.0.0 + n.1.0) / (n.0.0 * n.1.0)) * ssa
+   dPost <- t.1.1 * sqrt((n.0.1 + n.1.1) / (n.0.1 * n.1.1)) * ssa
+   es <- dPost - dPre
+   v   <- ((N)/(n.0.0*n.1.0)) + (es^2/(2*(N-2))) # variance is based on baseline n
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+
+# t.ppci(20,20,3,20,20,3.4)
+
+c.ppci <- function(nb.0.0, nw.0.0,               # C.Pre
+                   nb.1.0, nw.1.0,               # I.Pre
+                   nb.0.1, nw.0.1,               # C.Post
+                   nb.1.1, nw.1.1)               # I.Post
+{
+   info  <- paste0("c.ppci")
+   n.0.0 <- nb.0.0 + nw.0.0
+   n.1.0 <- nb.1.0 + nw.1.0
+   n.0.1 <- nb.0.1 + nw.0.1
+   n.1.1 <- nb.1.1 + nw.1.1
+   N <- n.0.0 + n.1.0 + n.0.1 + n.1.1
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
+   or.Pre <- (nb.1.0 * nw.0.0) / (nw.1.0 * nb.0.0)
+   or.Post <- (nb.1.1 * nw.0.1) / (nw.1.1 * nb.0.1)
+   g.Pre <- log(or.Pre) / (pi / sqrt(3)) * ssa
+   g.Post <- log(or.Post) / (pi / sqrt(3)) * ssa
+   es <- g.Post - g.Pre
+   v   <- ((N)/(n.0.0*n.1.0)) + (es^2/(2*(N-2))) # variance is based on baseline n
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+
+# c.ppci(100,100,120,80,120,80,100,100)
+
+m.ci <- function(n.0.1, m.0.1, sd.0.1,           # C.Post
+                 n.1.1, m.1.1, sd.1.1)           # I.Post
+{
+   info <- paste0("m.ci")
+   N   <- n.1.1 + n.0.1
+   m   <- m.1.1 - m.0.1
+#   sd  <- sqrt((sd.0.1^2+sd.1.1^2) / 2)         # Cohen pools SDs
+   sd  <- sqrt((((n.0.1 - 1)*sd.0.1^2) + ((n.1.1 - 1)*sd.1.1^2)) / (N - 2)) # Hedges pools squared errors
+   if(all(is.na(sd.0.1))) {                      # (all() to vectorize)
+      sd <- sd.1.1                               # But Overall SD is most accurate because it also accounts for
+   }                                             #    different means
+   ssa <- 1 - (3 / (4*N - 5))                    # Small sample adjustment
+#   ssa <- 1 - (3 / (4*N - 9))
+#   ssa <- 1                                      # Wilson calculator
+   es  <- m/sd*ssa
+#   v   <- ((N)/(n.0.1*n.1.1)) + (es^2/(2*(N)))   # Wilson calculator/esc package
+   v   <- ((N)/(n.0.1*n.1.1)) + (es^2/(2*(N-2)))
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+# m.ci(n.0.1=c(20,20), m.0.1=c(19.7,19.7), sd.0.1=c(14.8,14.8),  # C.Post Matches Wilson, with adjustments
+#    n.1.1=c(20,25), m.1.1=c(38.5,38.5), sd.1.1=c(11.6,11.6))  # I.Post
+#
+# m.ci(n.0.1=c(20,20), m.0.1=c(19.7,19.7), sd.0.1=NA,            # C.Post Does not match Wilson, which adjusts Overall SD somehow
+#    n.1.1=c(20,25), m.1.1=c(38.5,38.5), sd.1.1=c(11.6,11.6))  # I.Post (Does match if you put in overall SD for both groups)
+
+
+t.ci <- function(n.0.1,                      # C.Post
+                 n.1.1, t.1.1)               # I.Post
+{
+   info <- paste0("t.ci")
+   N   <-  n.1.1 + n.0.1                         # N is total at TS
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
+   es <- t.1.1 * sqrt((n.0.1 + n.1.1) / (n.0.1 * n.1.1)) * ssa
+   v   <- ((N)/(n.0.1*n.1.1)) + (es^2/(2*(N-2))) # variance is based on TS n
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+
+# t.ci(30,20,4)
+
+c.ci <- function(nb.0.1, nw.0.1,                 # C.Post
+                 nb.1.1, nw.1.1)                 # I.Post
+{
+   info <- paste0("c.ci")
+   n.0.1 <- nb.0.1 + nw.0.1
+   n.1.1 <- nb.1.1 + nw.1.1
+   N <- n.0.1 + n.1.1
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
+   or <- (nb.1.1 * nw.0.1) / (nw.1.1 * nb.0.1)
+   d <- log(or) / (pi / sqrt(3))
+   es <- d * ssa
+   v   <- ((N)/(n.0.1*n.1.1)) + (es^2/(2*(N-2)))       # variance is based on TS n
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+
+# c.ci(100,100,120,80)
+
+
+m.pp <- function(n.1.0, m.1.0, sd.1.0,           # I.Pre
+                 n.1.1, m.1.1, sd.1.1)           # I.Post
+{
+   info <- paste0("m.pp")
+   N   <- n.1.1                                  # Total n is just what's left in the intervention group
+   m   <- m.1.1 - m.1.0
+   if(is.na(sd.1.0)) {                           # Overall SD
+      sd <- sd.1.1                               # Provided sd is already pooled
+   } else {
+      sd  <- sqrt((((n.1.0 - 1)*sd.1.0^2) + ((n.1.1 - 1)*sd.1.1^2)) / (N - 2)) # Pooling total squared error @ baseline
+   }
+   ssa <- 1 - (3 / (4*(N) - 5))                  # Small sample adjustment
+   es  <- m/sd*ssa
+   v   <- ((N)/(n.1.0*n.1.1)) + (es^2/(2*(N-2))) # variance is based on baseline n
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+
+# m.pp(20, 30.6, 15.0,  # I.Pre
+#    c(20,20), c(38.5,38.5), c(11.6,11.6))  # I.Post
+
+t.pp <- function(n.1.0,                          # I.Pre
+                 n.1.1, t.1.1)                   # I.Post
+{
+   info <- paste0("t.pp")
+   N   <-  n.1.1                                 # N is n.1.1 only because n.1.0 is the same group
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
+   es <- t.1.1 * sqrt((n.1.1) / ((n.1.1/2)^2)) * ssa
+   v   <- ((N)/(n.1.1*n.1.0)) + (es^2/(2*(N-2))) # variance is based on baseline n
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+
+# t.pp(20,30,5)
+
+c.pp <- function(nb.1.0, nw.1.0,                 # I.Pre
+                 nb.1.1, nw.1.1)                 # I.Post
+{
+   info <- paste0("c.pp")
+   n.1.0 <- nb.1.0 + nw.1.0
+   n.1.1 <- nb.1.1 + nw.1.1
+   N <- n.1.0 + n.1.1
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
+   or <- (nb.1.1 * nw.1.0) / (nw.1.1 * nb.1.0)
+   d <- log(or) / (pi / sqrt(3))
+   es <- d * ssa
+   v   <- ((N)/(n.1.0*n.1.1)) + (es^2/(2*(N-2))) # variance is based on baseline n
+   se  <- sqrt(v)
+   return(list(es = es,
+               var = v,
+               se = se,
+               ci.lo = es - stats::qnorm(.975) * se,
+               ci.hi = es + stats::qnorm(.975) * se,
+               w = 1/v,
+               measure = "hd",
+               info = info))
+}
+
+# c.pp(100,100,120,80)
+
+
+
 
 
 # This is our effect size converter. It's in a separate file to make it easier to update
