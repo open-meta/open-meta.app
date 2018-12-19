@@ -1223,7 +1223,7 @@ calcNsave <- function() {
          S$IN$FORM$value[i] <<- str_trim(stripHTML(as.character(input[[ids[i]]]))) # input[[]] isn't vectorized, so looping
       }
    }
-View(S$IN$FORM)
+ View(S$IN$FORM)
    # Save the calculation FORM in the extract table
    O.PICO <- S$IN$FORM$value[1]
    r <- recGet(S$db, "extract", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
@@ -1243,6 +1243,7 @@ View(S$IN$FORM)
    tsVec <- unlist(str_split(tsVec, fixed(";")))
    tsN <- length(tsVec)
    iN <- length(iVec)
+   ReverseScoreOK = TRUE
    # If no Interventions or Time Spans are checked for this Arm, send error message.
    if(iN>0 && tsN>0) {
       # Get data Parameters from S$IN$FORM
@@ -1258,22 +1259,33 @@ View(S$IN$FORM)
             R[Ri, "I"]  <- iVec[i]               # Add names of Intervention and Time Span
             R[Ri, "TS"] <- tsVec[ts+baseLineTS]
             for(p in P) {                        # For whatever parameter set is in S$IN$FORM, do...
-            # ...C.Pre
-               idVec <- S$IN$FORM$id==paste0(p,".0.1")
-               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
-               R[Ri,paste0(p,".0.0")] <- v
-            # ...I.Pre
-               idVec <- S$IN$FORM$id==paste0(p,".",i,".1")
-               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
-               R[Ri,paste0(p,".1.0")] <- v
-            # ...C.Post
-               idVec <- S$IN$FORM$id==paste0(p,".0.",ts+baseLineTS)
-               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
-               R[Ri,paste0(p,".0.1")] <- v
-            # ...I.Post
-               idVec <- S$IN$FORM$id==paste0(p,".",i,".",ts+baseLineTS)
-               v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
-               R[Ri,paste0(p,".1.1")] <- v
+               if(baseLineTS) {
+               # ...C.Pre
+                  idVec <- S$IN$FORM$id==paste0(p,".0.1")
+                  v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+                  R[Ri,paste0(p,".0.0")] <- v
+               # ...I.Pre
+                  idVec <- S$IN$FORM$id==paste0(p,".",i,".1")
+                  v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+                  R[Ri,paste0(p,".1.0")] <- v
+               # ...C.Post
+                  idVec <- S$IN$FORM$id==paste0(p,".0.",ts+baseLineTS)
+                  v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+                  R[Ri,paste0(p,".0.1")] <- v
+               # ...I.Post
+                  idVec <- S$IN$FORM$id==paste0(p,".",i,".",ts+baseLineTS)
+                  v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+                  R[Ri,paste0(p,".1.1")] <- v
+               } else {
+               # ...C.Post
+                  idVec <- S$IN$FORM$id==paste0(p,".0.",ts+baseLineTS)
+                  v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+                  R[Ri,paste0(p,".0.1")] <- v
+               # ...I.Post
+                  idVec <- S$IN$FORM$id==paste0(p,".",i,".",ts+baseLineTS)
+                  v <- ifelse(sum(idVec)==1, as.numeric(S$IN$FORM[idVec, "value"]), as.numeric(NA))
+                  R[Ri,paste0(p,".1.1")] <- v
+               }
             }
          }
       }
@@ -1321,6 +1333,7 @@ View(S$IN$FORM)
       if(S$IN$FORM$value[3] %in% c("t-Test t-Value","t-Test p-Value")) {
          if(NoCtrlData) {                 # pp
             if("tp" %in% P) {
+               ReverseScoreOK = FALSE     # tp can't be negative and can only be interpreted as beneficial
                N <- R$n.1.1               # Pairwise; use n from TS/intervention group
                R$tt.1.1 <- stats::qt(p=R$tp.1.1/2, df=N-2, lower.tail = F)   # formula from esc package
             }
@@ -1331,6 +1344,7 @@ View(S$IN$FORM)
          }
          if(NoBaseData) {                 # ci
             if("tp" %in% P) {
+               ReverseScoreOK = FALSE     # tp can't be negative and can only be interpreted as beneficial
                N <- R$n.0.1 + R$n.1.1     # No baseline data; use n from TS/Control + Intervention
                R$tt.1.1 <- stats::qt(p=R$tp.1.1/2, df=N-2, lower.tail = F)
             }
@@ -1341,6 +1355,7 @@ View(S$IN$FORM)
          }
          if(!NoCtrlData && !NoBaseData) { #ppci
             if("tp" %in% P) {
+               ReverseScoreOK = FALSE     # tp can't be negative and can only be interpreted as beneficial
                N <- R$n.0.0 + R$n.1.0
                R$tt.1.0 <- stats::qt(p=R$tp.1.0, df=N-2, lower.tail = F)
                N <- R$n.0.1 + R$n.1.1
@@ -1410,13 +1425,13 @@ View(S$IN$FORM)
                                                         c("value", "=", O.PICO)))
       Ohio <- recGet(S$db, "pico", c("value"), tibble(c("picoNUM", "=", picoNUM$picoNUM[1]),
                                                       c("name", "=", "OutcomeHi")))
-      if(Ohio$value[1]=="Lower scores are better") {
+      if(Ohio$value[1]=="Lower scores are better" && ReverseScoreOK) {
          R$es    <- -R$es                             # reversal happens here
          save.lo <- R$ci.lo
          R$ci.lo <- -R$ci.hi
          R$ci.hi <- -save.lo
       }
-   View(R)
+    View(R)
       msg <- ""
       P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
       C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
