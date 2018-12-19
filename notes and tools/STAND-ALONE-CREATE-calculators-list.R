@@ -295,18 +295,18 @@ CC$C = list(
             "iRow" = I.TP,
             "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","p"), V=0),
             "calc" = function(t) { return(esc_t(p=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
-         ),
-         "One-way ANOVA" = list(
-            "cRow" = C.n.only,
-            "iRow" = I.A,
-            "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","F"), V=0),
-            "calc" = function(t) { return(esc_f(f=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
-         ),
-         "Point-Biserial r" = list(
-            "cRow" = C.n.only,
-            "iRow" = PBR,
-            "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","r"), V=0),
-            "calc" = function(t) { return(esc_rpb(r=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
+         # ),
+         # "One-way ANOVA" = list(
+         #    "cRow" = C.n.only,
+         #    "iRow" = I.A,
+         #    "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","F"), V=0),
+         #    "calc" = function(t) { return(esc_f(f=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
+         # ),
+         # "Point-Biserial r" = list(
+         #    "cRow" = C.n.only,
+         #    "iRow" = PBR,
+         #    "params" = tibble(TS=rep("",3), T=c("C","I","I"), P=c("n","n","r"), V=0),
+         #    "calc" = function(t) { return(esc_rpb(r=t$V[3], grp1n=t$V[2], grp2n=t$V[1], es.type="d")) }
          )
       ),
       "Dichotomous" = list(
