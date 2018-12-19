@@ -92,8 +92,8 @@ citesHead <- function(r) {
    return(
       HTML0("<span style='font-size: 1.15rem; color:#fff;'>",
          format(length(r$reviewBest), big.mark = ","), " results; ",
-         format(sum(r$reviewBest==0), big.mark = ","), " not reviewed; ",
-         format(sum(r$reviewBest==1), big.mark = ","), " failed; ",
-         format(sum(r$reviewBest==2), big.mark = ","), " passed</span><br>")
+         format(sum(r$reviewBest <3), big.mark = ","), " not reviewed; ",
+         format(sum(r$reviewBest==3), big.mark = ","), " failed; ",
+         format(sum(r$reviewBest==4), big.mark = ","), " passed</span><br>")
    )
 }
