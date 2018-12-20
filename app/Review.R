@@ -354,7 +354,7 @@ output$citationPickR <- renderUI({c(rv$limn, rv$render, rv[["limnCites"]]); isol
    TABLE = "catalog"
    WHERE = tibble(c("catalogID", ">", "0"))
    FilterF = citesFilter                                                   # typically whereFilter
-   HeadlineF = citesHead                                                   # typically THRUb
+   HeadlineF = citesHeadReview                                             # typically THRUb
    SELECT = c("title", "author", "journal", "Y", "reviewBest", "reviewCount")
    if(S$P$Modify) {                                                        # Review or View depends on permissions
      ButtonData <- list(review=list(id="cite", q="g", class="mr-2", label="Review"))

@@ -433,7 +433,7 @@ output$pickStudy <- renderUI({c(rv$limn, rv$limnpickStudy); isolate({ # !!!Note 
       TABLE = "catalog"                                              # The table the pickR data will come from
       WHERE = "extract"                       # Special handling for citesFilter
       FilterF = citesFilter                                                   # typically whereFilter
-      HeadlineF = citesHead                                                   # typically THRUb
+      HeadlineF = citesHeadExtract                                                  # typically THRUb
       SELECT = NULL                           # These are the table fields needed to build the pickR
       if(S$P$Modify) {                                               # View or Edit depends on permissions
         ButtonData <- list(extract=list(id=paste0("viewStudy"), q="g", class="mr-2", label="Extract"))
@@ -1223,7 +1223,7 @@ calcNsave <- function() {
          S$IN$FORM$value[i] <<- str_trim(stripHTML(as.character(input[[ids[i]]]))) # input[[]] isn't vectorized, so looping
       }
    }
- View(S$IN$FORM)
+ # View(S$IN$FORM)
    # Save the calculation FORM in the extract table
    O.PICO <- S$IN$FORM$value[1]
    r <- recGet(S$db, "extract", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
@@ -1431,7 +1431,7 @@ calcNsave <- function() {
          R$ci.lo <- -R$ci.hi
          R$ci.hi <- -save.lo
       }
-    View(R)
+    # View(R)
       msg <- ""
       P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
       C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
