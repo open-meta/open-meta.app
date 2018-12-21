@@ -28,13 +28,20 @@ If you get involved in this project, there are three development tools I find ex
 Right now the app uses the following packages:
 
 * shiny
+* htmltools
 * tidyverse
 * pool
 * RMariaDB
-* mailR
+* RCurl
+* rvest
+* aws.signature
+* RefManageR (BibTeX library)
+* esc
+* metafor
+* robumeta
 * bcrypt     (password encryption)
 * DT         (JavaScript tables)
-* RefManageR (BibTeX library)
+
 
 I don't expect to write any statistical software to calculate effect sizes or do meta-analysis but to use existing packages. There is a terrific list of existing R packages related to meta-analysis, maintained by Michael Dewey, at [CRAN Task View: MetaAnalysis](https://cran.r-project.org/web/views/MetaAnalysis.html).
 
