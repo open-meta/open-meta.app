@@ -1304,8 +1304,10 @@ calcNsave <- function() {
       if(S$IN$FORM$value[3] %in% c("Means & SDs","Means & SEs","Means & Overall SD")) {
          # If necessary, add sd by convering se
          if("se" %in% P) {
-            R$sd.0.0 <- sqrt(R$n.0.0)*R$se.0.0
-            R$sd.1.0 <- sqrt(R$n.1.0)*R$se.1.0
+            if(baseLineTS) {
+               R$sd.0.0 <- sqrt(R$n.0.0)*R$se.0.0
+               R$sd.1.0 <- sqrt(R$n.1.0)*R$se.1.0
+            }
             R$sd.0.1 <- sqrt(R$n.0.1)*R$se.0.1
             R$sd.1.1 <- sqrt(R$n.1.1)*R$se.1.1
          }
@@ -1431,7 +1433,7 @@ calcNsave <- function() {
          R$ci.lo <- -R$ci.hi
          R$ci.hi <- -save.lo
       }
-    # View(R)
+      # View(R)
       msg <- ""
       P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
       C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
