@@ -757,6 +757,21 @@ imGetFORMvalues <- function (FORM) {
          }
          FORM$value[5] <- r$comment
       },
+      "analysis" = {
+         A <- recGet(S$db, "analysis", c("analysisID", "name", "type", "P", "I", "C", "O", "TS", "comment"),
+           tibble(c("analysisID", "=", S$NUMs$analysisNUM)))
+         FORM$value[FORM$column=="name"] <- A$name
+         FORM$value[FORM$column=="type"] <- A$type
+         FORM$value[FORM$column=="comment"] <- A$comment
+         for(i in c("P", "I", "C", "O", "TS")) {                      # The options come from the project's results table
+            FORM$options[FORM$column==i] <- paste0(unique(S$R[[i]]), collapse=";")
+            if(A[[i]]=="") {
+               FORM$value[FORM$column==i] <- FORM$options[FORM$column==i] # If blank, no JSONization yet, check all
+            } else {
+               FORM$value[FORM$column==i] <- fromJSON(A[[i]])         #    otherwise, PICOTS in analysis table are JSONized
+            }
+         }
+      },
       warning(paste0("In imGetFORMvalues(), no handler for ", FORM$table[1], " table."))
       )
    return(FORM)
