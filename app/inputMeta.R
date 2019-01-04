@@ -377,9 +377,14 @@ r <- paste0(r, label,
          <label class="form-check-label" for="', paste0(tr$id,i) ,'">', options[i], '</label>
       </div>')
          }
+         if(!tr$inline) {
+            cboxWidth = paste0(' " style="width:', width, 'rem;min-width:', width, 'rem;" ')
+         } else {
+            cboxWidth = ""
+         }
 r <- paste0(r, '
-<div id="', tr$id, '" class="shiny-input-', tr$type, 'group shiny-input-container', '-inline'[tr$inline], '"', ariaD, '>
-   ', label, '
+<div id="', tr$id, '" class="shiny-input-', tr$type, 'group shiny-input-container', '-inline'[tr$inline], '"',
+            cboxWidth, ariaD, '>', label, '
    <div class="shiny-options-group">',
 optionsCode, '
    </div>
