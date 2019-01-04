@@ -48,29 +48,6 @@ if(S$P$Msg=="") {
          ))
       }
 
-      # proto_E is the Activation Instructions and Button at the bottom
-   proto_E = if(S$PRJ$status>0) {    # skip this after project has been activated
-         ""
-      } else {
-         i = length(pH$H)
-         myTitle = HTML(paste0("<", pH$H[i], " class='text-dark'>", pH$title[i], "<", pH$H[i], ">"))
-         # If all the buttons are green, add an activation button.
-         if(all(proto$text[!(proto$order %in% c("A", "Aa", "Ab", "B", "C", "D", "Da", "Dd", "Dh", "E"))] != "<p><br></p>")) {
-            actButton = tagList(
-               bs4("d", class="text-center", bs4("btn", id="activate", class="w-75", q=c("b","l"), "Activate Project"))
-            )
-         } else {
-            actButton = ""
-         }
-         tagList(
-            bs4("d", class="card bg-warning text-dark mx-auto my-4", bs4("d", class="card-body",
-               bs4("d", class="card-title", HTML(myTitle)),
-               bs4("d", class="card-text", HTML(pH$helpText[pH$order=="E"]))
-            )),
-            actButton
-         )
-      }
-
    editMe = FALSE # initialize
    output$uiMeat <- renderUI({c(rv$menuActive, rv$limn); isolate({
       if(rv$limn) { tagList(
@@ -158,7 +135,30 @@ if(S$P$Msg=="") {
    output$Dhd  <- renderUI({ rv[['Dhd']]; isolate({ sectionBuilder('Dhd', editMe)}) })
    output$Di   <- renderUI({ rv[['Di']]; isolate({ sectionBuilder('Di', editMe)}) })
    output$Dj   <- renderUI({ rv[['Dj']]; isolate({ sectionBuilder('Dj', editMe)}) })
-   output$E    <- renderUI({ rv[['E']]; proto_E })
+   output$E    <- renderUI({ rv[['E']];
+      # proto_E is the Activation Instructions and Button at the bottom
+   if(S$PRJ$status>0) {    # skip this after project has been activated
+         ""
+      } else {
+         i = length(pH$H)
+         myTitle = HTML(paste0("<", pH$H[i], " class='text-dark'>", pH$title[i], "<", pH$H[i], ">"))
+         # If all the buttons are green, add an activation button.
+         if(all(proto$text[!(proto$order %in% c("A", "Aa", "Ab", "B", "C", "D", "Da", "Dd", "Dh", "E"))] != "<p><br></p>")) {
+            actButton = tagList(
+               bs4("d", class="text-center", bs4("btn", id="activate", class="w-75", q=c("b","l"), "Activate Project"))
+            )
+         } else {
+            actButton = ""
+         }
+         tagList(
+            bs4("d", class="card bg-warning text-dark mx-auto my-4", bs4("d", class="card-body",
+               bs4("d", class="card-title", HTML(myTitle)),
+               bs4("d", class="card-text", HTML(pH$helpText[pH$order=="E"]))
+            )),
+            actButton
+         )
+      }
+   })
 
    sectionBuilder = function(section, editMe) {
       i = which(section==pH$order)
@@ -264,6 +264,7 @@ if(S$P$Msg=="") {
       r = recSave(pro, S$db)                  # Save the edited text in sQL
       proto$text[proto$order==s] <<- t        # Also update proto tibble
       rv[[s]] = rv[[s]] + 1                   # Re-render this section
+      rv[['E']] <- rv[['E']] + 1              # Re-render 'E' every time so Activate button will appear and disappear.
    })
 
    ### observer for omclick
@@ -303,11 +304,6 @@ if(S$P$Msg=="") {
             recSave(prj)
             js$redirect(paste0("?Protocol&prj=", S$PRJ$projectID))   # Rerender page
          },
-         # "view" = {
-         #    S$modal_title <<- "Under Construction."
-         #    S$modal_text <<- HTML("<p>Sorry, this feature isn't available yet.</p>")
-         #    rv$modal_warning <- rv$modal_warning + 1
-         # },
          message(paste0("In input$js.omclick observer, no handler for ", id, "."))
       )
    }, ignoreNULL = TRUE, ignoreInit = TRUE)
