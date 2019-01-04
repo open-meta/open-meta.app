@@ -328,6 +328,23 @@ F26 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull
 F27 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
 result=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
                                         F20,F21,F22,F23,F24,F25,F26,F27)
+#analysis
+F1  = tibble(Name="analysisID", Type="MEDIUMINT", Size="",    NoSign="T", NoNull="T", Default="AUTOINC", Key="PRIMARY KEY")
+F2  = tibble(Name="name",       Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F3  = tibble(Name="type",       Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F4  = tibble(Name="P",          Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F5  = tibble(Name="I",          Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F6  = tibble(Name="C",          Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F7  = tibble(Name="O",          Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F8  = tibble(Name="TS",         Type="VARCHAR",   Size="254", NoSign="F", NoNull="T", Default="s",       Key="")
+F9  = tibble(Name="comment",    Type="TEXT",      Size="",    NoSign="",  NoNull="",  Default="x",       Key="")
+F10 = tibble(Name="verNum",     Type="SMALLINT",  Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F11 = tibble(Name="verUser",    Type="VARCHAR",   Size="40",  NoSign="",  NoNull="T", Default="s",       Key="")
+F12 = tibble(Name="verTime",    Type="VARCHAR",   Size="23",  NoSign="",  NoNull="T", Default="s",       Key="")
+F13 = tibble(Name="clash",      Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+F14 = tibble(Name="clashFacts", Type="TEXT",      Size="",    NoSign="",  NoNull="T" ,Default="x",       Key="")
+F15 = tibble(Name="deleted",    Type="TINYINT",   Size="",    NoSign="T", NoNull="T", Default="z",       Key="")
+analysis=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15)
 
    #    extract id, catalogid, studyNUM, armNUM, participantgroup, intervention, comparison, outcome, timespan, d, v.
 
@@ -335,7 +352,8 @@ result=rbind(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
 table.definition.list = list(
    page=page, user=user, project=project, membership=membership, protohelp=protohelp,
    comment=comment, protocol=protocol, settings=settings, search=search, cite=cite,
-   catalog=catalog, review=review, extract=extract, pico=pico, ids=ids, result=result
+   catalog=catalog, review=review, extract=extract, pico=pico, ids=ids, result=result,
+   analysis=analysis
 )
 saveRDS(table.definition.list, file="app/table.definition.list.RDS")
 ##################################################################################
@@ -344,4 +362,4 @@ rm(F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,
                               F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,
                               F30,F31,F32,F33)
 rm(cite, page, project, catalog, review, search, user, membership, protocol, protohelp,
-   settings, comment, extract, pico, ids, result)
+   settings, comment, extract, pico, ids, result, analysis)
