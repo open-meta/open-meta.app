@@ -702,7 +702,17 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
          r$comment[2] <- comment
          r <- recSave(r, S$db)
       }
-      if(!dataTable %in% c("extract", "settings", "pico", "review")) {          # It's a standard table
+      if(dataTable %in% "analysis") {
+         View(S$IN$FORM)
+         r <- recGet(S$db, "analysis", "**", tibble(c("analysisID", "=", S$NUMs$analysisNUM)))
+         cns <- as.character(S$IN$FORM$column)                        # "column" is table column name
+         cns <- cns[-which(cns=="")]                                  # delete blanks (spacers)
+         for(i in cns) {                                              # Form values to table columns
+            r[[2, i]] <- unlist(S$IN$FORM[S$IN$FORM$column==i , "value"])  # unlist pries the values out of the tibble
+         }
+         r <- recSave(r, S$db)
+      }
+      if(!dataTable %in% c("extract", "settings", "pico", "review", "analysis")) {          # It's a standard table
          warning("At the bottom of inputMeta.R, the code for saving FORM data into a standard table is incomplete.")
          R <-  recGet(S$db, dataTable, SELECT="**", WHERE=tibble(c(paste0(dataTable, "ID"), "=", S$IN$recID)))
          for(i in 1:nrow(S$IN$FORM)) {
@@ -766,9 +776,9 @@ imGetFORMvalues <- function (FORM) {
          for(i in c("P", "I", "C", "O", "TS")) {                      # The options come from the project's results table
             FORM$options[FORM$column==i] <- paste0(unique(S$R[[i]]), collapse=";")
             if(A[[i]]=="") {
-               FORM$value[FORM$column==i] <- FORM$options[FORM$column==i] # If blank, no JSONization yet, check all
+               FORM$value[FORM$column==i] <- FORM$options[FORM$column==i]
             } else {
-               FORM$value[FORM$column==i] <- fromJSON(A[[i]])         #    otherwise, PICOTS in analysis table are JSONized
+               FORM$value[FORM$column==i] <- A[[i]]
             }
          }
       },

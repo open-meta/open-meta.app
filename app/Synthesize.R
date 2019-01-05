@@ -16,6 +16,7 @@ source("chokidar.R", local=TRUE)
 source("inputMeta.R", local=TRUE)
 
 rv$menuActive = 1    # Start out on first sub-menu
+rv$limnSetup = 0
 
 S$editFORM <- FALSE
 S$NUMs$analysisNUM <- 0
@@ -24,7 +25,6 @@ S$R <- recGet(S$db, "result",
            c("resultID", "studyNUM", "armNUM", "P", "I", "C", "O", "TS", "info", "esType", "nC", "nI", "es", "v", "ci.lo", "ci.hi"),
            tibble(d = c("deleted", "=", "0")))
 S$noResults <- ifelse(S$R$resultID[1]==0, TRUE, FALSE)
-View(R)
 
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({c(rv$limn); isolate({
@@ -138,7 +138,6 @@ output$Setup <- renderUI({c(rv$limn, rv$limnSetup); isolate({
    A <- recGet(S$db, "analysis",
            c("analysisID", "name", "type", "P", "I", "C", "O", "TS", "comment"),
            tibble(d = c("deleted", "=", "0")))
-   View(A)
    if(S$P$Modify) {
       newAnyBtn <- tagList(                                          # New Any/Edit Any buttons
          bs4("c12", bs4("btn", uid="addForm_Form-Analysis", q="g", class="mr-3", "Add a New Analysis")))
@@ -177,11 +176,10 @@ output$Setup <- renderUI({c(rv$limn, rv$limnSetup); isolate({
    if(S$NUMs$analysisNUM>0) {    # Show selected analysis
       FORM <- imGetFORM("Form-Analysis", "om$prime")
       FORM <- imGetFORMvalues(FORM)
-      View(FORM)
       FORM$disabled <- TRUE                                          # Disable the FORM until editing
       S$Any$FORM <<- FORM
       otherAnyBtn <- tagList(
-         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="otherAny_0", q="b", class="mr-3", "Select a Different Analysis")))
+         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="viewAny_0", q="b", class="mr-3", "Select a Different Analysis")))
       return(tagList(
          otherAnyBtn,
          imForm2HTML(FORM),
@@ -195,7 +193,7 @@ prf_analysis = function(r) {                        # Standard function for one 
    return(paste0(
 '<div class="row">
    <div class="col-4">', r[[1,]], '</div>
-   <div class="col-4 text-right">', r[[2,]], '</div>',
+   <div class="col-5 text-right">', r[[2,]], '</div>',
 #   <div class="col-5></div>',
    bs4('c12', bs4('hr0', class="py-2")), '
 </div>', collapse = ''))
@@ -252,12 +250,7 @@ observeEvent(input$js.omclick, {
       "viewAny" = {
          S$NUMs$analysisNUM <<- n
          S$hideMenus <<- FALSE
-         rv$limnSetup <- rv$limnSetup+1
-      },
-      "otherAny" = {
-         S$NUMs$analysisNUM <<- 0
-         S$hideMenus <<- FALSE
-         rv$limnSetup <- rv$limnSetup+1
+         rv$limnSetup <- rv$limnSetup + 1
       },
       "deleteX" = {
          if(S$P$Modify) {
@@ -293,51 +286,35 @@ observeEvent(input$js.omclick, {
       "saveForm" = {
          if(S$P$Modify) {
             msg=""
-            switch(n,
-               "PrjForm-Arm" = {
-                  n <- str_trim(stripHTML(as.character(input[["ArmName"]]))) == ""
-                  i <- is.null(input[["ArmI"]])
-                  ts <- is.null(input[["ArmTS"]])
-                  if(n) {
-                     msg = paste0(msg, "<li>Arm name can't be blank</li>")
-                  }
-                  if(i) {
-                     msg = paste0(msg, "<li>You must check at least one Intervention</i></li>")
-                  }
-                  if(ts) {
-                     msg = paste0(msg, "<li>You must check at least one Time Span</i></li>")
-                  }
-               },
-               "Form-Fail-Stage-2" = {
-                  status <- str_trim(stripHTML(input$Stage2Status))    # If study is a Fail, check whether we need a
-                  chex <- str_trim(stripHTML(input$Stage2Detail))
-                  if(status=="Unreviewed" && chex[1]!="") {
-                     msg="<li>If the decision is <i>Unreviewed</i>, uncheck all reasons for failure. Otherwise, change the decision to <i>Fail</i>.</li>"
-                  }
-                  if(status=="Fail - study ineligible") {              #    reason for failure
-                     r <- recGet(S$db, "settings", "value", tibble(c("name", "=", "forceFail")))
-                     if(r$value=="T" && chex[1]=="") {
-                        msg <- "<li>When your review is <b>Fail</b>, you must check at least one reason for failure.</li>"
-                     }
-                  }
-                  if(status==";Pass - study Ok") {                     # If study is a Pass, check whether we need
-                     r <- recGet(S$db, "settings", "value", tibble(c("name", "=", "forcePass")))
-                     if(r$value=="T" && chex[1]!="") {
-                        msg <- "<li>When your decision is <b>Pass</b>, you must uncheck all reasons for failure.</li>"
-                     }
-                  }
+               n <- str_trim(stripHTML(as.character(input[["AnalysisName"]]))) == ""
+               P <- is.null(input[["AnalysisP"]])
+               I <- is.null(input[["AnalysisI"]])
+               C <- is.null(input[["AnalysisC"]])
+               O <- is.null(input[["AnalysisO"]])
+               TS <- is.null(input[["AnalysisTS"]])
+               if(n) {
+                  msg = paste0(msg, "<li>Analysis name can't be blank</li>")
                }
-            )
+               if(P) {
+                  msg = paste0(msg, "<li>You must check at least one Participant Group</i></li>")
+               }
+               if(I) {
+                  msg = paste0(msg, "<li>You must check at least one Intervention</i></li>")
+               }
+               if(C) {
+                  msg = paste0(msg, "<li>You must check at least one Comparison</i></li>")
+               }
+               if(O) {
+                  msg = paste0(msg, "<li>You must check at least one Outcome</i></li>")
+               }
+               if(TS) {
+                  msg = paste0(msg, "<li>You must check at least one Time Span</i></li>")
+               }
             if(msg!="") {
                S$modal_title <<- "Whoops"
-               S$modal_text <<- HTML("<p>Can't save this yet because:<ul>", msg, "</ul></p>")
+               S$modal_text <<- HTML("<p>Can't save this analysis because:<ul>", msg, "</ul></p>")
                rv$modal_warning <- rv$modal_warning + 1
             } else {
-               if(n=="Form-Fail-Stage-2") {
-                  r <- recGet(S$db, "catalog", "**", tibble(c("catalogID", "=", S$NUMs$catalogID)))
-                  r$reviewBest[2] <- ifelse(status=="Unreviewed", 2, ifelse(status=="Fail - study ineligible", 3, 4))
-                  r <- recSave(r, S$db)
-               }
                S$editFORM <<- FALSE
                S$hideMenus <<- FALSE
                rv$imGetFORMData <- rv$imGetFORMData + 1
@@ -345,7 +322,6 @@ observeEvent(input$js.omclick, {
             }
          }
       },
-
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
