@@ -119,7 +119,7 @@ QsetQ = function(Qset, dbLink) {
 wherez = function(WHERE, dbLink) {   # WHERE is a tibble
    w = ""
    for(i in 1:ncol(WHERE)) {                                  # Need all this to keep from putting quotes on numbers
-      if(WHERE[[2,1]]!=" IN " && suppressWarnings(is.na(as.numeric(WHERE[[3,i]])))) { # An NA means it's a string
+      if(WHERE[[2,i]]!=" IN " && suppressWarnings(is.na(as.numeric(WHERE[[3,i]])))) { # An NA means it's a string
          v = dbQuoteString(dbLink, WHERE[[3,i]])
       } else {
          v = WHERE[[3,i]]
@@ -191,7 +191,7 @@ recGet = function(db, table, SELECT, WHERE, pool=shiny.pool) {
    wherePairs = wherez(WHERE, dbLink)
 # Execute QUERY
    QUERY = paste0("SELECT ", selects, " FROM ", dbt(db, table, dbLink), " WHERE ", wherePairs, ";")
-#print(QUERY)
+# print(QUERY)
    r = dbGetQuery(dbLink, QUERY)                           # perform SQL Query
 # Return Data or New Empty Record
    if(nrow(r)>0)  {                                        # r is number of rows found
