@@ -770,25 +770,6 @@ output$viewResults <- renderUI({c(rv$limn, rv$limnviewCalculator); isolate({
       )
    )
    return(results)
-   # r$P <- paste0(r$P, r$C, r$O, r$I, r$TS, sep="::")
-   # label <- paste0("X", 1:6)
-   # mean  <- c(1.29,0.76,2.43,1.68,1.22,1.7)
-   # lower <- c(0.84,0.50,1.58,1.1,0.8,1.11)
-   # upper <- c(1.95,1.16,3.67,2.54,1.85,2.56)
-   #
-   # df <- data.frame(label, mean, lower, upper)
-   #
-   # # reverses the factor level ordering for labels after coord_flip()
-   # df$label <- factor(df$label, levels=rev(df$label))
-
-   # library(ggplot2)
-   # fp <- ggplot(data=r, aes(x=P, y=es, ymin=ci.lo, ymax=ci.hi)) +
-   #         geom_pointrange() +
-   #         geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
-   #         coord_flip() +  # flip coordinates (puts labels on y axis)
-   #         xlab("Label") + ylab("Cohen's d (95% CI)") +
-   #         theme_dark()
-   # return(fp)
 })})
 
 output$studyYbox <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
@@ -965,7 +946,6 @@ observeEvent(input$js.omclick, {
          S$hideMenus <<- FALSE
          rv$limnviewArm <- rv$limnviewArm+1
          rv$limnviewCalculator <- rv$limnviewCalculator + 1             # Hide the calculator
-
       },
       "deleteX" = {
          # This should refuse to delete an arm until all its outcomes have been deleted
