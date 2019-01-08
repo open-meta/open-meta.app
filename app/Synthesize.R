@@ -17,14 +17,19 @@ source("inputMeta.R", local=TRUE)
 
 rv$menuActive = 1    # Start out on first sub-menu
 rv$limnSetup = 0
+rv$Forest = 0
 
 S$editFORM <- FALSE
 S$NUMs$analysisNUM <- 0
+S$PlotHeight <- 400
 
 S$R <- recGet(S$db, "result",
            c("resultID", "studyNUM", "armNUM", "P", "I", "C", "O", "TS", "info", "esType", "nC", "nI", "es", "v", "ci.lo", "ci.hi"),
            tibble(d = c("deleted", "=", "0")))
 S$noResults <- ifelse(S$R$resultID[1]==0, TRUE, FALSE)
+S$M <- tibble()
+S$R2 <- tibble()
+
 
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({c(rv$limn); isolate({
@@ -70,7 +75,8 @@ if(S$P$Msg=="") {
                      bs4("r", align="hc",
                         bs4("c10",
                         bs4("r", id="pageMenu"),
-                        bs4("r", id="Forest")
+                        bs4("r", id="Forest"),
+                        plotOutput("FPlot")
                      ))
                   ))
                },
@@ -83,16 +89,16 @@ if(S$P$Msg=="") {
                      ))
                   ))
                },
+               # "6" = {
+               #    return(tagList(
+               #       bs4("r", align="hc",
+               #          bs4("c10",
+               #          bs4("r", id="pageMenu"),
+               #          bs4("r", id="Subgroup")
+               #       ))
+               #    ))
+               # },
                "6" = {
-                  return(tagList(
-                     bs4("r", align="hc",
-                        bs4("c10",
-                        bs4("r", id="pageMenu"),
-                        bs4("r", id="Subgroup")
-                     ))
-                  ))
-               },
-               "7" = {
                   return(tagList(
                      bs4("r", align="hc",
                         bs4("c10",
@@ -112,7 +118,7 @@ output$pageMenu <- renderUI({c(rv$menuActive, rv$limn); isolate({
    return(
       tagList(
          bs4("c12",
-         bs4("md", id="sub", n=1:7, active=rv$menuActive, text=c("Analysis Setup", "PRISMA diagram", "Sequential Analysis", "Forest Plot", "Bias Plots", "Subgroup Analysis", "Meta-Regression")),
+         bs4("md", id="sub", n=1:6, active=rv$menuActive, text=c("Analyze", "PRISMA diagram", "Sequential Analysis", "Forest Plot", "Bias Plots", "Meta-Regression")),
             bs4("dx", style="height:1.5rem")
          )
       )
@@ -180,10 +186,12 @@ output$Setup <- renderUI({c(rv$limn, rv$limnSetup); isolate({
       S$Any$FORM <<- FORM
       otherAnyBtn <- tagList(
          bs4("c12", class="pl-0 pb-2", bs4("btn", uid="viewAny_0", q="b", class="mr-3", "Select a Different Analysis")))
+      results <- HTML0('<pre><span style="font-size: 1rem;">', analyze(), '</span></pre>')
       return(tagList(
          otherAnyBtn,
          imForm2HTML(FORM),
-         editAnyBtn
+         editAnyBtn,
+         results
       ))
    }
 })})
@@ -200,37 +208,108 @@ prf_analysis = function(r) {                        # Standard function for one 
 }
 
 output$Prisma <- renderUI({c(rv$menuActive, rv$limn); isolate({
-   return(HTML0("<p>PRISMA diagram</p>")
+   return(HTML0("<p>PRISMA diagram upcoming...</p>")
    )
 })})
 
 output$Sequential <- renderUI({c(rv$menuActive, rv$limn); isolate({
    if(S$noResults) { return(HTML0(("<h5>Nothing to display - extraction must be complete on at least one study.</h5>"))) }
-   return(HTML0("<p>Sequential Analysis</p>")
+   if(length(S$M)==0) { return(HTML0(("<h5>Nothing to display - no analysis selected in <i>Analyze</i>.</h5>"))) }
+   return(HTML0("<p>Sequential Analysis upcoming...</p>")
    )
 })})
 
 output$Forest <- renderUI({c(rv$menuActive, rv$limn); isolate({
-   if(S$noResults) { return(HTML0(("<h5>Nothing to display - extraction must be complete on at least one study.</h5>"))) }
-   return(HTML0("<p>Forest Plot</p>")
-   )
+   if(S$noResults) {
+      rv$Forest <- 0
+      return(HTML0(("<h5>Nothing to display - extraction must be complete on at least one study.</h5>")))
+   }
+   if(length(S$M)==0) {
+      rv$Forest <- 0
+      return(HTML0(("<h5>Nothing to display - no analysis selected in <i>Analyze</i>.</h5>")))
+   }
+   S$PlotHeight <<- length(S$M$data$es) * 40
+   rv$Forest <- rv$Forest + 1
+   return("")
 })})
+
+output$FPlot <- renderPlot({
+   if(rv$Forest>0) {      # See output$Forest; this disables output$FPlot when there's nothing to display
+#      return(forest.robu(S$M, es.lab = "es", study.lab = "studyNUM"))   # NOTE: the model, S$M; not the results, S$R
+      # return(ggplot(data=S$R2,
+      #    aes(x = XName, y = es, ymin = ci.lo, ymax = ci.hi ))+
+      #    geom_pointrange(aes(col=XName))+
+      #    geom_hline(aes(fill=XName),yintercept =1, linetype=2)+
+      #    xlab('Study')+ ylab("Effect Size (95% Confidence Interval)")+
+      #    geom_errorbar(aes(ymin=ci.lo, ymax=ci.hi,col=XName),width=0.5,cex=1)+
+      #    facet_wrap(~studyName,strip.position="left",nrow=nrow(S$R2),scales = "free_y") +
+      #    theme(plot.title=element_text(size=16,face="bold"),
+      #       axis.text.y=element_blank(),
+      #       axis.ticks.y=element_blank(),
+      #       axis.text.x=element_text(face="bold"),
+      #       axis.title=element_text(size=12,face="bold"),
+      #    strip.text.y = element_text(hjust=0,vjust = 1,angle=180,face="bold"))+
+      #    coord_flip()
+      #    )
+
+# https://sakaluk.wordpress.com/2016/02/16/7-make-it-pretty-plots-for-meta-analysis/
+   apatheme=theme_bw()+
+     theme(panel.grid.major=element_blank(),
+           panel.grid.minor=element_blank(),
+           panel.border=element_blank(),
+           axis.line=element_line(),
+      #     text=element_text(family='Sans'),
+           legend.position='none')
+   # return(ggplot(S$R2, aes(y=studyName, x=es, xmin=ci.lo, xmax=ci.hi, shape = tester))+
+   #      #Add data points and color them black
+   #      geom_point(color = 'black')+
+   #      #Add 'special' points for the summary estimates, by making them diamond shaped
+   #  #    geom_point(data=subset(S$R2, tester=='Summary'), color='black', shape=18, size=4)+
+   #      #add the CI error bars
+   #      geom_errorbarh(height=.1)+
+   #      #Specify the limits of the x-axis and relabel it to something more meaningful
+   #      scale_x_continuous(limits=c(-2,2), name='Standardized Mean Difference (d)')+
+   #      #Give y-axis a meaningful label
+   #      ylab('Reference')+
+   #      #Add a vertical dashed line indicating an effect size of zero, for reference
+   #      geom_vline(xintercept=0, color='black', linetype='dashed')+
+   #      #Create sub-plots (i.e., facets) based on levels of setting
+   #      #And allow them to have their own unique axes (so authors don't redundantly repeat)
+   #      facet_grid(setting~., scales= 'free', space='free')+
+   #      #Apply my APA theme
+   #      apatheme)
+
+   # reverses the factor level ordering for labels after coord_flip()
+#   S$R2$studyName <- factor(S$R2$studyName, levels=rev(S$R2$studyName))
+   # S$R2 <- arrange(S$R2, es)
+   # View(S$R2)
+   return(ggplot(data=S$R2, aes(x=XName, y=es, ymin=ci.lo, ymax=ci.hi)) +
+           geom_pointrange() +
+           geom_hline(yintercept=0, lty=2) +  # add a dotted line at x=1 after flip
+           coord_flip() +  # flip coordinates (puts labels on y axis)
+           xlab("Study") + ylab("Effect Sizes (95% CI)") +
+           apatheme)
+   }
+})
 
 output$Bias <- renderUI({c(rv$menuActive, rv$limn); isolate({
    if(S$noResults) { return(HTML0(("<h5>Nothing to display - extraction must be complete on at least one study.</h5>"))) }
-   return(HTML0("<p>Bias Plots</p>")
+   if(length(S$M)==0) { return(HTML0(("<h5>Nothing to display - no analysis selected in <i>Analyze</i>.</h5>"))) }
+   return(HTML0("<p>Bias Plots upcoming...</p>")
    )
 })})
 
-output$Subgroup <- renderUI({c(rv$menuActive, rv$limn); isolate({
-   if(S$noResults) { return(HTML0(("<h5>Nothing to display - extraction must be complete on at least one study.</h5>"))) }
-   return(HTML0("<p>Subgroup Analysis</p>")
-   )
-})})
+# output$Subgroup <- renderUI({c(rv$menuActive, rv$limn); isolate({
+#    if(S$noResults) { return(HTML0(("<h5>Nothing to display - extraction must be complete on at least one study.</h5>"))) }
+#    if(length(S$M)==0) { return(HTML0(("<h5>Nothing to display - no analysis selected in <i>Analyze</i>.</h5>"))) }
+#    return(HTML0("<p>Subgroup Analysis upcoming...</p>")
+#    )
+# })})
 
 output$MetaRegression <- renderUI({c(rv$menuActive, rv$limn); isolate({
    if(S$noResults) { return(HTML0(("<h5>Nothing to display - extraction must be complete on at least one study.</h5>"))) }
-   return(HTML0("<p>Meta-regression</p>")
+   if(length(S$M)==0) { return(HTML0(("<h5>Nothing to display - no analysis selected in <i>Analyze</i>.</h5>"))) }
+   return(HTML0("<p>Meta-regression upcoming...</p>")
    )
 })})
 
@@ -325,5 +404,109 @@ observeEvent(input$js.omclick, {
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
+
+
+analyze <- function(model="C") {
+   R <- S$R %>%
+      filter(P %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="P"], ";"))) %>%
+      filter(I %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="I"], ";"))) %>%
+      filter(C %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="C"], ";"))) %>%
+      filter(O %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="O"], ";"))) %>%
+      filter(TS %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="TS"], ";")))
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
+                   n = c("name", "=", "Trial")))
+   studyNames <- r$value
+   names(studyNames) <- as.character(r$studyNUM)
+   R$studyNames <- studyNames[as.character(R$studyNUM)]
+   keepP <- length(unique(R$P))>1
+   keepI <- length(unique(R$I))>1
+   keepC <- length(unique(R$C))>1
+   keepO <- length(unique(R$O))>1
+   keepTS <- length(unique(R$TS))>1
+   R$XName <- rep("", nrow(R))
+   for(i in 1:nrow(R)) {
+      R$XName[i] <- paste0(c(R$P[i][keepP], R$I[i][keepI], R$C[i][keepC], R$O[i][keepO], R$TS[i][keepTS]), collapse="-")
+   }
+   R2 <- tibble(studyName = R$studyNames, XName = R$XName, studyNUM=R$studyNUM,
+                es = as.numeric(R$es), v = as.numeric(R$v), ci.lo = as.numeric(R$ci.lo), ci.hi=as.numeric(R$ci.hi))
+   switch(S$Any$FORM$value[S$Any$FORM$column=="type"],
+      "Cluster-robust correlated effects" = {
+         M <- robu(es ~ 1,
+             data = R2,
+             modelweights = "CORR",
+             studynum = studyNUM,
+             var.eff.size = v,
+             small = TRUE)
+
+         Sens <- paste0("\nSensitivity Analysis\n", tib2tab(sensitivity(M)))
+      },
+      "Cluster-robust hierarchical effects" = {
+         M <- robu(es ~ 1,
+             data = R2,
+             modelweights = "HIER",
+             studynum = studyNUM,
+             var.eff.size = v,
+             small = TRUE)
+         Sens <- ""
+      }
+   )
+
+   digits=3
+   effect              <- M$reg_table
+   effect$labels <- "ES of combined studies"
+   colnames(effect) <- c("", "Est","SE", "t", "df", "p", "95% CI.L","95% CI.U", "Sig")
+
+   if(as.numeric(effect$df)<4) {
+      S$M <- tibble()
+      r <- "Not enough degrees of freedom for this analysis."
+   } else {
+      switch(S$Any$FORM$value[S$Any$FORM$column=="type"],
+         "Cluster-robust correlated effects" = {
+            r <- paste0(paste0(M$mod_label, collapse=" "), "\n",
+            "\nNumber of studies = ", M$N, "\n",
+            "Number of outcomes = ", sum(M$k), " (min = ", min(M$k), ", mean = ", format(mean(M$k), digits = 3), ", median = ", stats::median(M$k), ", max = ", max(M$k), ")\n\n",
+            "Rho = ", format(M$mod_info$rho, digits = digits), "\n",
+            "I.sq = ", format(M$mod_info$I.2, digits = digits), "\n",
+            "Tau.sq = ", format(M$mod_info$tau.sq, digits = digits), "\n\n",
+            tib2tab(effect),
+            "---\n",
+            "Signif. codes: < .01 *** < .05 ** < .10 *\n",
+            "---\n",
+            Sens)
+         },
+         "Cluster-robust hierarchical effects" = {
+            r <- paste0(paste0(M$mod_label, collapse=" "), "\n",
+            "\nNumber of clusters = ", M$N, "\n",
+            "Number of outcomes = ", sum(M$k), " (min = ", min(M$k), ", mean = ", format(mean(M$k), digits = 3), ", median = ", stats::median(M$k), ", max = ", max(M$k), ")\n\n",
+            "Omega.sq = ", format(M$mod_info$omega.sq, digits = digits), "\n",
+            "Tau.sq = ", format(M$mod_info$tau.sq, digits = digits), "\n\n",
+            tib2tab(effect),
+            "---\n",
+            "Signif. codes: < .01 *** < .05 ** < .10 *\n",
+            "---\n",
+            Sens)
+         }
+      )
+      S$M <<- M
+      S$R2 <<- R2
+   }
+   return(r)
+}
+
+tib2tab <- function(tib, digits=3) {
+   tib <- format(tib, trim = TRUE, digits = digits, nsmall=3, scientific = FALSE)
+   return(tags$table(
+            tags$thead(
+               tags$tr(lapply(colnames(tib), function(x) tags$th(style="padding:0 6px 0 6px;", x)))),
+            tags$tbody(
+               apply(tib,1, function(x) {
+                     tags$tr(lapply(x, function(y) {
+                        tags$td(style="padding:0 6px 0 6px;", format(y, digits = digits))
+                     }))
+               })
+            ))
+   )
+}
 
 
