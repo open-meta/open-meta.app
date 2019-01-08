@@ -440,6 +440,7 @@ analyze <- function(model="C") {
              small = TRUE)
 
          Sens <- paste0("\nSensitivity Analysis\n", tib2tab(sensitivity(M)))
+         Sens <- str_replace(Sens, "X.Intercept.", "Effect Size")
       },
       "Cluster-robust hierarchical effects" = {
          M <- robu(es ~ 1,
