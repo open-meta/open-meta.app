@@ -31,7 +31,7 @@ if(S$P$Msg=="") {
                menubars = ""
             } else {
                menubars=tagList(
-                  bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Data Collection Forms")),
+                  bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Project Members", "Customize Data Collection Forms", "Activate without Protocol")),
                   bs4("mp", id="custom", n=1:9, active=rv$subMenu, text=c("Stage 1 Review", "Trials", "Arms", "Groups", "Participants",
                      "Interventions", "Comparisons", "Outcomes", "Time Spans")),
                   bs4("dx", style="height:1.5rem")
@@ -40,7 +40,7 @@ if(S$P$Msg=="") {
             switch(as.character(rv$menuActive),
                "1" = {                                  # For this choice, we don't want the submenu after all...
                   menubars=tagList(
-                     bs4("md", id="sub", n=1:2, active=rv$menuActive, text=c("Project Members", "Customize Data Collection Forms"))
+                     bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Project Members", "Customize Data Collection Forms", "Activate without Protocol"))
                   )
                   switch(S$view,
                      "memberList" = {
@@ -227,6 +227,25 @@ value of this data to your project actually worth all the extra work for your re
                         output$modifyInputs <- renderUI(imModifyInputs()),
                         output$showInputs   <- renderUI(imShowInputs()),
                         output$yellowbox    <- renderUI(yellowbox(form))
+                     )
+                  }
+               },
+               "3" = {
+                  menubars=tagList(
+                     bs4("md", id="sub", n=1:3, active=rv$menuActive, text=c("Project Members", "Customize Data Collection Forms", "Activate without Protocol"))
+                  )
+                  prj = projectGet("status", WHERE=tibble(c("projectID", "=", S$PRJ$projectID)))
+                  if(prj$status[1] == 1) {
+                     restOfPage <- HTML0("<h5>Your project is activated.</h5>")
+                  } else {
+                     restOfPage <- tagList(
+                        bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0("
+Although for any real project you will want to enforce Protocol completion before project activation, for testing
+and learning about meta-analysis and the Open-Meta app it often makes sense to activate your project without a
+Protocol. If that's the kind of project you want to create, you can activate it now without a Protocol by clicking
+the following button.
+")))),
+                        bs4("btn", id="activate", n=1, class="mr-1 mt-2", q=c("b", "p"), "Activate Project without Protocol")
                      )
                   }
                }
@@ -529,6 +548,12 @@ observeEvent(input$js.omclick, {
             imFixOrder()                                                    # imFixOrder also saves and updates S$IN$FORM
             rv$limn = rv$limn + 1
          }
+      },
+      "activate" = {
+         prj = projectGet("**", WHERE=tibble(c("projectID", "=", S$PRJ$projectID)))
+         prj$status[2] = 1
+         recSave(prj)
+         js$redirect(paste0("?prjAdmin&prj=", S$PRJ$projectID))             # Rerender page to update top menu
       },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
