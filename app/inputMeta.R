@@ -703,7 +703,6 @@ observeEvent(c(input$js.editorText, rv$imGetFORMData), {
          r <- recSave(r, S$db)
       }
       if(dataTable %in% "analysis") {
-         View(S$IN$FORM)
          r <- recGet(S$db, "analysis", "**", tibble(c("analysisID", "=", S$NUMs$analysisNUM)))
          cns <- as.character(S$IN$FORM$column)                        # "column" is table column name
          cns <- cns[-which(cns=="")]                                  # delete blanks (spacers)
@@ -781,6 +780,8 @@ imGetFORMvalues <- function (FORM) {
                FORM$value[FORM$column==i] <- A[[i]]
             }
          }
+         # Change statistical analysis options here!
+         FORM$options[FORM$column=="type"] <- "Cluster-robust hierarchical effects;Cluster-robust correlated effects"
       },
       warning(paste0("In imGetFORMvalues(), no handler for ", FORM$table[1], " table."))
       )
