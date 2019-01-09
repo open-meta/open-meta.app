@@ -152,11 +152,53 @@ output$Dashboard <- renderUI({c(rv$limn); isolate({
    S$NUMs$studyNUM <<- 0
    S$NUMs$armNUM <<- 0
    S$NUMs$armNUMnext <<- 0
-   return(
-      tagList(
-         bs4("c12", "Dashboard Here")
-      )
-   )
+      cites = recGet(S$db, "catalog", c("catalogID", "dupOf", "reviewBest", "reviewCount"), tibble(c("catalogID", ">", 0)))
+      if(cites$catalogID[1]>0) {                                                     # Prepare data for doughnut charts
+         noText <- ""
+         aData <- c(sum(cites$dupOf==0), sum(cites$dupOf!=0))                        # Chart 1 - Duplicates
+         aColors <- c("#1997c6","#9F86FF")
+         cites = cites[cites$dupOf==0,]
+         bData <- c(sum(cites$reviewBest==0), sum(cites$reviewBest==1), sum(cites$reviewBest>1))
+         bColors <- c("#1997c6","#9F86FF","#1BC98E")                                 # Chart 2 - Stage 1 - Not Reviewed,
+         if(sum(cites$reviewCount>0)==0) {                                           #    Fail, Pass
+            cData <- c(1,1,1)
+            cColors <- c("#6c757d","#6c757d","#6c757d")
+         } else {                                                                    # Chart 3 - By number or reviews
+            cData <- c(sum(cites$reviewBest==2), sum(cites$reviewBest==3), sum(cites$reviewBest==4))
+            cColors <- c("#1997c6","#9F86FF","#1BC98E")
+         }
+      } else {                                                                       # No cites, no reviews, all charts
+         noText <- "<h5>Nothing to review yet</h5>"
+         bData <- c(1,1,1)
+         bColors <- c("#6c757d","#6c757d","#6c757d")
+         cData <- c(1,1,1)
+         cColors <- c("#6c757d","#6c757d","#6c757d")
+         aData <- c(1,1)
+         aColors <- c("#6c757d","#6c757d")
+      }
+      return(tagList(
+         bs4("r", class="w-100",
+            bs4("chart", c=4, id=paste0("eA"), labels=c("Not Reviewed", "Failed", "Passed"),
+                data=bData,
+                legend="false", zeroText=noText,
+                title1="Stage 1 Reviews", title2="Not Reviewed<br>vs Fail vs Pass",
+#                title1="Stage 1 Reviews", title2="Pass vs Fail vs<br>Not Reviewed",
+                colors=bColors
+            ),
+            bs4("chart", c=4, id=paste0("eB"), labels=c("Not Extracted", "Failed", "Passed"),
+                data=cData,
+                legend="false", zeroText=noText,
+                title1="Extraction", title2="Not Extracted<br>vs Fail vs Pass",
+#                title1="Extraction", title2="Pass vs Fail vs<br>Not Extracted",
+                colors=bColors
+            )
+         ),
+bs4("r", bs4("c1"), bs4("c10", bs4("cd", q="y", bs4("cdb", bs4("cdt", HTML0(               # The yellow box
+"<p>The first graph shows the Stage 1 Review status of all studies - unreviewed, failed, or passed.
+The second graph shows the Extraction status of the studies that passed Stage 1 Review - unextracted,
+extraction failed, or extraction complete.</p>
+"))))))
+))
 })})
 
 output$TrialSetup <- renderUI({c(rv$limn); isolate({

@@ -79,7 +79,7 @@ if(S$P$Msg=="") {
                   bs4("chart", c=4, id=paste0("cA"), labels=c("Not Reviewed", "Failed", "Passed"),
                       data=bData,
                       legend="false", zeroText=noText,
-                      title1="Stage 1 Reviews", title2="Pass vs Fail vs<br>Not Reviewed",
+                      title1="Stage 1 Reviews", title2="Not Reviewed<br>vs Fail vs Pass",
                       colors=bColors
                   ),
                   bs4("chart", c=4, id=paste0("cB"), labels=c("1 review", "2 reviews", "3 or more"),
