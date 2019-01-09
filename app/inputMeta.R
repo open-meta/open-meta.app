@@ -781,7 +781,7 @@ imGetFORMvalues <- function (FORM) {
             }
          }
          # Change statistical analysis options here!
-         FORM$options[FORM$column=="type"] <- "Cluster-robust hierarchical effects;Cluster-robust correlated effects"
+         FORM$options[FORM$column=="type"] <- "Robust dependent-effects model;Random-effects model (Outcomes averaged)"
       },
       warning(paste0("In imGetFORMvalues(), no handler for ", FORM$table[1], " table."))
       )
