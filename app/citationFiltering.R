@@ -13,7 +13,7 @@ S$FIL$s1Pass <- FALSE
 # S$PKR$filteredIDs used by prevCite() and nextCite()
 
 citesFilter <- function(DB, TABLE, tableID, WHERE) {       # these aren't actually used in this filter, but they are passed...
-   extract <- ifelse(WHERE=="extract", TRUE, FALSE)
+   extract <- ifelse(class(WHERE)[1]=="character", TRUE, FALSE)     # special handling for Extract filtering
    f <- list()
    for(i in 1:nrow(S$FIL$slimFORM)) {                      # get user's entries
       S$FIL$FORM$value[i] <<- str_trim(stripHTML(input[[S$FIL$slimFORM$id[i]]]))
