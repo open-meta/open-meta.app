@@ -1042,6 +1042,10 @@ setProgress(.6)
          comment =    "",
          clashFacts = ""
       )
+      # When journal begins with http (at the moment, Clicnical Trials from Cochrane), make it a full link
+      r2$journal <- ifelse(str_to_lower(str_sub(r2$journal, 1, 4))=="http",
+                           paste0('<a href="', r2$journal, '" target="_blank">', r2$journal, '</a>'),
+                           r2$journal)
       # Note, NAs are changed to "" by citeTable() in sql-core.R
       #    and values are trimmed in cite2table() above
       for(c in names(r2)) {                                              # "@'`#$%" was used in cite2table() to separate
