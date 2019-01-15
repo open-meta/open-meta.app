@@ -421,12 +421,19 @@ analyze <- function(model="C") {
       filter(C %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="C"], ";"))) %>%
       filter(O %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="O"], ";"))) %>%
       filter(TS %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="TS"], ";")))
+   if(nrow(R)<4) {
+      S$M <- tibble()
+      r <- "Not enough studies yet for a Dependent Effects analysis."
+      return(r)
+   }
+   # Get studyNames for R from extract table
    r <- recGet(S$db, "extract", c("studyNUM", "value"),
             tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
                    n = c("name", "=", "Trial")))
    studyNames <- r$value
    names(studyNames) <- as.character(r$studyNUM)
    R$studyNames <- studyNames[as.character(R$studyNUM)]
+   # Construct XName (what's different about this result in terms of PICOTS)
    keepP <- length(unique(R$P))>1
    keepI <- length(unique(R$I))>1
    keepC <- length(unique(R$C))>1
@@ -436,6 +443,7 @@ analyze <- function(model="C") {
    for(i in 1:nrow(R)) {
       R$XName[i] <- paste0(c(R$P[i][keepP], R$I[i][keepI], R$C[i][keepC], R$O[i][keepO], R$TS[i][keepTS]), collapse="-")
    }
+   # R2 drops some columns from R
    R2 <- tibble(studyName = R$studyNames, XName = R$XName, studyNUM=R$studyNUM,
                 es = as.numeric(R$es), v = as.numeric(R$v), ci.lo = as.numeric(R$ci.lo), ci.hi=as.numeric(R$ci.hi))
 #   switch(S$Any$FORM$value[S$Any$FORM$column=="type"],
@@ -464,7 +472,7 @@ analyze <- function(model="C") {
    colnames(effect) <- c("", "Est","SE", "t", "df", "p", "95% CI.L","95% CI.U", "Sig")
    if(is.nan(effect$df) || as.numeric(effect$df)<4) {
       S$M <- tibble()
-      r <- "Not enough degrees of freedom for this analysis."
+      r <- "Not enough studies yet for a Dependent Effects analysis."
    } else {
       Sens <- paste0("\nSensitivity Analysis\n", tib2tab(sensitivity(M)))
       Sens <- str_replace(Sens, "X.Intercept.", "Effect Size")
