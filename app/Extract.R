@@ -589,7 +589,7 @@ output$viewStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
       }
       return(tagList(
          citation,
-         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="menu1_4", q="b", class="mr-3", "Select a Different Study")),
+         bs4("c12", class="pl-0 pb-2", bs4("btn", uid="menu1_3", q="b", class="mr-3", "Select a Different Study")),
          imForm2HTML(FORM),
          editStudyBtn
       ))
@@ -612,7 +612,6 @@ output$failStudy <- renderUI({c(rv$limn, rv$limnviewStudy); isolate({
          UpdateReviewBtn <- ""
       }
       return(tagList(
-  #       bs4("c12", class="pl-0 pb-2", bs4("btn", uid="menu1_4", q="b", class="mr-3", "Select a Different Study")),
          imForm2HTML(FORM),
          UpdateReviewBtn
       ))
@@ -1245,19 +1244,11 @@ calcNsave <- function() {
          S$IN$FORM$value[i] <<- str_trim(stripHTML(as.character(input[[ids[i]]]))) # input[[]] isn't vectorized, so looping
       }
    }
- # View(S$IN$FORM)
-   # Save the calculation FORM in the extract table
+# View(S$IN$FORM)
+   msg <- ""
+   P.PICO <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
+   C.PICO <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
    O.PICO <- S$IN$FORM$value[1]
-   r <- recGet(S$db, "extract", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
-                                                      c("armNUM", "=", S$NUMs$armNUM),
-                                                      c("outcome", "=", O.PICO)))
-   r$studyNUM[2] <- S$NUMs$studyNUM          # Need to fill these in in case it's a new record
-   r$armNUM[2] <- S$NUMs$armNUM
-   r$outcome[2] <- O.PICO
-   r$name[2] <- "Calculator"
-   r$value[2] <- toJSON(S$IN$FORM)
-   r <- recSave(r, S$db)
-
    # Get vectors of names of Interventions and Time Spans that are checked in the Arm form
    iVec <- S$Arm$FORM %>% filter(id=="ArmI") %>% pull(value)
    iVec <- unlist(str_split(iVec, fixed(";")))
@@ -1265,7 +1256,50 @@ calcNsave <- function() {
    tsVec <- unlist(str_split(tsVec, fixed(";")))
    tsN <- length(tsVec)
    iN <- length(iVec)
-   ReverseScoreOK = TRUE
+   r <- recGet(S$db, "extract", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
+                                                      c("armNUM", "=", S$NUMs$armNUM),
+                                                      c("outcome", "=", O.PICO),
+                                                      c("name", "=", "Calculator")))
+   # If the form is completely blank, delete the calculator and result, if any, from SQL and return
+   if(all(S$IN$FORM$value[S$IN$FORM$name!=""]=="")) {
+      if(r$extractID>0) {
+         r$deleted[2] <- 1
+         r <- recSave(r, S$db)
+      }
+      if(tsVec[1]=="Baseline") { tsVec <- tsVec[-1]}
+      for(i in iVec) {
+         for( ts in tsVec) {
+            r <- recGet(S$db, "result", SELECT="**", WHERE=tibble(c("studyNUM", "=", S$NUMs$studyNUM),
+                                                            c("armNUM", "=", S$NUMs$armNUM),
+                                                            c("P", "=", P.PICO),
+                                                            c("I", "=", i),
+                                                            c("C", "=", C.PICO),
+                                                            c("O", "=", O.PICO),      # defined near start of function
+                                                            c("TS", "=", ts)))
+            if(r$resultID>0) {
+               r$deleted[2] <- 1                 # If that result exists in the result table, delete it.
+               r <- recSave(r, S$db)
+               msg <- paste0("<li>Intervention: ", i, "; Time Span: ", ts, "</li>")
+            }
+         }
+      }
+      if(msg!="") {
+         S$modal_text <<- HTML("<p>Deleted previously saved results for ", O.PICO, ":<ul>", msg, "</ul></p>")
+         S$modal_title <<- "Deletion confirmation."
+         S$modal_size <<- "m"
+         rv$modal_warning <- rv$modal_warning + 1
+      }
+      return()
+   }
+   # FORM not completely blank, continue here...First save the calculator in the extract table
+   r$studyNUM[2] <- S$NUMs$studyNUM              # Need to fill these in in case it's a new record
+   r$armNUM[2] <- S$NUMs$armNUM
+   r$outcome[2] <- O.PICO
+   r$name[2] <- "Calculator"
+   r$value[2] <- toJSON(S$IN$FORM)
+   r <- recSave(r, S$db)
+
+   ReverseScoreOK = TRUE                         # initialize by assuming TRUE
    # If no Interventions or Time Spans are checked for this Arm, send error message.
    if(iN>0 && tsN>0) {
       # Get data Parameters from S$IN$FORM
@@ -1324,7 +1358,7 @@ calcNsave <- function() {
       NoCtrlData <- ifelse(NoCtrlData==(length(P)*2), TRUE, FALSE)
       NoBaseData <- ifelse(NoBaseData==(length(P)*2), TRUE, FALSE)
       if(S$IN$FORM$value[3] %in% c("Means & SDs","Means & SEs","Means & Overall SD")) {
-         # If necessary, add sd by convering se
+         # If necessary, add sd by converting se
          if("se" %in% P) {
             if(baseLineTS) {
                R$sd.0.0 <- sqrt(R$n.0.0)*R$se.0.0
@@ -1456,9 +1490,6 @@ calcNsave <- function() {
          R$ci.hi <- -save.lo
       }
       # View(R)
-      msg <- ""
-      P.PICO  <- S$Arm$FORM %>% filter(id=="ArmP") %>% pull("value")
-      C.PICO  <- S$Arm$FORM %>% filter(id=="ArmC") %>% pull("value")
       for(i in 1:nrow(R)) {
          if(is.na(R$es[i])) {
             msg = paste0(msg, "<li>", R$I[i], " in ", R$TS[i], "</li>")
