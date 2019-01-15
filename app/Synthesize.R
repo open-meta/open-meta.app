@@ -233,7 +233,7 @@ output$Forest <- renderUI({c(rv$menuActive, rv$limn); isolate({
    if(is.null(S$M$data)) {
       return("")
    } else {
-      return(plotOutput("FPlot", height = length(S$M$data$es) * 40))
+      return(plotOutput("FPlot", height = length(S$M$data$es) * 42))
    }
 })})
 
