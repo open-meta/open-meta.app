@@ -781,7 +781,7 @@ imGetFORMvalues <- function (FORM) {
             }
          }
          # Change statistical analysis options here!
-         FORM$options[FORM$column=="type"] <- "Robust dependent-effects model;Random-effects model (Outcomes averaged)"
+         FORM$options[FORM$column=="type"] <- "Dependent Effects"
       },
       warning(paste0("In imGetFORMvalues(), no handler for ", FORM$table[1], " table."))
       )

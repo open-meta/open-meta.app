@@ -478,7 +478,7 @@ analyze <- function(model="C") {
       Sens <- str_replace(Sens, "X.Intercept.", "Effect Size")
       # switch(S$Any$FORM$value[S$Any$FORM$column=="type"],
       #    "Cluster-robust correlated effects" = {
-      r <- paste0(paste0(M$mod_label, collapse=" "), "\n",
+      r <- paste0("\n\nDependent Effects Model\n(Robust variance estimation for correlated effects with small sample corrections)\n",
       "\nNumber of studies = ", M$N, "\n",
       "Number of outcomes = ", sum(M$k), " (min = ", min(M$k), ", mean = ", format(mean(M$k), digits = 3), ", median = ", stats::median(M$k), ", max = ", max(M$k), ")\n\n",
       "Rho = ", format(M$mod_info$rho, digits = digits), "\n",
