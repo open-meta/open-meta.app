@@ -421,7 +421,7 @@ analyze <- function(model="C") {
       filter(C %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="C"], ";"))) %>%
       filter(O %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="O"], ";"))) %>%
       filter(TS %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="TS"], ";")))
-   if(nrow(R)<4) {
+   if(length(unique(R$studyNUM)) < 4) {
       S$M <- tibble()
       r <- "Not enough studies yet for a Dependent Effects analysis."
       return(r)
