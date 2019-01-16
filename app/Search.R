@@ -939,9 +939,11 @@ setProgress(.5)
             Ncode  = "IP"
             SPcode = "SP"
             EPcode = "EP"
-               p <- str_locate(t$PG, coll("-"))                            # Split page numbers into SP and EP
-               t$SP <- ifelse(is.na(p[,1]), t$PG, str_sub(t$PG, 1, p[,1]-1))
-               t$EP <- ifelse(is.na(p[,2]), as.character(NA), str_sub(t$PG, p[,2]+1, -1))
+               if("PG" %in% cnames) {
+                  p <- str_locate(t$PG, coll("-"))                            # Split page numbers into SP and EP
+                  t$SP <- ifelse(is.na(p[,1]), t$PG, str_sub(t$PG, 1, p[,1]-1))
+                  t$EP <- ifelse(is.na(p[,2]), as.character(NA), str_sub(t$PG, p[,2]+1, -1))
+               }
             SNcode = "IS"
                p <- str_locate(t$IS, coll(" (linking)"))
                t$IS = ifelse(is.na(p[,1]), str_sub(t$IS, 1, 9), str_sub(t$IS, p[,1]-10, p[,1]-1))
