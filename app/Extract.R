@@ -1428,29 +1428,41 @@ calcNsave <- function() {
          }
       }
       if(S$IN$FORM$value[3] %in% c("Counts","Proportions")) {
-         if("s" %in% P) {                 # Convert proportion to 2x2
-            R$nb.0.0 <- round(R$n.0.0 * R$s.0.0 / 100)
-            R$nw.0.0 <- R$n.0.0 - R$nb.0.0
-            R$nb.1.0 <- round(R$n.1.0 * R$s.1.0 / 100)
-            R$nw.1.0 <- R$n.1.0 - R$nb.1.0
-            R$nb.0.1 <- round(R$n.0.1 * R$s.0.1 / 100)
-            R$nw.0.1 <- R$n.0.1 - R$nb.0.1
-            R$nb.1.1 <- round(R$n.1.1 * R$s.1.1 / 100)
-            R$nw.1.1 <- R$n.1.1 - R$nb.1.1
-         }
          if(NoCtrlData) {                 # pp
+            if("s" %in% P) {                 # Convert proportion to 2x2
+               R$nb.1.0 <- round(R$n.1.0 * R$s.1.0 / 100)
+               R$nw.1.0 <- R$n.1.0 - R$nb.1.0
+               R$nb.1.1 <- round(R$n.1.1 * R$s.1.1 / 100)
+               R$nw.1.1 <- R$n.1.1 - R$nb.1.1
+            }
             ES <- c.pp(R$nb.1.0, R$nw.1.0,           # I.Pre
                        R$nb.1.1, R$nw.1.1)           # I.Post
             R$nC <- R$nb.1.0 + R$nw.1.0
             R$nI <- R$nb.1.1 + R$nw.1.1
          }
          if(NoBaseData) {                 # ci
+            if("s" %in% P) {                 # Convert proportion to 2x2
+               R$nb.0.1 <- round(R$n.0.1 * R$s.0.1 / 100)
+               R$nw.0.1 <- R$n.0.1 - R$nb.0.1
+               R$nb.1.1 <- round(R$n.1.1 * R$s.1.1 / 100)
+               R$nw.1.1 <- R$n.1.1 - R$nb.1.1
+            }
             ES <- c.ci(R$nb.0.1, R$nw.0.1,           # C.Post
                        R$nb.1.1, R$nw.1.1)           # I.Post
             R$nC <- R$nb.0.1 + R$nw.0.1
             R$nI <- R$nb.1.1 + R$nw.1.1
          }
          if(!NoCtrlData && !NoBaseData) { #ppci
+            if("s" %in% P) {                 # Convert proportion to 2x2
+               R$nb.0.0 <- round(R$n.0.0 * R$s.0.0 / 100)
+               R$nw.0.0 <- R$n.0.0 - R$nb.0.0
+               R$nb.1.0 <- round(R$n.1.0 * R$s.1.0 / 100)
+               R$nw.1.0 <- R$n.1.0 - R$nb.1.0
+               R$nb.0.1 <- round(R$n.0.1 * R$s.0.1 / 100)
+               R$nw.0.1 <- R$n.0.1 - R$nb.0.1
+               R$nb.1.1 <- round(R$n.1.1 * R$s.1.1 / 100)
+               R$nw.1.1 <- R$n.1.1 - R$nb.1.1
+            }
             ES <- c.ppci(R$nb.0.0, R$nw.0.0,         # C.Pre
                          R$nb.1.0, R$nw.1.0,         # I.Pre
                          R$nb.0.1, R$nw.0.1,         # C.Post
