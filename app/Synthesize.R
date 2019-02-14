@@ -14,6 +14,7 @@ source("chokidar.R", local=TRUE)
 
 # load the inputMeta.R code (also used by other pages)
 source("inputMeta.R", local=TRUE)
+source("forest.robu2.R", local=TRUE)
 
 rv$menuActive = 1    # Start out on first sub-menu
 rv$limnSetup = 0
@@ -24,7 +25,7 @@ S$NUMs$analysisNUM <- 0
 S$noAnalysis <- TRUE
 
 S$R <- recGet(S$db, "result",
-           c("resultID", "studyNUM", "armNUM", "P", "I", "C", "O", "TS", "info", "esType", "nC", "nI", "es", "v", "ci.lo", "ci.hi"),
+           c("resultID", "catalogID", "studyNUM", "armNUM", "P", "I", "C", "O", "TS", "info", "esType", "nC", "nI", "es", "v", "ci.lo", "ci.hi"),
            tibble(d = c("deleted", "=", "0")))
 S$noResults <- ifelse(S$R$resultID[1]==0, TRUE, FALSE)
 S$M <- tibble()
@@ -233,16 +234,67 @@ output$Forest <- renderUI({c(rv$menuActive, rv$limn); isolate({
    if(is.null(S$M$data)) {
       return("")
    } else {
-      return(plotOutput("FPlot", height = length(S$M$data$es) * 42))
+      h =  150 + (length(unique(S$M$data$studyNUM)) * 45) + (length(S$M$data$es) * 12)
+      return(tagList(
+         plotOutput("FPlot", height = h),
+         if(S$P$Modify) {
+            bs4("c12", class="text-right",
+                downloadButton(outputId = "downloadData", class="m-3 btn-primary", label = "Download Data"),
+                downloadButton(outputId = "downloadModel", class="m-3 btn-primary", label = "Download Model"),
+                downloadButton(outputId = "downloadForest", class="m-3 btn-primary", label = "Download Plot")
+            )
+         }
+      ))
    }
 })})
 
 output$FPlot <- renderPlot({
+  #    View(S$M$data)
+  #    View(S$M$data.full)
    if(rv$Forest>0) {      # See output$Forest; this disables output$FPlot when there's nothing to display
-      return(forest.robu(S$M, es.lab = "XName", study.lab = "studyName"))   # NOTE: the model, S$M; not the results, S$R
+      forest.robu2(S$M, es.lab = "XName", study.lab = "studyName")   # NOTE: the model, S$M; not the results, S$R
    }
 })
 
+# download Handler for the Forest Plot
+output$downloadForest <- downloadHandler(
+ filename = function() {
+   fname <- recGet(S$db, "analysis", "name", tibble(d = c("analysisID", "=", S$NUMs$analysisNUM)))
+   fname <- paste0("Forest Plot for ", fname[1,1], ".png")
+   return(fname)
+ },
+ content = function(file) {
+   h =  150 + (length(unique(S$M$data$studyNUM)) * 45) + (length(S$M$data$es) * 12)
+   png(file, width=2400, height=h*2.1, units="px", res=150)
+   forest.robu2(S$M, es.lab = "XName", study.lab = "studyName")
+   dev.off()
+ }
+)
+
+# download Handler for the Model
+output$downloadModel <- downloadHandler(
+ filename = function() {
+   fname <- recGet(S$db, "analysis", "name", tibble(d = c("analysisID", "=", S$NUMs$analysisNUM)))
+   fname <- paste0("Model for ", fname[1,1], ".RDS")
+   return(fname)
+ },
+ content = function(file) {
+    saveRDS(S$M, file=file)
+ }
+)
+
+# download Handler for the Data
+output$downloadData <- downloadHandler(
+ filename = function() {
+   fname <- recGet(S$db, "analysis", "name", tibble(d = c("analysisID", "=", S$NUMs$analysisNUM)))
+   fname <- paste0("Data for ", fname[1,1], ".RDS")
+   return(fname)
+ },
+ content = function(file) {
+    saveRDS(S$Rx, file=file)
+    # write.csv(S$R, file=file, row.names=FALSE)
+ }
+)
 
       # return(ggplot(data=S$R2,
       #    aes(x = XName, y = es, ymin = ci.lo, ymax = ci.hi ))+
@@ -409,10 +461,13 @@ observeEvent(input$js.omclick, {
             }
          }
       },
+      "download" = {
+         if(n=="forest") {
+         }
+      },
       message(paste0("In input$js.omclick observer, no handler for ", id, "."))
    )
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
-
 
 analyze <- function(model="C") {
    R <- S$R %>%
@@ -430,9 +485,10 @@ analyze <- function(model="C") {
    r <- recGet(S$db, "extract", c("studyNUM", "value"),
             tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
                    n = c("name", "=", "Trial")))
-   studyNames <- r$value
-   names(studyNames) <- as.character(r$studyNUM)
-   R$studyNames <- studyNames[as.character(R$studyNUM)]
+   studyName <- r$value
+   names(studyName) <- as.character(r$studyNUM)
+   R$studyName <- studyName[as.character(R$studyNUM)]
+ #  View(r)
    # Construct XName (what's different about this result in terms of PICOTS)
    keepP <- length(unique(R$P))>1
    keepI <- length(unique(R$I))>1
@@ -443,15 +499,24 @@ analyze <- function(model="C") {
    for(i in 1:nrow(R)) {
       R$XName[i] <- paste0(c(R$P[i][keepP], R$I[i][keepI], R$C[i][keepC], R$O[i][keepO], R$TS[i][keepTS]), collapse="-")
    }
+   # To sensibly sort the forest plot, we need the authors and publication years
+   ay = recGet(S$db, "catalog", c("catalogID", "author", "Y"), tibble(x = c("catalogID", " IN ", paste0("(", paste0(unique(R$catalogID), collapse=","), ")"))))
+   R$Y <-R$author <- rep("", nrow(R))
+   for(cid in R$catalogID) {
+      R[R$catalogID==cid, "Y"] <- ay[ay$catalogID==cid, "Y"]
+      R[R$catalogID==cid, "author"] <- ay[ay$catalogID==cid, "author"]
+   }
+   R <- arrange(R, Y, author, XName)
+ #  View(R)
    # R2 drops some columns from R
-   R2 <- tibble(studyName = R$studyNames, XName = R$XName, studyNUM=R$studyNUM,
+   R2 <- tibble(studyName = R$studyName, XName = R$XName, studyNUM=R$studyNUM,
                 es = as.numeric(R$es), v = as.numeric(R$v), ci.lo = as.numeric(R$ci.lo), ci.hi=as.numeric(R$ci.hi))
-#   switch(S$Any$FORM$value[S$Any$FORM$column=="type"],
-#      "Cluster-robust correlated effects" = {
+#   View(R2)
    M <- robu(es ~ 1,
        data = R2,
        modelweights = "CORR",
-       studynum = studyNUM,
+#       studynum = studyNUM,
+       studynum = as.factor(studyName),
        var.eff.size = v,
        small = TRUE)
       # },
@@ -465,7 +530,7 @@ analyze <- function(model="C") {
       #    Sens <- ""
       # }
    # )
-
+#   M$study_orig_id <- 1:nrow(M$data)     # This is a hack to get forest.robu to put things in the arranged order
    digits=3
    effect <- M$reg_table
    effect$labels <- "ES of combined studies"
@@ -503,8 +568,21 @@ analyze <- function(model="C") {
       #       Sens)
       #    }
       # )
+     # View(M)
       S$M <<- M
       S$R2 <<- R2
+      # These are for the data download csv and meta regression
+      R$Dose      <- as.numeric(sapply(str_split(R$I, " "), function(x) x[1]))
+      R$TimeSpan  <- as.numeric(sapply(str_split(R$TS, " "), function(x) x[1]))
+      R$O      <- as.factor(R$O)
+      R$Y      <- as.numeric(R$Y)
+      R$nC     <- as.numeric(R$nC)
+      R$nI     <- as.numeric(R$nI)
+      R$es     <- as.numeric(R$es)
+      R$v      <- as.numeric(R$v)
+      R$ci.lo  <- as.numeric(R$ci.lo)
+      R$ci.hi  <- as.numeric(R$ci.hi)
+      S$Rx <<- R %>% select(studyName, Y, Dose, O, TimeSpan, info, nC, nI, es, v, ci.lo, ci.hi)
    }
    return(r)
 }
@@ -523,5 +601,4 @@ tib2tab <- function(tib, digits=3) {
             ))
    )
 }
-
 
