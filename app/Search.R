@@ -994,7 +994,13 @@ setProgress(.5)
             if(!("PT:" %in% cnames)) {
                t[["PT:"]] = rep("Cochrane Review", nrow(t))                   # If PT is missing, it's a Cochrane Review cite file
             }
+            if(!("PM:" %in% cnames)) {
+               t[["PM:"]] = rep("PUBMED x", nrow(t))                          # If PM is missing, it's a Cochrane Review cite file
+            }
             t[["PM:"]] <- str_sub(t[["PM:"]], 8, -1)                          # Delete "PUBMED " at beginning of column
+            if(!("PG:" %in% cnames)) {
+               t[["PG:"]] = rep("", nrow(t))                                  # If PG is missing, it's a Cochrane Review cite file
+            }
             p <- str_locate(t[["PG:"]], coll("-"))                            # Split page numbers into SP and EP
             t$SP <- ifelse(is.na(p[,1]), p[,1], str_sub(t[["PG:"]], 1, p[,1]-1))
             t$EP <- ifelse(is.na(p[,1]), p[,1], str_sub(t[["PG:"]], p[,2]+1, -1))
@@ -1003,7 +1009,8 @@ setProgress(.5)
             AUcode = "AU:"
             Jcode  = "SO:"
             Ycode  = "YR:"
-            Vcode  = "VL:"
+            if(!("VL:" %in% cnames)) { t[["VL:"]] <- "" }
+            Vcode  = "VL:"  ###
             Ncode  = "NO:"
             SPcode  = "SP"  # No colon; created new columns above
             EPcode  = "EP"
