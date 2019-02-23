@@ -77,10 +77,9 @@ DB.Initialization = function(burnItAllDown=FALSE) {
          # settings
          # ids
 
-
-   filenames <- c("../Database/omPrimeBaseDB.sql", "../Database/omPrimeAuxDB.sql", "../Database/omPrj1BaseDB.sql", "../Database/omPrj1AuxDB.sql")
-   for(filename in filenames) {
+   MySQL.Undump <- function(filename) {
       if(file.exists(filename)) {                             # see: http://www.open-meta.org/technology/how-to-source-a-mysqldump-file-with-syntax-statements/
+         print(filename)
          sql <- stri_read_lines(filename, encoding="utf8")    # read file into sql character vector
          cmd <- ""                                            # initialize command
          for(line in sql) {                                   # loop through sql vector, one line at a time
@@ -94,6 +93,22 @@ DB.Initialization = function(burnItAllDown=FALSE) {
          }
       }
    }
+
+   SQL.DBs <- dbGetQuery(dbLink, "SHOW DATABASES")
+   if(!"om$prime" %in% SQL.DBs$Database) {
+      r = dbExecute(dbLink, "CREATE DATABASE `om$prime`;")
+   }
+   r = dbExecute(dbLink, "USE `om$prime`;")
+   MySQL.Undump("../Database/omPrimeBaseDB.sql")
+   MySQL.Undump("../Database/omPrimeAuxDB.sql")
+
+   if(!"om$prj_1" %in% SQL.DBs$Database) {
+      r = dbExecute(dbLink, "CREATE DATABASE `om$prj_1`;")
+   }
+   r = dbExecute(dbLink, "USE `om$prj_1`;")
+   MySQL.Undump("../Database/omPrj1BaseDB.sql")
+   MySQL.Undump("../Database/omPrj1AuxDB.sql")
+
 
 # Add a page to om$prime.page
       # pg = pageGet(pool=root.pool)
