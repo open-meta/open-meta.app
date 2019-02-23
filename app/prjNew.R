@@ -22,9 +22,8 @@ output$uiMeat <- renderUI({rv$limn; isolate({
                   HTML('</div>'),
                   HTML('<div class="card bg-warning text-dark w-3 mx-auto my-4"><div class="card-body"><div class="card-title">',
                        '<h5 class="text-dark">Your New Project</h5></div>',
-                       '<div class="card-text">After you name your project and click <i>Start Project</i>, your project',
-                       "will appear in your <b><i>My Projects</i></b> list. However, it will not appear as an",
-                       "<b><i>Active Project</i></b> until you complete a detailed description of your project.",
+                       '<div class="card-text">After you name your project and click <i>Start Project</i>, you will',
+                       "be able to complete a detailed description of your project.",
                        "Open-Meta supports the PRISMA-P protocol for describing systematic reviews and meta analyses",
                        "(<a href='https://www.bmj.com/content/bmj/349/bmj.g7647.full.pdf' target='_blank'>Shamseer",
                        "et al., 2015</a>).</div></div></div>")
