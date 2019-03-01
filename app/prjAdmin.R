@@ -301,7 +301,7 @@ to physical performance and which are related to mental performance. This would 
 physical performance outcomes, or all the mental performance outcomes, together as a group. If you don't collect
 this informtion, you will be limited to analyzing only individual outcomes or all of the outcomes together.</p>
 <p>To make your data <i>more granular</i>, you're in the wrong place. Instead, go to your project's <i>Extract/
-PICO(T) setup</i> menu. That's were you can enter any number of different participant groups, interventions,
+PICOT setup</i> menu. That's were you can enter any number of different participant groups, interventions,
 comparisons, outcomes, and time spans. The relationship between this page and that one is that you will use the
 input form you design here to collect data on the specific items you enter there.</p><hr>
 <p>This page has two sections. The upper section either has a green button for adding an additional input to a

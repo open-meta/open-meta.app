@@ -114,7 +114,7 @@ output$uiMeat <- renderUI({c(rv$limn); isolate({
 })})
 
 output$pageMenu <- renderUI({c(rv$limn); isolate({
-   menu1 <- c("Dashboard", "PICO(T) Setup", "Extraction List")
+   menu1 <- c("Dashboard", "PICOT Setup", "Extraction List")
    menu2 <- c("Participants", "Interventions", "Comparisons", "Outcomes", "Time Spans")
    subMenu <- ifelse(rv$menu1Active!=2, "",
                   as.character(bs4("mp", id="menu2", n=1:length(menu2), active=rv$menu2Active, text=menu2)))
