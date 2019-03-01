@@ -20,7 +20,7 @@ m.ppci <- function(n.0.0, m.0.0, sd.0.0,         # C.Pre
    if(all(is.na(sd.0.1)) && all(is.na(sd(1.1))) && all(is.na(sd(1.0)))) {  # In case there's no Baseline Overall SD
       sd <- sd.1.1
    }
-   ssa <- 1 - (3 / (4*(N) - 9))                  # Small sample adjustment
+   ssa <- 1 - (3 / (4*(N) - 9))                  # Bias correction
    es  <- m/sd*ssa
    v   <- ((N)/(n.0.0*n.1.0)) + (es^2/(2*(N-2))) # variance is based on baseline n
    se  <- sqrt(v)
