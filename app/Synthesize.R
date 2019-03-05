@@ -296,23 +296,28 @@ output$downloadData <- downloadHandler(
 
 #    S$Rp <<- R %>% select(studyName, Y, BiasFund, BiasHiding, BiasStaff, BiasSubj, BiasAttr,
 #                            I, O, TS, info, nC, nI)
-    studies <- unique(data$studyName)
-    blanks <- rep("", length(studies))
-    R <- tibble(study=blanks, biasnames=blanks, bias=blanks, O=blanks, I=blanks, TS=blanks, nC=blanks, nI=blanks)
-    for(i in 1:length(studies)) {
-       S <- data %>% filter(studyName == studies[i])
-       R$study[i] <- S$studyName[1]
-       R$biasnames[i] <- paste0("Industry funding:\nRandomization and allocation concealment:\n",
-                                "Blinding of research personnel:\nBlinding of participants:\n",
-                                "Level of attrition and exclusions:")
-       R$bias[i] <- paste0(S$BiasFund[1], "\n", S$BiasHiding[1], "\n", S$BiasStaff[1], "\n",
-                           S$BiasSubj[1], "\n", S$BiasAttr[1])
-       R$O[i]  <- paste0(S$O, collapse="\n")
-       R$I[i]  <- paste0(S$Dose, collapse="\n")
-       R$TS[i] <- paste0(S$TimeSpan, collapse="\n")
-       R$nC[i] <- paste0(S$nC, collapse="\n")
-       R$nI[i] <- paste0(S$nI, collapse="\n")
-
+   studies <- unique(data$studyName)
+   blanks <- rep("", length(studies))
+   R <- tibble(study=blanks, bias1=blanks, bias2=blanks, bias3=blanks, bias4=blanks, bias5=blanks,
+               O=blanks, I=blanks, TS=blanks, nC=blanks, nI=blanks)
+   for(i in 1:length(studies)) {
+      S <- data %>% filter(studyName == studies[i])
+      R$study[i] <- S$studyName[1]
+       # R$biasnames[i] <- paste0("Industry funding:\nRandomization and allocation concealment:\n",
+       #                          "Blinding of research personnel:\nBlinding of participants:\n",
+       #                          "Level of attrition and exclusions:")
+       # R$bias[i] <- paste0(S$BiasFund[1], "\n", S$BiasHiding[1], "\n", S$BiasStaff[1], "\n",
+       #                     S$BiasSubj[1], "\n", S$BiasAttr[1])
+      R$bias1[i] <- paste0(str_sub(S$BiasFund[1], 1,1))
+      R$bias2[i] <- paste0(str_sub(S$BiasHiding[1], 1,1))
+      R$bias3[i] <- paste0(str_sub(S$BiasStaff[1], 1,1))
+      R$bias4[i] <- paste0(str_sub(S$BiasSubj[1], 1,1))
+      R$bias5[i] <- paste0(str_sub(S$BiasAttr[1], 1,1))
+      R$O[i]  <- paste0(S$O, collapse="\n")
+      R$I[i]  <- paste0(S$Dose, collapse="\n")
+      R$TS[i] <- paste0(S$TimeSpan, collapse="\n")
+      R$nC[i] <- paste0(S$nC, collapse="\n")
+      R$nI[i] <- paste0(S$nI, collapse="\n")
     }
     write_csv(R, path=file)
     # write.csv(S$R, file=file, row.names=FALSE)
