@@ -30,6 +30,8 @@ S$R <- recGet(S$db, "result",
 S$noResults <- ifelse(S$R$resultID[1]==0, TRUE, FALSE)
 S$M <- tibble()
 S$R2 <- tibble()
+S$Rx <- tibble()   # Table for robumeta
+S$Rp <- tibble()   # Table for publication
 
 
 if(S$P$Msg=="") {
@@ -287,11 +289,32 @@ output$downloadModel <- downloadHandler(
 output$downloadData <- downloadHandler(
  filename = function() {
    fname <- recGet(S$db, "analysis", "name", tibble(d = c("analysisID", "=", S$NUMs$analysisNUM)))
-   fname <- paste0("Data for ", fname[1,1], ".RDS")
+   fname <- paste0("Data for ", fname[1,1], ".csv")
    return(fname)
  },
- content = function(file) {
-    saveRDS(S$Rx, file=file)
+ content = function(file, data=S$Rp) {
+
+#    S$Rp <<- R %>% select(studyName, Y, BiasFund, BiasHiding, BiasStaff, BiasSubj, BiasAttr,
+#                            I, O, TS, info, nC, nI)
+    studies <- unique(data$studyName)
+    blanks <- rep("", length(studies))
+    R <- tibble(study=blanks, biasnames=blanks, bias=blanks, O=blanks, I=blanks, TS=blanks, nC=blanks, nI=blanks)
+    for(i in 1:length(studies)) {
+       S <- data %>% filter(studyName == studies[i])
+       R$study[i] <- S$studyName[1]
+       R$biasnames[i] <- paste0("Industry funding:\nRandomization and allocation concealment:\n",
+                                "Blinding of research personnel:\nBlinding of participants:\n",
+                                "Level of attrition and exclusions:")
+       R$bias[i] <- paste0(S$BiasFund[1], "\n", S$BiasHiding[1], "\n", S$BiasStaff[1], "\n",
+                           S$BiasSubj[1], "\n", S$BiasAttr[1])
+       R$O[i]  <- paste0(S$O, collapse="\n")
+       R$I[i]  <- paste0(S$Dose, collapse="\n")
+       R$TS[i] <- paste0(S$TimeSpan, collapse="\n")
+       R$nC[i] <- paste0(S$nC, collapse="\n")
+       R$nI[i] <- paste0(S$nI, collapse="\n")
+
+    }
+    write_csv(R, path=file)
     # write.csv(S$R, file=file, row.names=FALSE)
  }
 )
@@ -488,7 +511,47 @@ analyze <- function(model="C") {
    studyName <- r$value
    names(studyName) <- as.character(r$studyNUM)
    R$studyName <- studyName[as.character(R$studyNUM)]
- #  View(r)
+
+   # Get Industry Funding Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
+                   n = c("name", "=", "TrialBiasFund")))
+   BiasFund <- r$value
+   names(BiasFund) <- as.character(r$studyNUM)
+   R$BiasFund <- BiasFund[as.character(R$studyNUM)]
+
+   # Get  Randomization and allocation concealment Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
+                   n = c("name", "=", "TrialBiasHiding")))
+   BiasHiding <- r$value
+   names(BiasHiding) <- as.character(r$studyNUM)
+   R$BiasHiding <- BiasHiding[as.character(R$studyNUM)]
+
+   # Get Blinding of research personnel Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
+                   n = c("name", "=", "TrialBiasStaff")))
+   BiasStaff <- r$value
+   names(BiasStaff) <- as.character(r$studyNUM)
+   R$BiasStaff <- BiasStaff[as.character(R$studyNUM)]
+
+   # Get Blinding of participants Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
+                   n = c("name", "=", "TrialBiasSubj")))
+   BiasSubj <- r$value
+   names(BiasSubj) <- as.character(r$studyNUM)
+   R$BiasSubj <- BiasSubj[as.character(R$studyNUM)]
+
+   # Get Level of attrition and exclusions Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
+                   n = c("name", "=", "TrialBiasAttr")))
+   BiasAttr <- r$value
+   names(BiasAttr) <- as.character(r$studyNUM)
+   R$BiasAttr <- BiasAttr[as.character(R$studyNUM)]
+
    # Construct XName (what's different about this result in terms of PICOTS)
    keepP <- length(unique(R$P))>1
    keepI <- length(unique(R$I))>1
@@ -582,7 +645,12 @@ analyze <- function(model="C") {
       R$v      <- as.numeric(R$v)
       R$ci.lo  <- as.numeric(R$ci.lo)
       R$ci.hi  <- as.numeric(R$ci.hi)
+      # Table for meta-regression
       S$Rx <<- R %>% select(studyName, Y, Dose, O, TimeSpan, info, nC, nI, es, v, ci.lo, ci.hi)
+      # Table for data download
+         # for multiple lines in a cell, put quotes around the whole thing.
+      S$Rp <<- R %>% select(studyName, Y, BiasFund, BiasHiding, BiasStaff, BiasSubj, BiasAttr,
+                            Dose, O, TimeSpan, info, nC, nI)
    }
    return(r)
 }
