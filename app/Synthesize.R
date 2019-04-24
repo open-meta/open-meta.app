@@ -24,15 +24,11 @@ S$editFORM <- FALSE
 S$NUMs$analysisNUM <- 0
 S$noAnalysis <- TRUE
 
-S$R <- recGet(S$db, "result",
-           c("resultID", "catalogID", "studyNUM", "armNUM", "P", "I", "C", "O", "TS", "info", "esType", "nC", "nI", "es", "v", "ci.lo", "ci.hi"),
-           tibble(d = c("deleted", "=", "0")))
-S$noResults <- ifelse(S$R$resultID[1]==0, TRUE, FALSE)
-S$M <- tibble()
-S$R2 <- tibble()
-S$Rx <- tibble()   # Table for robumeta
-S$Rp <- tibble()   # Table for publication
-
+r <- recGet(S$db, "result", "resultID", tibble(d = c("deleted", "=", "0")))
+S$noResults <- ifelse(r$resultID[1]==0, TRUE, FALSE)
+r <- NULL
+S$R <- tibble()    # Results for current analysis
+S$M <- tibble()    # The Model
 
 if(S$P$Msg=="") {
    output$uiMeat <- renderUI({c(rv$limn); isolate({
@@ -241,6 +237,7 @@ output$Forest <- renderUI({c(rv$menuActive, rv$limn); isolate({
          plotOutput("FPlot", height = h),
          if(S$P$Modify) {
             bs4("c12", class="text-right",
+                downloadButton(outputId = "downloadCites", class="m-3 btn-primary", label = "Download Citations"),
                 downloadButton(outputId = "downloadData", class="m-3 btn-primary", label = "Download Data"),
                 downloadButton(outputId = "downloadModel", class="m-3 btn-primary", label = "Download Model"),
                 downloadButton(outputId = "downloadForest", class="m-3 btn-primary", label = "Download Plot")
@@ -292,38 +289,117 @@ output$downloadData <- downloadHandler(
    fname <- paste0("Data for ", fname[1,1], ".csv")
    return(fname)
  },
- content = function(file, data=S$Rp) {
 
-#    S$Rp <<- R %>% select(studyName, Y, BiasFund, BiasHiding, BiasStaff, BiasSubj, BiasAttr,
-#                            I, O, TS, info, nC, nI)
-   studies <- unique(data$studyName)
+ content = function(file) {
+   # data for this function is in S$R
+   R <- S$R
+
+   Nums <- paste0(unique(R$studyNUM), collapse=",")
+
+   # Get Industry Funding Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", Nums, ")")),
+                   n = c("name", "=", "TrialBiasFund")))
+   BiasFund <- r$value
+   names(BiasFund) <- as.character(r$studyNUM)
+   R$BiasFund <- BiasFund[as.character(R$studyNUM)]
+
+   # Get  Randomization and allocation concealment Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", Nums, ")")),
+                   n = c("name", "=", "TrialBiasHiding")))
+   BiasHiding <- r$value
+   names(BiasHiding) <- as.character(r$studyNUM)
+   R$BiasHiding <- BiasHiding[as.character(R$studyNUM)]
+
+   # Get Blinding of research personnel Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", Nums, ")")),
+                   n = c("name", "=", "TrialBiasStaff")))
+   BiasStaff <- r$value
+   names(BiasStaff) <- as.character(r$studyNUM)
+   R$BiasStaff <- BiasStaff[as.character(R$studyNUM)]
+
+   # Get Blinding of participants Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", Nums, ")")),
+                   n = c("name", "=", "TrialBiasSubj")))
+   BiasSubj <- r$value
+   names(BiasSubj) <- as.character(r$studyNUM)
+   R$BiasSubj <- BiasSubj[as.character(R$studyNUM)]
+
+   # Get Level of attrition and exclusions Bias
+   r <- recGet(S$db, "extract", c("studyNUM", "value"),
+            tibble(s = c("studyNUM", " IN ", paste0("(", Nums, ")")),
+                   n = c("name", "=", "TrialBiasAttr")))
+   BiasAttr <- r$value
+   names(BiasAttr) <- as.character(r$studyNUM)
+   R$BiasAttr <- BiasAttr[as.character(R$studyNUM)]
+
+   studies <- unique(R$studyName)
    blanks <- rep("", length(studies))
-   R <- tibble(study=blanks, bias1=blanks, bias2=blanks, bias3=blanks, bias4=blanks, bias5=blanks,
+   Rd <- tibble(study=blanks, bias1=blanks, bias2=blanks, bias3=blanks, bias4=blanks, bias5=blanks,
                O=blanks, I=blanks, TS=blanks, nC=blanks, nI=blanks)
    for(i in 1:length(studies)) {
-      S <- data %>% filter(studyName == studies[i])
-      R$study[i] <- S$studyName[1]
+      S <- R %>% filter(studyName == studies[i])
+      View(S)
+      Rd$study[i] <- S$studyName[1]
        # R$biasnames[i] <- paste0("Industry funding:\nRandomization and allocation concealment:\n",
        #                          "Blinding of research personnel:\nBlinding of participants:\n",
        #                          "Level of attrition and exclusions:")
        # R$bias[i] <- paste0(S$BiasFund[1], "\n", S$BiasHiding[1], "\n", S$BiasStaff[1], "\n",
        #                     S$BiasSubj[1], "\n", S$BiasAttr[1])
-      R$bias1[i] <- paste0(str_sub(S$BiasFund[1], 1,1))
-      R$bias2[i] <- paste0(str_sub(S$BiasHiding[1], 1,1))
-      R$bias3[i] <- paste0(str_sub(S$BiasStaff[1], 1,1))
-      R$bias4[i] <- paste0(str_sub(S$BiasSubj[1], 1,1))
-      R$bias5[i] <- paste0(str_sub(S$BiasAttr[1], 1,1))
-      R$O[i]  <- paste0(S$O, collapse="\n")
-      R$I[i]  <- paste0(S$Dose, collapse="\n")
-      R$TS[i] <- paste0(S$TimeSpan, collapse="\n")
-      R$nC[i] <- paste0(S$nC, collapse="\n")
-      R$nI[i] <- paste0(S$nI, collapse="\n")
-    }
-    write_csv(R, path=file)
+      Rd$bias1[i] <- paste0(str_sub(S$BiasFund[1], 1,1))
+      Rd$bias2[i] <- paste0(str_sub(S$BiasHiding[1], 1,1))
+      Rd$bias3[i] <- paste0(str_sub(S$BiasStaff[1], 1,1))
+      Rd$bias4[i] <- paste0(str_sub(S$BiasSubj[1], 1,1))
+      Rd$bias5[i] <- paste0(str_sub(S$BiasAttr[1], 1,1))
+      Rd$O[i]  <- paste0(S$O, collapse="\n")
+      Rd$I[i]  <- paste0(S$Dose, collapse="\n")
+      Rd$TS[i] <- paste0(S$TimeSpan, collapse="\n")
+      Rd$nC[i] <- paste0(S$nC, collapse="\n")
+      Rd$nI[i] <- paste0(S$nI, collapse="\n")
+   }
+    write_csv(Rd, path=file)
     # write.csv(S$R, file=file, row.names=FALSE)
  }
 )
 
+# download Handler for the Citations
+output$downloadCites <- downloadHandler(
+ filename = function() {
+   fname <- recGet(S$db, "analysis", "name", tibble(d = c("analysisID", "=", S$NUMs$analysisNUM)))
+   fname <- paste0("Citations for ", fname[1,1], ".ris")
+   return(fname)
+ },
+ content = function(file) {
+   # data for this function is in S$R
+   Nums <- paste0(unique(S$R$catalogID), collapse=",")
+   r <- recGet(S$db, "catalog", "*",
+            tibble(s = c("catalogID", " IN ", paste0("(", Nums, ")"))))
+   r <- r %>% arrange(Y,author)
+   View(r)
+   authList <- lapply(r$author, function(x) paste0("AU  - ", str_trim(unlist(str_split(x, ";"))), collapse="\r\n"))             # vectorize and trim
+   Lines <- paste0(
+      paste0("TY  - JOUR\r\n"),
+      paste0("TI  - ", r$title, "\r\n"),
+      paste0("JO  - ", r$journal, "\r\n"),
+      paste0("SN  - ", r$issn, "\r\n"),
+      paste0("PY  - ", r$Y, "\r\n"),
+      paste0("VL  - ", r$V, "\r\n"),
+      paste0("IS  - ", r$N, "\r\n"),
+      paste0("SP  - ", r$startP, "\r\n"),
+      paste0("EP  - ", r$endP, "\r\n"),
+      paste0("DO  - ", r$doi, "\r\n"),
+      paste0("U2  - PMID: ", r$pmid, "\r\n"),
+      authList,                                     # must be last to get the added \r\n
+      paste0("\r\nER  - \r\n")
+   )
+   write(Lines, file=file)
+ }
+)
+
+# In this, replace S$R2 with maybe S$M$data? S$R2 is gone in any case
       # return(ggplot(data=S$R2,
       #    aes(x = XName, y = es, ymin = ci.lo, ymax = ci.hi ))+
       #    geom_pointrange(aes(col=XName))+
@@ -498,7 +574,10 @@ observeEvent(input$js.omclick, {
 }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
 analyze <- function(model="C") {
-   R <- S$R %>%
+   R <- recGet(S$db, "result",   # Get the entire Results table
+           c("resultID", "catalogID", "studyNUM", "armNUM", "P", "I", "C", "O", "TS", "info", "esType", "nC", "nI", "es", "v", "ci.lo", "ci.hi"),
+           tibble(d = c("deleted", "=", "0")))
+   R <- R %>%                    # Filter R down to the PICOTS in this analysis
       filter(P %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="P"], ";"))) %>%
       filter(I %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="I"], ";"))) %>%
       filter(C %in% unlist(str_split(S$Any$FORM$value[S$Any$FORM$column=="C"], ";"))) %>%
@@ -516,46 +595,6 @@ analyze <- function(model="C") {
    studyName <- r$value
    names(studyName) <- as.character(r$studyNUM)
    R$studyName <- studyName[as.character(R$studyNUM)]
-
-   # Get Industry Funding Bias
-   r <- recGet(S$db, "extract", c("studyNUM", "value"),
-            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
-                   n = c("name", "=", "TrialBiasFund")))
-   BiasFund <- r$value
-   names(BiasFund) <- as.character(r$studyNUM)
-   R$BiasFund <- BiasFund[as.character(R$studyNUM)]
-
-   # Get  Randomization and allocation concealment Bias
-   r <- recGet(S$db, "extract", c("studyNUM", "value"),
-            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
-                   n = c("name", "=", "TrialBiasHiding")))
-   BiasHiding <- r$value
-   names(BiasHiding) <- as.character(r$studyNUM)
-   R$BiasHiding <- BiasHiding[as.character(R$studyNUM)]
-
-   # Get Blinding of research personnel Bias
-   r <- recGet(S$db, "extract", c("studyNUM", "value"),
-            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
-                   n = c("name", "=", "TrialBiasStaff")))
-   BiasStaff <- r$value
-   names(BiasStaff) <- as.character(r$studyNUM)
-   R$BiasStaff <- BiasStaff[as.character(R$studyNUM)]
-
-   # Get Blinding of participants Bias
-   r <- recGet(S$db, "extract", c("studyNUM", "value"),
-            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
-                   n = c("name", "=", "TrialBiasSubj")))
-   BiasSubj <- r$value
-   names(BiasSubj) <- as.character(r$studyNUM)
-   R$BiasSubj <- BiasSubj[as.character(R$studyNUM)]
-
-   # Get Level of attrition and exclusions Bias
-   r <- recGet(S$db, "extract", c("studyNUM", "value"),
-            tibble(s = c("studyNUM", " IN ", paste0("(", paste0(unique(R$studyNUM), collapse=","), ")")),
-                   n = c("name", "=", "TrialBiasAttr")))
-   BiasAttr <- r$value
-   names(BiasAttr) <- as.character(r$studyNUM)
-   R$BiasAttr <- BiasAttr[as.character(R$studyNUM)]
 
    # Construct XName (what's different about this result in terms of PICOTS)
    keepP <- length(unique(R$P))>1
@@ -637,8 +676,7 @@ analyze <- function(model="C") {
       #    }
       # )
      # View(M)
-      S$M <<- M
-      S$R2 <<- R2
+      S$M <<- M   # Save the Model
       # These are for the data download csv and meta regression
       R$Dose      <- as.numeric(sapply(str_split(R$I, " "), function(x) x[1]))
       R$TimeSpan  <- as.numeric(sapply(str_split(R$TS, " "), function(x) x[1]))
@@ -650,12 +688,8 @@ analyze <- function(model="C") {
       R$v      <- as.numeric(R$v)
       R$ci.lo  <- as.numeric(R$ci.lo)
       R$ci.hi  <- as.numeric(R$ci.hi)
-      # Table for meta-regression
-      S$Rx <<- R %>% select(studyName, Y, Dose, O, TimeSpan, info, nC, nI, es, v, ci.lo, ci.hi)
-      # Table for data download
-         # for multiple lines in a cell, put quotes around the whole thing.
-      S$Rp <<- R %>% select(studyName, Y, BiasFund, BiasHiding, BiasStaff, BiasSubj, BiasAttr,
-                            Dose, O, TimeSpan, info, nC, nI)
+      # S$R is used for data and citation downloads and probably meta-regression
+      S$R <<- R
    }
    return(r)
 }
