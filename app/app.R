@@ -10,7 +10,7 @@ A <- list()                  # This list is for Application Globals
 #A$burnItAllDown = TRUE      # CAREFUL - TRUE deletes the entire Open-Meta database and starts over
 A$burnItAllDown = FALSE
 A$debugON <- TRUE            # if TRUE, prints debugging info to the console (or server log)
-A$showSysMsg = TRUE          # Controls whether the big red box shows on the main site pages or not
+A$showSysMsg = FALSE          # Controls whether the big red box shows on the main site pages or not
 A$FORMfromDisk <- FALSE      # FALSE gets FORMs from SQL
 A$FORMtoDisk <- FALSE        # TRUE saves to both Disk and SQL; FALSE to SQL only
 A$PM_lastTime <- Sys.time()  # Used to space out PubMed Searches
